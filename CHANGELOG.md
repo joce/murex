@@ -6,6 +6,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-12
+
 ### Added
 
 - The modules oilpaint and fusain share, taken from oilpaint as they are:
@@ -15,4 +17,5 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - `Pigment`: oilpaint's `Paint` without what is particular to oil paint
   (its body).
 
-[Unreleased]: https://github.com/joce/murex/commits/main
+[Unreleased]: https://github.com/joce/murex/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/joce/murex/releases/tag/v0.1.0
