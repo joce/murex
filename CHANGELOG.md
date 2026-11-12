@@ -6,7 +6,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-11-12
+## [0.1.1] - 2026-11-12
+
+The first release. There is no 0.1.0: an unrelated project that once had this
+name on PyPI used that version number in 2017, and PyPI never lets a file name
+be used twice.
 
 ### Added
 
@@ -17,5 +21,5 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - `Pigment`: oilpaint's `Paint` without what is particular to oil paint
   (its body).
 
-[Unreleased]: https://github.com/joce/murex/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/joce/murex/releases/tag/v0.1.0
+[Unreleased]: https://github.com/joce/murex/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/joce/murex/releases/tag/v0.1.1
