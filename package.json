@@ -1,0 +1,12 @@
+{
+  "name": "murex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "What simulations of artists' media share: pigments that mix like the real thing (spectral Kubelka-Munk), stroke paths, textures and reference images.",
+  "scripts": {
+    "spell": "cspell ."
+  },
+  "devDependencies": {
+    "cspell": "^10.4.1"
+  }
+}
