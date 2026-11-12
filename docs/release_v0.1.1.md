@@ -1,6 +1,6 @@
 ## Overview
 
-murex 0.1.0 is the first release: what simulations of artists' media share, taken out of [oilpaint](https://github.com/joce/oilpaint) so that [fusain](https://github.com/joce/fusain) (drawing with dry media) can be built on the same ground.
+murex 0.1.1 is the first release: what simulations of artists' media share, taken out of [oilpaint](https://github.com/joce/oilpaint) so that [fusain](https://github.com/joce/fusain) (drawing with dry media) can be built on the same ground.
 
 ## Highlights
 
@@ -14,4 +14,6 @@ The numbers are the same as oilpaint's: these modules are its own, unchanged.
 
 Python 3.11 to 3.15. Install with `pip install murex`.
 
-**Full Changelog:** https://github.com/joce/murex/commits/v0.1.0
+There is no 0.1.0: an unrelated project that once had this name on PyPI used that version number in 2017, and PyPI never lets a file name be used twice.
+
+**Full Changelog:** https://github.com/joce/murex/commits/v0.1.1
