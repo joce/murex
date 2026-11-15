@@ -6,6 +6,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-15
+
 Faster, with every result as it was: nothing here is a breaking change. What
 `spectral` and `spline` return is the same to the last bit as in 0.1.1 for the
 same arguments, which `tests/test_exact.py` checks against the code of 0.1.1.
@@ -26,7 +28,8 @@ same arguments, which `tests/test_exact.py` checks against the code of 0.1.1.
 - A `Path` works out its dense points once, at the first `sample()` or
   `length`, and keeps them; they were worked out at every call. It works
   them out again if its control points (or `alpha`, or `closed`) change, in
-  place or not. A subclass that implements `_dense` in its own way says what
+  place or not; a path whose `alpha` is an array keeps nothing. A subclass
+  that implements `_dense` in its own way says what
   its dense points depend on in `_state`, or they are worked out at every
   call, as before.
 - The dense points of a `CatmullRom`, the lengths along a path and the
@@ -51,5 +54,6 @@ be used twice.
 - `Pigment`: oilpaint's `Paint` without what is particular to oil paint
   (its body).
 
-[Unreleased]: https://github.com/joce/murex/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/joce/murex/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/joce/murex/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/joce/murex/releases/tag/v0.1.1
