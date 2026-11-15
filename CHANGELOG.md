@@ -6,6 +6,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking, for anyone on NumPy 1.x:** NumPy 1.x is no longer supported. The
+  requirement is `numpy>=2.0`, and numba's floor rises with it, from
+  `numba>=0.57` to `numba>=0.60` (numba 0.57 to 0.59 do not support NumPy 2).
+  The reason: `spectral.srgb_to_reflectance` returned different numbers under
+  NumPy 1.26.4 and under NumPy 2.5.5 (same Python 3.12, numba 0.68.1 and
+  murex 0.2.0; the reflectance of a colour hashed differently), and two
+  libraries depend on these numbers, one of which checks its pictures byte for
+  byte. CI and the lock only ever ran NumPy 2. No result under NumPy 2
+  changes.
+
 ## [0.2.0] - 2026-11-15
 
 Faster, with every result as it was: nothing here is a breaking change. What
