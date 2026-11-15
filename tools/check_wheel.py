@@ -10,9 +10,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
+
 import murex
-from murex import mix_colors
-from murex.spectral import parse_color
+from murex import CatmullRom, mix_colors
+from murex.spectral import N_BANDS, km_layer, parse_color
 
 assert Path(murex.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 assert not Path.cwd().joinpath("pyproject.toml").exists()
@@ -20,7 +22,13 @@ assert murex.__version__ != "0.0.0+unknown", murex.__version__
 for name in murex.__all__:
     assert getattr(murex, name) is not None, name
 
-# blue and yellow make green: the numba kernels compile and the spectra mix
+# blue and yellow make green: the spectra mix
 r, g, b = parse_color(mix_colors(["#1b3fa0", "#f5d000"]))
 assert g > r and g > b, (r, g, b)
+
+# the numba kernels compile: a batch of layers, and a path sampled
+empty = km_layer(np.zeros((3, N_BANDS)), np.zeros(3), np.full((3, N_BANDS), 0.5))
+assert (empty == 0.5).all(), empty
+points, tangents, u, _ = CatmullRom([(0, 0), (30, 40)]).sample(1.0)
+assert len(points) == 51 and u[-1] == 1.0, (len(points), u[-1])
 print(f"murex {murex.__version__}: the installed wheel imports and mixes.")

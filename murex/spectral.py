@@ -17,9 +17,11 @@ grey you get by averaging RGB values.
 from __future__ import annotations
 
 import re
+from itertools import pairwise
 
 import numpy as np
 from numba import njit
+from numpy.lib.stride_tricks import as_strided
 
 # --------------------------------------------------------------------------
 # Wavelength sampling
@@ -408,7 +410,7 @@ def _km_terms(kappa, sigma):
     return kappa, sigma, B, tau
 
 
-def km_layer(kappa, sigma, ground):
+def km_layer(kappa, sigma, ground, out: np.ndarray | None = None):
     """Reflectance of a paint layer lying on a ground of reflectance ``ground``.
 
     Two-flux Kubelka-Munk solution for a layer of finite thickness. Inputs are
@@ -416,11 +418,70 @@ def km_layer(kappa, sigma, ground):
     ``sigma = S * thickness`` (scattering). Written in a form that stays finite
     for empty layers (returns the ground) and for pure dyes (sigma = 0 gives
     Beer-Lambert: ground * exp(-2 kappa)).
+
+    A batch of layers is worked out by compiled code, several times as fast
+    and to the same result to the last bit: ``kappa`` (..., bands) and
+    ``sigma`` (...) float64 arrays of two dimensions or more, over one
+    ``ground`` (bands,) or over a ground for each layer (..., bands), as when
+    each pixel of a picture has its own layer over what is already there.
+    Anything else (numbers, a single spectrum, other dtypes or shapes, array
+    subclasses, layers that lie in memory column after column) is worked out
+    by numpy, as every call was before.
+
+    ``out``, if given, is an array of the shape of the result, which is put
+    there instead of in a new array, and returned. It may be ``ground``
+    itself: ``km_layer(kappa, sigma, seen, out=seen)`` lays a layer over what
+    is seen at each pixel, in place.
     """
+    if _is_batch(kappa, sigma, ground):
+        return _km_layers(kappa, sigma, ground, out)
+    result = _km_layer_general(kappa, sigma, ground)
+    if out is None:
+        return result
+    out[...] = result
+    return out
+
+
+def _km_layer_general(kappa, sigma, ground):
+    """:func:`km_layer` for whatever numpy can broadcast: the formula the
+    compiled kernels below repeat, operation for operation."""
     kappa, sigma, _, tau = _km_terms(kappa, sigma)
     num = sigma * tau - ground * ((sigma + kappa) * tau - 1.0)
     den = (sigma + kappa - ground * sigma) * tau + 1.0
     return num / den
+
+
+def _is_float64(array) -> bool:
+    """Whether ``array`` is what the kernels take: a numpy array itself (not
+    a subclass) of float64 in this machine's byte order."""
+    return type(array) is np.ndarray and array.dtype == np.float64
+
+
+def _is_ground(ground) -> bool:
+    """Whether ``ground`` is a numpy array itself of floats that float64
+    holds exactly."""
+    return (
+        type(ground) is np.ndarray
+        and ground.dtype.kind == "f"
+        and ground.dtype.itemsize <= 8
+    )
+
+
+def _is_batch(kappa, sigma, ground) -> bool:
+    """Whether :func:`km_layer` hands these to the compiled kernels: a batch
+    of layers (see there), not an empty one, whose result numpy would lay
+    out in memory as the kernels do, row after row (it follows ``kappa``:
+    not one that lies column after column, or with its axes swapped)."""
+    return (
+        _is_float64(kappa)
+        and _is_float64(sigma)
+        and _is_ground(ground)
+        and kappa.ndim >= 2
+        and kappa.size > 0
+        and sigma.shape == kappa.shape[:-1]
+        and ground.shape in {kappa.shape, kappa.shape[-1:]}
+        and all(abs(a) >= abs(b) > 0 for a, b in pairwise(kappa.strides))
+    )
 
 
 def _km_layer_batch(kappa, sigma, ground):
@@ -431,63 +492,162 @@ def _km_layer_batch(kappa, sigma, ground):
     bit, but in two compiled passes over the batch (and numpy's ``tanh``
     between them, so that too is the very same function) instead of some
     twenty numpy passes. Anything else (other dtypes or shapes, array
-    subclasses) goes to :func:`km_layer`.
+    subclasses) goes to :func:`km_layer`, which does as much itself for a
+    batch of two dimensions or more; this also takes a single layer.
     """
     plain = (
-        type(kappa) is np.ndarray
-        and type(sigma) is np.ndarray
-        and type(ground) is np.ndarray
-        and kappa.dtype == sigma.dtype == np.float64
+        _is_float64(kappa)
+        and _is_float64(sigma)
+        and _is_ground(ground)
+        and kappa.size > 0
         and kappa.shape[:-1] == sigma.shape
         and kappa.shape[-1:] == ground.shape == (N_BANDS,)
-        and ground.dtype.kind == "f"
-        and ground.dtype.itemsize <= 8  # so float64 holds it exactly
     )
     if not plain:
         return km_layer(kappa, sigma, ground)
-    # one signature for the kernels: C-contiguous float64
-    kappa2 = np.ascontiguousarray(kappa.reshape(-1, N_BANDS))
-    sigma1 = np.ascontiguousarray(sigma.reshape(-1))
-    ground = np.array(ground, dtype=np.float64)
-    B = np.empty(kappa2.shape)
-    _km_b(kappa2, sigma1, B)
-    R = np.empty(kappa2.shape)
-    _km_reflectance(kappa2, sigma1, ground, B, np.tanh(B), R)
-    return R.reshape(kappa.shape)
+    return _km_layers(kappa, sigma, ground, None)
+
+
+def _km_layers(kappa, sigma, ground, out: np.ndarray | None) -> np.ndarray:
+    """:func:`km_layer` for ``kappa`` (..., bands) and ``sigma`` (...)
+    float64 arrays, and a ``ground`` (bands,) or (..., bands) of floats, by
+    the compiled kernels."""
+    shape = kappa.shape
+    bands = shape[-1]
+    k, k_step = _rows(kappa.reshape(-1, bands))
+    s = np.ascontiguousarray(sigma.reshape(-1))
+    if ground.ndim == 1:  # one ground: every layer reads the same row
+        g, g_step = np.array(ground, dtype=np.float64), 0
+    else:
+        g, g_step = _rows(ground.reshape(-1, bands).astype(np.float64, copy=False))
+    if out is None:
+        R = np.empty((s.shape[0], bands))
+        _km_blocks(k, k_step, s, g, g_step, R, False)
+        return R.reshape(shape)
+    target = _km_target(out, shape, (kappa, sigma, ground))
+    if target is None:  # (into an array of the kernels' own first)
+        out[...] = _km_layers(kappa, sigma, ground, None)
+    else:
+        _km_blocks(k, k_step, s, g, g_step, target, True)
+    return out
+
+
+#: How many values the kernels work out at a time: few enough for what they
+#: keep between their passes to stay in the processor's cache.
+_KM_VALUES = 32768
+
+
+def _km_blocks(k, k_step, s, g, g_step, R, aside: bool) -> None:
+    """Fill ``R`` (layers, bands) with the reflectance of the layers ``k``
+    and ``s`` over ``g`` (as :func:`_rows` gives them): two compiled passes
+    over the layers, and numpy's ``tanh`` between them, so that too is the
+    very same function as in :func:`_km_layer_general`.
+
+    The layers are taken some at a time, each in whole (what numpy's
+    ``tanh`` gives for a value does not depend on those around it), so that
+    nothing as large as the batch is needed but the result. ``aside`` says
+    that ``R`` is not a new array of the kernels' own: it may be the ground,
+    or the layers themselves. Each lot is then worked out aside and put in
+    ``R`` once it is whole.
+    """
+    count, bands = R.shape
+    # (a multiple of 16 layers at a time: of whole vectors, whatever numpy's
+    # tanh takes at once, as when it is given the whole batch)
+    size = min(max(_KM_VALUES // bands // 16, 1) * 16, count)
+    B, tanh_B = np.empty((size, bands)), np.empty((size, bands))
+    lot = np.empty((size, bands)) if aside else None
+    for a in range(0, count, size):
+        n = min(size, count - a)
+        _km_b(k, k_step, s, a, n, B)
+        if n == size:
+            np.tanh(B, out=tanh_B)
+        else:
+            np.tanh(B[:n], out=tanh_B[:n])
+        if lot is None:
+            _km_reflectance(k, k_step, s, g, g_step, a, n, B, tanh_B, R, a)
+        else:
+            _km_reflectance(k, k_step, s, g, g_step, a, n, B, tanh_B, lot, 0)
+            R[a : a + n] = lot[:n]
+
+
+def _rows(array):
+    """The values of ``array`` (layers, bands), float64, as they lie in
+    memory, one after the other, and how many lie from the start of a row to
+    the start of the next: ``(values, step)``, row ``i`` being
+    ``values[i * step : i * step + bands]``. Without a copy where every row
+    is in one piece, as in a slice of the columns of a wider array."""
+    count, bands = array.shape
+    if array.flags.c_contiguous:
+        return array.reshape(-1), bands
+    step, rest = divmod(array.strides[0], array.itemsize)
+    if array.strides[1] == array.itemsize and step > bands and not rest:
+        # (from the first value of the first row to the last of the last:
+        # all within the memory the rows are a part of)
+        values = as_strided(
+            array, ((count - 1) * step + bands,), (array.itemsize,), writeable=False
+        )
+        return values, step
+    return np.ascontiguousarray(array).reshape(-1), bands
+
+
+def _km_target(out, shape, inputs) -> np.ndarray | None:
+    """``out`` as (layers, bands) for :func:`_km_layers` to fill as it goes,
+    or None if it cannot: there is none; it is not an array of float64 of
+    this shape whose layers can be reached one after the other; or it shares
+    memory with one of the ``inputs`` without being that very array, so that
+    filling it could change a value before it is read."""
+    if not (_is_float64(out) and out.shape == shape and out.flags.writeable):
+        return None
+    if any(a is not out and np.may_share_memory(a, out) for a in inputs):
+        return None
+    if out.ndim > 2 and not out.flags.c_contiguous:
+        return None
+    return out.reshape(-1, shape[-1])
 
 
 # Plain IEEE arithmetic only (no fastmath): numba then neither reorders nor
 # fuses the operations, so each matches numpy's to the bit. "x <= 0.0: 0.0"
 # is np.maximum(x, 0.0): -0.0 becomes +0.0 and NaN stays NaN.
+#
+# The kernels take the layers as _rows gives them (kappa: values and step)
+# and work on ``count`` of them from layer ``start``; B and tanh_B are
+# (layers, bands) C-contiguous arrays of their own, filled from their top.
 @njit(cache=True, error_model="numpy")
-def _km_b(kappa, sigma, B):
-    for i in range(kappa.shape[0]):
-        s = sigma[i]
+def _km_b(kappa, step, sigma, start, count, B):
+    for i in range(count):
+        s = sigma[start + i]
         if s <= 0.0:
             s = 0.0
-        for j in range(kappa.shape[1]):
-            k = kappa[i, j]
+        row = (start + i) * step
+        for j in range(B.shape[1]):
+            k = kappa[row + j]
             if k <= 0.0:
                 k = 0.0
             B[i, j] = np.sqrt(k * k + 2.0 * k * s)
 
 
+# (the ground as _rows gives it too, a step of 0 being one ground for all;
+# R, C-contiguous as well, is filled from its row ``at``)
 @njit(cache=True, error_model="numpy")
-def _km_reflectance(kappa, sigma, ground, B, tanh_B, R):
-    for i in range(kappa.shape[0]):
-        s = sigma[i]
+def _km_reflectance(
+    kappa, step, sigma, ground, ground_step, start, count, B, tanh_B, R, at
+):
+    for i in range(count):
+        s = sigma[start + i]
         if s <= 0.0:
             s = 0.0
-        for j in range(kappa.shape[1]):
-            k = kappa[i, j]
+        row = (start + i) * step
+        under = (start + i) * ground_step
+        for j in range(B.shape[1]):
+            k = kappa[row + j]
             if k <= 0.0:
                 k = 0.0
             b = B[i, j]
             tau = 1.0 - b * b / 3.0 if b < 1e-4 else tanh_B[i, j] / b
-            g = ground[j]
+            g = ground[under + j]
             num = s * tau - g * ((s + k) * tau - 1.0)
             den = (s + k - g * s) * tau + 1.0
-            R[i, j] = num / den
+            R[at + i, j] = num / den
 
 
 def km_film(kappa, sigma):
