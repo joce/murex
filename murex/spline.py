@@ -102,9 +102,17 @@ class Path:
         that are not to be kept."""
         return None
 
-    def __getstate__(self) -> dict:
-        # (what is kept is not part of the path: it is not pickled or copied)
-        return {k: v for k, v in vars(self).items() if k != "_kept"}
+    def __getstate__(self) -> object:
+        # (what is kept is not part of the path: it is not pickled or copied.
+        # The rest is what Python would have given: with the slots of a
+        # subclass that has some, as a second dict)
+        state: Any = object.__getstate__(self)
+        slotted = isinstance(state, tuple)
+        own: dict | None = state[0] if slotted else state
+        if not own or "_kept" not in own:
+            return state
+        own = {k: v for k, v in own.items() if k != "_kept"}
+        return (own, state[1]) if slotted else own
 
     def _measured(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
         """The dense points, their knots, the length of the path up to each
@@ -217,7 +225,10 @@ class CatmullRom(Path):
         self.n_knots = len(self.points) + (1 if closed else 0)
 
     def _state(self) -> object:
-        return _snapshot(self.points), self.alpha, self.closed
+        alpha = self.alpha
+        if not isinstance(alpha, (int, float, complex, np.generic)):
+            return None  # (an array may be changed in place: nothing is kept)
+        return _snapshot(self.points), alpha, bool(self.closed)
 
     def _dense(self):
         P = self.points

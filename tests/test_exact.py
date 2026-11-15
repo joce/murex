@@ -824,3 +824,36 @@ def test_what_a_path_keeps_is_not_copied_or_pickled():
         assert same(path.sample(0.75), want)
         assert same(moved.sample(0.75), sample_011(moved, 0.75))
         assert not same(moved.sample(0.75), want)
+
+
+def test_an_alpha_changed_in_place_is_seen():
+    points = [(0, 0), (10, 4), (12, 30), (40, 31)]
+    alpha: Any = np.array(0.5)
+    path = spline.CatmullRom(points, alpha)
+    before = path.sample(1.0)[0].copy()
+    alpha[...] = 1.0
+    after = path.sample(1.0)[0]
+    fresh = spline.CatmullRom(points, 1.0)
+    assert np.array_equal(after, fresh.sample(1.0)[0])
+    assert not np.array_equal(after, before)
+
+
+class _Slotted(spline.Polyline):
+    __slots__ = ("label",)
+
+    def __init__(self, points, label):
+        super().__init__(points)
+        self.label = label
+
+
+def test_the_slots_of_a_subclass_are_copied_and_pickled():
+    path = _Slotted([(0, 0), (5, 5), (9, 2)], "edge")
+    path.sample(1.0)
+    for other in (
+        pickle.loads(pickle.dumps(path)),
+        copy.copy(path),
+        copy.deepcopy(path),
+    ):
+        assert other.label == "edge"
+        assert other._kept is None
+        assert np.array_equal(other.points, path.points)
