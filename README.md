@@ -28,6 +28,31 @@ glaze = Pigment("#8e1b2c", opacity=0.3)   # a transparent crimson
 glaze.appearance(thickness=1.0, over="#f2c80f")
 ```
 
+A picture is many layers at once. `murex.spectral.km_layer` works out a batch
+of them in compiled code, each over one ground or over a ground of its own
+(what is already seen at that pixel), and gives to the last bit what numpy
+gives for the same layers one by one:
+
+```python
+from murex import spectral as sp
+
+# kappa (pixels, bands) and sigma (pixels,): K and S times the thickness there
+seen = sp.km_layer(kappa, sigma, paper)       # over one ground, (bands,)
+seen = sp.km_layer(kappa, sigma, seen)        # over what is seen at each pixel
+sp.km_layer(kappa, sigma, seen, out=seen)     # the same, in place
+```
+
+A path works out its dense points once, however often it is sampled and asked
+its length, and again if its control points are changed:
+
+```python
+from murex import CatmullRom
+
+path = CatmullRom([(10, 10), (60, 40), (120, 20)])
+points, tangents, u, knot = path.sample(0.5)  # every half pixel along it
+path.length
+```
+
 ## Development
 
 ```bash
