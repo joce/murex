@@ -13,9 +13,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   no longer worked out at import by NumPy's interpolation, matrix products and
   `np.linalg.solve`, whose last bits differ from one NumPy, BLAS or processor to
   another. The literals are the values the code gave under NumPy 2.5 on x86-64,
-  to the last bit, so **nothing changes: this is not a breaking change** (every
-  public function of `spectral` returns the same bits as before, and the 325
-  drawings of fusain's thorough fingerprint hash the same). The derivations are kept (`spectral._build_spectrum_to_rgb`
+  to the last bit, so on x86-64 under NumPy 2 nothing changes (every public
+  function of `spectral` returns the same bits as before, and the 325 drawings
+  of fusain's thorough fingerprint hash the same). **Breaking elsewhere, in the
+  last bits:** where NumPy, BLAS or the processor derived other tables (an ARM
+  machine, another BLAS), the results now follow the stored tables instead.
+  The derivations are kept (`spectral._build_spectrum_to_rgb`
   and `_build_basis`, and `tools/derive_spectral_tables.py`, which writes the
   module); a test checks that they agree with the tables to 1e-13.
 
