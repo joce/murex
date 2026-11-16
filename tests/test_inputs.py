@@ -14,9 +14,13 @@ from murex.reference import Reference
 
 def test_spectrum_to_rgb_can_be_rebuilt():
     # The illuminant spectrum and the XYZ white point used to share a name, so
-    # the matrix could only be built once, at import.
+    # the matrix could only be built once, at import. Rebuilt, it agrees with
+    # the stored table to rounding, not to the last bit (see test_bits.py).
     np.testing.assert_allclose(
-        sp._build_spectrum_to_rgb(sp.WAVELENGTHS), sp.SPECTRUM_TO_RGB, rtol=0, atol=0
+        sp._build_spectrum_to_rgb(sp.WAVELENGTHS),
+        sp.SPECTRUM_TO_RGB,
+        rtol=0,
+        atol=1e-13,
     )
     other = sp._build_spectrum_to_rgb(np.linspace(400.0, 700.0, 16))
     assert other.shape == (3, 16)
