@@ -58,7 +58,8 @@ path.length
 ```bash
 uv sync --group dev --frozen   # install the package and the development tools
 uv run pytest                  # run the tests
-make pre-push                  # what CI runs: tox, coverage, spelling
+make pre-push                  # lint, types, the tests under coverage, spelling
+make tox                       # every Python version and the built wheel, as CI runs them
 ```
 
 ## License

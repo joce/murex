@@ -22,7 +22,9 @@ Work is tracked with Beads (`bd`), not with TODO lists or memory files. `bd prim
 ```bash
 uv sync --group dev --frozen   # install the package and the development tools
 uv run pytest                  # run the tests
-make pre-push                  # what CI runs: tox (black, ruff, pyright, pytest), coverage (80% required), spelling
+uv run pytest -n auto          # the tests on every core
+make pre-push                  # before a push: black, ruff, pyright, the tests once under coverage (80% required), spelling
+make tox                       # every Python version and the built wheel, as CI runs them
 ```
 
 ## Conventions
