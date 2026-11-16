@@ -31,6 +31,7 @@
     "asfortranarray",
     "atleast",
     "biuf",
+    "BLAS",
     "brushmarks",
     "Catmull",
     "CIELAB",
@@ -54,6 +55,7 @@
     "Kubelka",
     "LANCZOS",
     "latewood",
+    "libm",
     "Legault",
     "LHTSS",
     "linalg",
@@ -69,5 +71,9 @@
     "rtol",
     "sRGB",
     "tobytes"
+  ],
+  "ignoreRegExpList": [
+    "0x[0-9a-f]\\.[0-9a-f]+p[-+]?\\d+",
+    "\\b[0-9a-f]{64}\\b"
   ]
 }

@@ -8,6 +8,20 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `spectral.SPECTRUM_TO_RGB` and the basis spectra behind
+  `srgb_to_reflectance` are stored as literals (`murex/_spectral_tables.py`),
+  no longer worked out at import by NumPy's interpolation, matrix products and
+  `np.linalg.solve`, whose last bits differ from one NumPy, BLAS or processor to
+  another. The literals are the values the code gave under NumPy 2.5 on x86-64,
+  to the last bit, so on x86-64 under NumPy 2 nothing changes (every public
+  function of `spectral` returns the same bits as before, and the 325 drawings
+  of fusain's thorough fingerprint hash the same). **Breaking elsewhere, in the
+  last bits:** where NumPy, BLAS or the processor derived other tables (an ARM
+  machine, another BLAS), the results now follow the stored tables instead.
+  The derivations are kept (`spectral._build_spectrum_to_rgb`
+  and `_build_basis`, and `tools/derive_spectral_tables.py`, which writes the
+  module); a test checks that they agree with the tables to 1e-13.
+
 - **Breaking, for anyone on NumPy 1.x:** NumPy 1.x is no longer supported. The
   requirement is `numpy>=2.0`, and numba's floor rises with it, from
   `numba>=0.57` to `numba>=0.60` (numba 0.57 to 0.59 do not support NumPy 2).
@@ -17,6 +31,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   libraries depend on these numbers, one of which checks its pictures byte for
   byte. CI and the lock only ever ran NumPy 2. No result under NumPy 2
   changes.
+
+### Added
+
+- `tests/test_bits.py` pins reflectances, spectrum to RGB and Kubelka-Munk
+  layers to the last bit, on x86-64. On ARM eight of them differ in the last
+  bits: the results follow the processor until spectral's arithmetic is made
+  the same everywhere (`murex-krb`, decided, not yet done).
+
+### Known, not changed
+
+- Some results still follow the processor to the last bit: NumPy's `power` and
+  `tanh` on arrays take a SIMD path on processors with AVX-512 (`tanh`, one
+  without AVX2) that rounds some values differently from libm, so `srgb_to_linear`, `linear_to_srgb`, `solve_absorption` (and the optics
+  of a `Pigment`) are not the same on every machine, and a BLAS with fused
+  multiply-add sums `linear_rgb_to_reflectance` differently from one without.
+  Making them independent of NumPy would change bits here, a breaking change, so
+  it is left for a release that says so.
 
 ## [0.2.0] - 2026-11-15
 

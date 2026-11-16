@@ -23,6 +23,8 @@ import numpy as np
 from numba import njit
 from numpy.lib.stride_tricks import as_strided
 
+from ._spectral_tables import BASIS_TABLE, SPECTRUM_TO_RGB_TABLE
+
 # --------------------------------------------------------------------------
 # Wavelength sampling
 # --------------------------------------------------------------------------
@@ -156,8 +158,15 @@ def _build_spectrum_to_rgb(wavelengths: np.ndarray) -> np.ndarray:
     return rgb / rgb.sum(axis=1, keepdims=True)
 
 
-#: (3, N_BANDS) matrix: linear sRGB = SPECTRUM_TO_RGB @ reflectance
-SPECTRUM_TO_RGB = _build_spectrum_to_rgb(WAVELENGTHS)
+#: (3, N_BANDS) matrix: linear sRGB = SPECTRUM_TO_RGB @ reflectance.
+#:
+#: A stored table, not computed at import: the arithmetic of NumPy (the
+#: interpolation, the matrix products) rounds differently from one NumPy, BLAS
+#: or processor to another, and oilpaint and fusain check their pictures byte
+#: for byte. ``_build_spectrum_to_rgb`` derives it (to within rounding);
+#: ``tools/derive_spectral_tables.py`` writes the table, and a test checks
+#: that the two agree.
+SPECTRUM_TO_RGB = np.array(SPECTRUM_TO_RGB_TABLE, dtype=np.float64)
 
 #: Rec.709 luminance weights for linear sRGB.
 LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
@@ -310,7 +319,13 @@ def _lhtss(
     return (np.tanh(z) + 1.0) / 2.0
 
 
-def _build_basis() -> np.ndarray:
+def _build_basis(T: np.ndarray) -> np.ndarray:
+    """The seven basis spectra for the matrix ``T`` (``SPECTRUM_TO_RGB``).
+
+    Not called at import: the result is stored as ``_BASIS`` (see
+    ``SPECTRUM_TO_RGB``), and ``np.linalg.solve``, which this rests on, rounds
+    differently from one BLAS to another.
+    """
     # white, cyan, magenta, yellow, red, green, blue
     corners = [
         (1, 1, 1),
@@ -323,15 +338,13 @@ def _build_basis() -> np.ndarray:
     ]
     eps = 1e-4
     return np.stack(
-        [
-            _lhtss(np.clip(np.array(c, float), eps, 1 - eps), SPECTRUM_TO_RGB)
-            for c in corners
-        ]
+        [_lhtss(np.clip(np.array(c, float), eps, 1 - eps), T) for c in corners]
     )
 
 
-#: (7, N_BANDS) reflectance spectra of white, cyan, magenta, yellow, red, green, blue.
-_BASIS = _build_basis()
+#: (7, N_BANDS) reflectance spectra of white, cyan, magenta, yellow, red, green,
+#: blue: a stored table, derived by ``_build_basis(SPECTRUM_TO_RGB)``.
+_BASIS = np.array(BASIS_TABLE, dtype=np.float64)
 
 # (the tables above are shared by everything that works with colour: read-only)
 for _table in (
