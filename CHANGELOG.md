@@ -35,7 +35,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `tests/test_bits.py` pins reflectances, spectrum to RGB and Kubelka-Munk
-  layers to the last bit, and CI runs the tests on an ARM Linux runner as well.
+  layers to the last bit, on x86-64. On ARM eight of them differ in the last
+  bits: the results follow the processor until spectral's arithmetic is made
+  the same everywhere (`murex-krb`, decided, not yet done).
 
 ### Known, not changed
 
