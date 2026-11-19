@@ -1,0 +1,48 @@
+"""Pastels, of any colour: ``pastels.soft("#c0392b")``, ``pastels.hard(...)``
+and ``pastels.oil(...)``.
+
+A pastel is pigment with barely enough gum to hold a stick together. It is
+opaque, so a light one covers a dark one, and nearly all of what it lays is
+dust, which a finger blends. An oil pastel is bound with oil and wax
+instead: greasy and thick, it smears rather than dusts, a light one half
+covers a dark one, and a kneaded eraser does not lift it.
+"""
+
+from __future__ import annotations
+
+from .. import ColorLike, Pigment
+from .medium import Medium
+
+
+def soft(color: ColorLike, name: str | None = None) -> Medium:
+    """A soft pastel of that colour: crumbly, it fills the tooth fast and
+    leaves almost nothing but dust. Laid flat, a half stick marks a band
+    five times as wide as its end, even all across."""
+    pigment = Pigment(color, name=name)
+    label = name or f"{pigment.hex} pastel"
+    return Medium(pigment, softness=0.95, binding=0.15, flat_side=True, name=label)
+
+
+def hard(color: ColorLike, name: str | None = None) -> Medium:
+    """A hard pastel of that colour: more gum in it, for lines and first
+    layers. It lays less, and more of it stays where it is put. A thin
+    square stick: laid flat, it marks a band six times as wide as its
+    end."""
+    pigment = Pigment(color, name=name)
+    label = name or f"{pigment.hex} hard pastel"
+    return Medium(
+        pigment, softness=0.6, binding=0.35, side=6.0, flat_side=True, name=label
+    )
+
+
+def oil(color: ColorLike, name: str | None = None) -> Medium:
+    """An oil pastel of that colour: soft and greasy. Less than half of it is
+    held at once; the rest is a paste that a finger smears and a later layer
+    half covers, and that comes off only as what the paper holds does: on a
+    hard eraser, not on a kneaded one. Its wax makes dry media take badly
+    over it. Laid flat, a stick marks an even band."""
+    pigment = Pigment(color, opacity=0.9, name=name)
+    label = name or f"{pigment.hex} oil pastel"
+    return Medium(
+        pigment, softness=0.85, binding=0.4, wax=0.3, flat_side=True, name=label
+    )

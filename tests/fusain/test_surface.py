@@ -1,0 +1,691 @@
+"""The surface of the paper: a firm hard tip flattens the tooth, and a
+stylus or the ball of a pen indents a groove that a pencil skips,
+measured."""
+
+import itertools
+import pickle
+
+import numpy as np
+import pytest
+
+from murex import spectral as sp
+from murex.fusain import (
+    Paper,
+    Sheet,
+    charcoal,
+    crayons,
+    papers,
+    pastels,
+    pencils,
+    pens,
+    tools,
+)
+from murex.fusain import _engine as eng
+from murex.fusain.sheet import TOOTH_HEIGHT
+
+BOX = (20, 20, 180, 130)
+INSIDE = (slice(50, 100), slice(50, 150))
+#: A line across the sheet, through the middle of a row of pixels; the two
+#: rows under the middle of a stylus drawn along it, and the paper either side.
+LINE = [(20, 75.5), (180, 75.5)]
+GROOVE = (slice(75, 76), slice(50, 150))
+AROUND = (slice(60, 68), slice(50, 150))
+OVERHEAD, RAKING = (0.0, 0.0, 1.0), (-1.0, -1.0, 0.5)
+
+
+def _sheet(paper=papers.CARTRIDGE) -> Sheet:
+    return Sheet(200, 150, paper=paper, seed=1)
+
+
+def _shaded(medium, pressure=1.0, layers=1, width=None) -> Sheet:
+    sheet = _sheet()
+    for layer in range(layers):
+        sheet.shade(BOX, medium, pressure, width, angle=30 + 50 * layer)
+    return sheet
+
+
+def _pressed(sheet) -> float:
+    return float(sheet.press[INSIDE].mean())
+
+
+def _luminance(sheet, where) -> float:
+    spectrum = sheet.reflectance()[where].astype(np.float64)
+    white = sp.reflectance_to_linear_rgb(sheet.ground) @ sp.LUMINANCE
+    return float((sp.reflectance_to_linear_rgb(spectrum) @ sp.LUMINANCE).mean() / white)
+
+
+def _light(image, where=INSIDE) -> np.ndarray:
+    return sp.srgb_to_linear(image[where].astype(np.float64)) @ sp.LUMINANCE
+
+
+def _shading(sheet, lamp, where=INSIDE) -> np.ndarray:
+    """How a lamp lights each pixel of the relief, as a share of the light
+    of a level sheet (what lies on the paper, and what shines, aside)."""
+    lit = sheet.render(light=lamp, gloss=0)[where].astype(np.float64)
+    flat = sheet.render(lighting=False)[where].astype(np.float64)
+    share = sp.srgb_to_linear(lit) / np.maximum(sp.srgb_to_linear(flat), 1e-9)
+    return share.mean(axis=2)
+
+
+def _in_groove(sheet) -> float:
+    """What lies in the groove, as a share of what lies on the paper beside."""
+    pigment = sheet.pigment()
+    return float(pigment[GROOVE].mean() / pigment[AROUND].mean())
+
+
+# --------------------------------------------------------------------------
+# a firm tip flattens the tooth
+
+
+def test_a_firm_hard_pencil_flattens_the_tooth_and_a_soft_one_hardly():
+    pressed = [
+        _pressed(_shaded(pencils.grade(name), 1.0, 3))
+        for name in ("4H", "HB", "2B", "6B")
+    ]
+    assert all(a > b for a, b in itertools.pairwise(pressed))
+    # (fusain-2z5) each crushes the tooth to the level of its load, and a
+    # softer lead gives before the paper does: 0.89, 0.34, 0.16 and 0.013.
+    # (They were 0.88, 0.74, 0.37 and 0.03 while every pass added to what
+    # the passes before had crushed, and six layers of HB made 0.99)
+    assert pressed[0] > 0.8
+    assert 0.25 < pressed[1] < 0.45
+    assert 0.1 < pressed[2] < 0.25
+    assert pressed[3] < 0.05
+
+
+def test_the_firmer_the_flatter_and_no_flatter_than_its_load_presses():
+    # a light touch: none (a tip crushes by the pressure it bears with, the
+    # streaks of its lead aside, and that sets in above 0.4)
+    assert _pressed(_shaded(pencils.HB, 0.4, 3)) < 0.005
+    # (at 0.3 the firmest stroke of a hand bears with 0.35: nothing at all,
+    # where the hardest bands of its lead left a trace, a thousandth here
+    # and there)
+    assert not _shaded(pencils.HB, 0.3, 3).crush.any()
+    firm = [_pressed(_shaded(pencils.HB, p)) for p in (0.7, 0.85, 1.0)]
+    assert 0.0 < firm[0] < firm[1] < firm[2] < 0.3
+    # (fusain-2z5) going over it again closes what is left of the gap to
+    # the level of its load, 0.38 for an HB at full pressure, and goes no
+    # further: 0.24, 0.34 and 0.37 after one, three and six layers (0.22,
+    # 0.74 and 0.99 while every pass added)
+    often = [_pressed(_shaded(pencils.HB, 1.0, n)) for n in (1, 3, 6)]
+    assert often[0] < often[1] < often[2]
+    level = eng.FLATTEN * (1.0 - pencils.HB.softness) ** 3 * pencils.HB.binding**2
+    assert level == pytest.approx(0.384, abs=0.001)
+    assert 0.9 * level < often[2] < level
+    assert often[2] - often[1] < 0.4 * (often[1] - often[0])
+    assert _shaded(pencils.HB, 1.0, 6).crush.max() <= level + 1e-6
+    # a harder lead's is more than flat: it crushes the tooth flat
+    hard = _shaded(pencils.H4, 1.0, 8)
+    assert hard.crush.max() == pytest.approx(1.0, abs=1e-6) and hard.press.max() <= 1.0
+    assert _pressed(hard) > 0.9
+
+
+def test_charcoal_and_pastel_next_to_do_not_flatten_it():
+    assert _pressed(_shaded(pastels.soft("#c0392b"), 1.0, 3, 10)) < 1e-3
+    assert _pressed(_shaded(charcoal.VINE, 1.0, 3, 8)) < 0.02
+    assert _pressed(_shaded(charcoal.COMPRESSED, 1.0, 3, 8)) < 0.1
+
+
+def test_what_flattens_is_a_tip_that_is_hard_dry_and_all_of_a_piece():
+    paper = np.array([1.0, 0.5, 0.5, 1.0])
+
+    def crush(softness, binding=0.85, wax=0.0) -> float:
+        medium = np.array([0.1, softness, binding, wax, 0.0, 0.0])
+        return float(eng.law_of(medium, paper)[0][10])
+
+    assert crush(0.0, 1.0) == pytest.approx(eng.FLATTEN)
+    assert crush(0.0) > crush(0.3) > crush(0.6) > crush(0.9) > crush(1.0) == 0.0
+    assert crush(0.3, 0.9) > crush(0.3, 0.4) > crush(0.3, 0.0) == 0.0
+    # (a waxy tip polishes its own film instead)
+    assert crush(0.3) > crush(0.3, wax=0.15) > crush(0.3, wax=0.3) == 0.0
+
+
+def test_a_flattened_tooth_is_level_and_touched_all_over():
+    sheet = _shaded(pencils.HB, 1.0, 3)
+    rough = sheet.copy()
+    rough.crush[:] = 0.0  # the same graphite, on a tooth that kept its shape
+    assert sheet.surface_height()[INSIDE].std() < 0.8 * (
+        rough.surface_height()[INSIDE].std()
+    )
+    # (fusain-8au) pressed flat, its peaks come down level with its valleys,
+    # and a valley the lead never reached is not left a pit: six firm layers
+    # of 4H were level with the peaks, and 0.06 of the patch lay more than a
+    # quarter of the depth of the tooth below that, 0.85 on average
+    flat = _shaded(pencils.H4, 1.0, 6)
+    kept = flat.copy()
+    kept.crush[:] = 0.0
+    top = TOOTH_HEIGHT * flat.paper.grain * flat.paper.depth
+    level = flat.surface_height()[INSIDE] / top
+    untouched = kept.surface_height()[INSIDE] / top
+    assert np.median(level) < 0.05 < 0.4 < np.median(untouched)
+    assert not (np.median(level) - level > 0.1).any()
+    assert (level - np.median(level) > 0.25).mean() < 0.01
+    assert level.std() < 0.2 * untouched.std()
+    # so it is smooth under the lamp: a raking light shows it a seventh as
+    # much as the tooth left alone (it showed it as much)
+    shading = [_shading(target, RAKING) for target in (flat, kept)]
+    assert shading[0].std() < 0.25 * shading[1].std()
+    # a light layer of a soft lead over it lies on all of it, evenly, where
+    # on the rough tooth it marks the high ground; and it bites less, so no
+    # more of it is laid for that
+    added = []
+    for target in (sheet, rough):
+        before = target.pigment().copy()
+        target.shade(BOX, pencils.B4, 0.3, angle=-20)
+        added.append((target.pigment() - before)[INSIDE])
+    flat, coarse = added
+    assert (flat > 0.02).mean() > 1.3 * (coarse > 0.02).mean()
+    assert flat.std() / flat.mean() < 0.7 * coarse.std() / coarse.mean()
+    assert 0.8 < flat.mean() / coarse.mean() < 1.5
+
+
+def test_a_flattened_tooth_bites_a_dry_medium_less():
+    """One stroke along a strip pressed flat and along one left alone:
+    crushed, or levelled by polish (as wax polished flat levels it)."""
+    dry, waxy = pencils.B4.name, crayons.wax("#c0392b").name
+    for flattened in ("crush", "polish"):
+        laid = {}
+        for press in (0.0, 1.0):
+            for medium in (pencils.B4, crayons.wax("#c0392b")):
+                sheet = _sheet(Paper(depth=0.0))  # (level: all of it is touched)
+                getattr(sheet, flattened)[:] = press
+                assert sheet.press.max() == press
+                laid[press, medium.name] = sheet.stroke(LINE, medium, 0.5, 6)
+        # (a little more than the share it bites: the tooth fills more slowly)
+        assert 1 - eng.FLAT_BITE < laid[1.0, dry] / laid[0.0, dry] < 0.5
+        assert laid[1.0, waxy] == pytest.approx(laid[0.0, waxy])
+
+
+def test_graphite_shines_more_and_more_evenly_on_a_flattened_tooth():
+    for name, more in (("4H", 2.0), ("HB", 1.2)):
+        sheet = _shaded(pencils.grade(name), 1.0, 3)
+        rough = sheet.copy()
+        rough.crush[:] = 0.0
+        flat_shine = float(sheet.shine("graphite")[INSIDE].mean())
+        assert flat_shine > more * float(rough.shine("graphite")[INSIDE].mean())
+    # six firm layers of HB under the default lamp: the light it mirrors.
+    # (fusain-2z5: 0.62 as unevenly as on a tooth left alone, the tooth
+    # being crushed by 0.37; a third as unevenly while six layers crushed
+    # it by 0.99, as only a hard lead does)
+    sheet = _shaded(pencils.HB, 1.0, 6)
+    rough = sheet.copy()
+    rough.crush[:] = 0.0
+    uneven = []
+    for target in (sheet, rough):
+        glint = _light(target.render()) - _light(target.render(gloss=0))
+        uneven.append(float(glint.std() / glint.mean()))
+    assert uneven[0] < 0.7 * uneven[1]
+    # a soft lead shines by how much it lays, flattened or not
+    soft = _shaded(pencils.B6, 1.0, 3)
+    rough = soft.copy()
+    rough.crush[:] = 0.0
+    assert float(soft.shine("graphite")[INSIDE].mean()) == pytest.approx(
+        float(rough.shine("graphite")[INSIDE].mean()), rel=0.02
+    )
+
+
+# --------------------------------------------------------------------------
+# a stylus indents a groove
+
+
+def test_a_stylus_lays_nothing_and_leaves_a_groove():
+    sheet = _sheet()
+    assert not sheet.dent.any()
+    assert sheet.indent(LINE, 0.7, 3.0) is None
+    assert not sheet.pigment().any() and not sheet.cover.any()
+    assert sheet.ink is None
+    # as deep under its middle as it was pressed, on a paper of middling give
+    assert float(sheet.dent.max()) == pytest.approx(0.7 * eng.INDENT, rel=1e-5)
+    across = sheet.dent[72:79, 100]
+    # round: deepest in the middle, nothing beyond the width of the point
+    assert np.argmax(across) == 3
+    assert across[0] == 0.0 and across[-1] == 0.0
+    assert 0.0 < across[2] < across[3] and across[3] > across[4] > 0.0
+    assert not sheet.dent[:70].any() and not sheet.dent[81:].any()
+
+
+def test_a_groove_is_deeper_the_harder_the_stylus_and_the_softer_the_paper():
+    deep = []
+    for pressure in (0.2, 0.5, 1.0):
+        sheet = _sheet()
+        sheet.indent(LINE, pressure)
+        deep.append(float(sheet.dent.max()))
+    assert deep == pytest.approx([p * eng.INDENT for p in (0.2, 0.5, 1.0)], rel=1e-5)
+    hard, soft = (_sheet(papers.CARTRIDGE.with_(give=give)) for give in (0.0, 1.0))
+    for sheet in (hard, soft):
+        sheet.indent(LINE, 0.5)
+    assert hard.dent.max() < deep[1] < soft.dent.max()
+    assert soft.dent.max() == pytest.approx(
+        hard.dent.max() * (eng.GIVE_NONE + eng.GIVE_FULL) / eng.GIVE_NONE
+    )
+
+
+def test_the_deepest_pass_is_what_stays():
+    sheet = _sheet()
+    sheet.indent(LINE, 0.5)
+    once = sheet.dent.copy()
+    sheet.indent(LINE, 0.5)  # (the same again presses no deeper)
+    assert np.array_equal(sheet.dent, once)
+    sheet.indent(LINE, 0.2)
+    assert np.array_equal(sheet.dent, once)
+    sheet.indent(LINE, 0.9)
+    assert sheet.dent.max() > once.max()
+    # where the stylus is lifted (no pressure), no groove
+    lifted = _sheet()
+    lifted.indent(LINE, lambda u: np.where(np.abs(u - 0.5) < 0.1, 0.0, 0.6))
+    assert not lifted.dent[:, 95:105].any()
+    assert lifted.dent[:, 30:40].any() and lifted.dent[:, 160:170].any()
+
+
+@pytest.mark.parametrize(
+    "medium, width",
+    [
+        (pencils.HB, None),
+        (pencils.B2, None),
+        (pencils.B6, None),
+        (charcoal.VINE, 8),
+        (crayons.wax("#c0392b"), 8),
+        (pastels.hard("#2b2b3a"), 8),
+    ],
+)
+def test_a_tone_shaded_over_an_indented_line_skips_it(medium, width):
+    sheet = _sheet()
+    sheet.indent(LINE, 0.7)
+    sheet.shade(BOX, medium, 0.5, width, angle=60)
+    assert _in_groove(sheet) < 0.01
+    # the line stays the colour of the paper, in a tone
+    assert _luminance(sheet, GROOVE) > 0.97
+    assert _luminance(sheet, AROUND) < 0.9
+
+
+def test_a_light_groove_fills_under_a_firm_soft_pencil_and_a_deep_one_does_not():
+    filled = {}
+    for stylus in (0.3, 0.5, 0.7):
+        for pressure in (0.3, 1.0):
+            sheet = _sheet()
+            sheet.indent(LINE, stylus)
+            sheet.shade(BOX, pencils.B6, pressure, angle=60)
+            filled[stylus, pressure] = _in_groove(sheet)
+    # (the floor of a groove, pressed flat by the stylus, bites a dry medium
+    # less, as a flattened tooth does, and the more so the deeper it is:
+    # over eight sheets 0.48 to 0.56 of what the 6B lays beside, 0.15 to
+    # 0.23 at a light touch, 0.19 to 0.23 in a groove pressed at 0.5)
+    assert filled[0.3, 1.0] > 0.4
+    assert 0.1 < filled[0.3, 0.3] < 0.3
+    assert filled[0.5, 0.3] < 0.02 and filled[0.5, 1.0] > 0.15
+    assert filled[0.7, 1.0] < 0.2
+    # a harder lead reaches less far down
+    hard, soft = _sheet(), _sheet()
+    for sheet, pencil in ((hard, pencils.H2), (soft, pencils.B6)):
+        sheet.indent(LINE, 0.4)
+        sheet.shade(BOX, pencil, 0.8, angle=60)
+    assert _in_groove(hard) < 0.5 * _in_groove(soft)
+
+
+def test_paper_dented_evenly_takes_a_pencil_nearly_as_paper_crushed_as_far():
+    # (the floor of a groove bites as a tooth flattened as far as the groove
+    # is deep, as crushed paper does: at depths of 0.1, 0.2 and 0.4 it takes
+    # 1.16 to 1.24 times what paper crushed as far takes, where it took 1.23
+    # to 1.43, its valleys biting as on paper left alone; the rest is that a
+    # stylus takes the peaks off, where a crush lifts the valleys too)
+    plain = _sheet().shade(BOX, pencils.HB, 0.5, seed=9)
+    for depth in (0.1, 0.2, 0.4):
+        crushed, dented = _sheet(), _sheet()
+        crushed.crush[:] = depth
+        dented.dent[:] = depth
+        on_crushed = crushed.shade(BOX, pencils.HB, 0.5, seed=9)
+        on_dented = dented.shade(BOX, pencils.HB, 0.5, seed=9)
+        assert plain < on_crushed < on_dented < 1.3 * on_crushed
+
+
+@pytest.mark.parametrize("paper", [papers.BRISTOL, papers.ROUGH, Paper(depth=0.0)])
+def test_a_groove_is_skipped_on_a_smooth_paper_as_on_a_rough_one(paper):
+    sheet = _sheet(paper)
+    sheet.indent(LINE, 0.7)
+    sheet.shade(BOX, pencils.B2, 0.5, angle=60)
+    assert sheet.pigment()[AROUND].mean() > 0.0
+    assert _in_groove(sheet) < 0.02
+
+
+def _along_groove(stylus, groove, medium, width, pressure=0.5) -> tuple[Sheet, Sheet]:
+    """A line drawn along a groove ``groove`` pixels wide, indented at
+    ``stylus``, and the same line on the paper left alone."""
+    grooved, plain = _sheet(), _sheet()
+    grooved.indent(LINE, stylus, groove)
+    for sheet in (grooved, plain):
+        sheet.stroke(LINE, medium, pressure, width)
+    return grooved, plain
+
+
+def _on_floor(stylus, groove, medium, width) -> float:
+    """What a line drawn along a groove lays on its floor, as a share of
+    what it lays on the paper left alone."""
+    grooved, plain = _along_groove(stylus, groove, medium, width)
+    return float(grooved.pigment()[GROOVE].mean() / plain.pigment()[GROOVE].mean())
+
+
+def test_a_point_narrower_than_a_groove_follows_it_down():
+    # (fusain-d7v: every tip rode on the paper either side of a groove, and
+    # a fine point drawn along one indented at 0.7 laid nothing on its
+    # floor; a tip rests on the highest of the paper it covers)
+    assert 0.5 < _on_floor(0.7, 3.0, pencils.HB, 1.0) < 0.95
+    assert _on_floor(0.7, 3.0, pencils.B2, 3.0) > 0.3
+    # one wider than the groove still rides over it
+    assert _on_floor(0.7, 3.0, pencils.B2, 4.0) < 0.01
+    # and what is narrower than a wider groove goes down into it
+    assert _on_floor(0.7, 6.0, pencils.B2, 4.0) > 0.25
+    assert _on_floor(0.7, 6.0, pencils.B2, 6.0) < 0.01
+    # shaded across a groove, a fine point goes into it and a broad one
+    # skips it
+    fine, broad = _sheet(), _sheet()
+    for sheet, width in ((fine, 2.0), (broad, 6.0)):
+        sheet.indent(LINE, 0.7)
+        sheet.shade(BOX, pencils.B2, 0.5, width, angle=60)
+    assert _in_groove(fine) > 0.2 and _in_groove(broad) < 0.01
+
+
+def test_the_floor_of_a_groove_is_level_and_bites_less():
+    """The point that pressed a groove left its floor flat, as a hard tip
+    pressed firmly leaves the tooth: a point drawn along it touches all of
+    it, and the paper bites it less."""
+    grooved, plain = _along_groove(0.7, 3.0, pencils.HB, 1.0)
+    floor, paper = grooved.cover[GROOVE].mean(), plain.cover[GROOVE].mean()
+    assert floor > 0.95 and paper < floor - 0.2
+    per_floor = grooved.pigment()[GROOVE].mean() / floor
+    assert per_floor < 0.6 * plain.pigment()[GROOVE].mean() / paper
+
+
+def test_a_groove_shows_as_a_line_of_shadow_under_a_raking_light():
+    sheet, blank = _sheet(), _sheet()
+    sheet.indent(LINE, 0.8)
+    # nothing is drawn: flat, the sheet is as it was
+    assert np.array_equal(sheet.render(lighting=False), blank.render(lighting=False))
+    lit, bare = (
+        _light(sheet.render(light=RAKING), slice(None)),
+        _light(blank.render(light=RAKING), slice(None)),
+    )
+    change = (lit - bare)[72:79, 50:150].mean(axis=1)
+    # the side of the groove turned from the lamp (it shines from above
+    # the top of the sheet) is in shadow, the side turned to it is lit
+    assert change.min() < -0.1 and change.max() > 0.02
+    assert np.argmin(change) < np.argmax(change)
+    assert np.abs((lit - bare)[:60]).max() < 1e-6
+    # under the default lamp, fairly high, it shows far less
+    soft = _light(sheet.render(), slice(None)) - _light(blank.render(), slice(None))
+    assert 0.0 < -soft[72:79, 50:150].mean(axis=1).min() < -0.5 * change.min()
+
+
+def test_the_floor_of_a_groove_is_as_far_down_as_it_was_pressed():
+    paper = papers.CARTRIDGE
+    sheet = _sheet()
+    top = TOOTH_HEIGHT * paper.grain * paper.depth
+    assert float(sheet.surface_height().max()) == pytest.approx(top, rel=1e-3)
+    sheet.indent(LINE, 0.25)  # (half a tooth deep: only the peaks are pushed down)
+    depth = 0.25 * eng.INDENT
+    height = sheet.surface_height()[75, 50:150]
+    # (to within the ripple the round point leaves as it goes: its samples)
+    assert height.max() == pytest.approx(top * (1.0 - depth / paper.depth), rel=0.02)
+    low = sheet.tooth[75, 50:150] < 0.98 - depth
+    assert low.any() and np.allclose(height[low], top * sheet.tooth[75, 50:150][low])
+    sheet.indent(LINE, 1.0)  # below the valleys: a level floor
+    floor = sheet.surface_height()[75, 50:150]
+    assert np.allclose(floor, top * (1.0 - eng.INDENT), rtol=0.02)
+    assert np.allclose(sheet.surface_height(2.0), 2.0 * sheet.surface_height())
+    # a level paper has no relief but its grooves
+    level = _sheet(Paper(depth=0.0))
+    assert not level.surface_height().any()
+    level.indent(LINE, 0.5)
+    height = level.surface_height()
+    assert height.max() == 0.0 and not height[:70].any()
+    lowest = -0.5 * eng.INDENT * TOOTH_HEIGHT * level.paper.grain
+    assert float(height.min()) == pytest.approx(lowest, rel=1e-5)
+
+
+def test_what_was_drawn_goes_down_with_the_paper_and_no_eraser_takes_a_groove_out():
+    sheet = _shaded(pencils.B2, 0.5)
+    before, tone = sheet.pigment().copy(), sheet.reflectance().copy()
+    sheet.indent(LINE, 0.8)
+    assert np.array_equal(sheet.pigment(), before)
+    assert np.array_equal(sheet.reflectance(), tone)
+    groove = sheet.dent.copy()
+    sheet.rub(BOX, tools.ERASER, 1.0)
+    sheet.rub(BOX, tools.STUMP, 0.8)
+    sheet.fix()
+    assert np.array_equal(sheet.dent, groove)
+    # shaded again, the line comes out light in the tone
+    sheet.shade(BOX, pencils.B2, 0.5, angle=-30)
+    assert _luminance(sheet, GROOVE) > 1.3 * _luminance(sheet, AROUND)
+
+
+def test_a_copy_has_its_own_grooves_and_indenting_repeats():
+    first, second = _sheet(), _sheet()
+    for sheet in (first, second):
+        sheet.indent([(30, 40), (100, 90), (170, 50)], (0.3, 0.9))
+    assert np.array_equal(first.dent, second.dent)
+    copy = first.copy()
+    copy.indent(LINE, 0.9)
+    assert np.array_equal(first.dent, second.dent)
+    assert copy.dent.sum() > first.dent.sum()
+
+
+def test_indent_checks_what_it_is_given():
+    sheet = _sheet()
+    for bad in (0.0, -2.0, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="width"):
+            sheet.indent(LINE, 0.5, bad)
+    with pytest.raises(ValueError, match="pressure"):
+        sheet.indent(LINE, float("nan"))
+    assert not sheet.dent.any()
+    # a groove off the edge of the sheet is no trouble, nor is a single point
+    sheet.indent([(-20, 5), (30, -5)], 0.5)
+    sheet.indent([(100.5, 100.5)], 2.0, 5.0)  # (the pressure is clipped to 1)
+    assert float(sheet.dent[100, 100]) == pytest.approx(eng.INDENT)
+
+
+# --------------------------------------------------------------------------
+# paper scraped by a blade or grit: its fibres stand up (fusain-rlo)
+
+SCRAPED = (60, 60, 140, 92)
+CUT = (slice(66, 86), slice(70, 130))
+SEEDS = range(1, 5)
+
+
+def _scraped(tool, seed=1, paper=papers.CARTRIDGE) -> Sheet:
+    sheet = Sheet(200, 150, paper=paper, seed=seed)
+    sheet.rub(SCRAPED, tool, 0.9, 10, spacing=1.0 if tool is tools.KNIFE else None)
+    return sheet
+
+
+def _over(sheet, medium, pressure) -> np.ndarray:
+    """A layer shaded over the sheet: what it laid at each pixel. What it
+    returns is what is on the paper (the medium is conserved)."""
+    before = sheet.pigment().copy()
+    laid = sheet.shade(BOX, medium, pressure, 6.0, angle=-20, seed=7)
+    new = sheet.pigment() - before
+    assert laid == pytest.approx(float(new.sum(dtype=np.float64)), rel=1e-5)
+    return new
+
+
+def _blocks(new, size=5) -> np.ndarray:
+    """The means of an area in squares of ``size``: what varies over more
+    than the grain."""
+    area = new[CUT].astype(np.float64)
+    h, w = area.shape[0] // size * size, area.shape[1] // size * size
+    return area[:h, :w].reshape(h // size, size, w // size, size).mean(axis=(1, 3))
+
+
+def _blotch(new) -> float:
+    blocks = _blocks(new)
+    return float(blocks.std() / blocks.mean())
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_a_sand_eraser_or_a_knife_raises_the_fibres_and_a_rubber_eraser_does_not(
+    seed,
+):
+    for tool in (tools.SAND_ERASER, tools.KNIFE):
+        sheet = _scraped(tool, seed)
+        # (0.37 to 0.63: a patch of clumps of fibres, each up as far as its own)
+        assert 0.25 < sheet.rough[CUT].mean() < 0.75
+        assert sheet.rough.max() <= 1.0 and sheet.rough.min() >= 0.0
+        # (only where it cut: within its area, and its rim)
+        outside = np.ones(sheet.rough.shape, bool)
+        outside[56:97, 56:145] = False
+        assert not sheet.rough[outside].any()
+    for tool in (tools.ERASER, tools.KNEADED, tools.STUMP, tools.CHAMOIS):
+        assert not _scraped(tool, seed).rough.any()
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_scraped_paper_takes_more_and_less_evenly(seed):
+    # (before: as much as fresh paper, to the bit, and as evenly)
+    for tool in (tools.SAND_ERASER, tools.KNIFE):
+        for medium, pressure in ((pencils.HB, 0.3), (charcoal.VINE, 0.5)):
+            fresh = _over(_sheet_of(seed), medium, pressure)
+            scraped = _over(_scraped(tool, seed), medium, pressure)
+            # (1.36 to 1.64 times as much; at most 1 + ROUGH)
+            more = scraped[CUT].mean() / fresh[CUT].mean()
+            assert 1.25 < more < 1.0 + eng.ROUGH
+            # blotchy: what varies over more than the grain grows (0.25 to
+            # 0.42 of the mean, from 0.34 to 0.47), and it is the fibres'
+            # (0.16 to 0.26 of the mean, the same strokes over fresh paper)
+            assert _blotch(scraped) > _blotch(fresh) + 0.03
+            ratio = _blocks(scraped) / _blocks(fresh)
+            assert ratio.std() / ratio.mean() > 0.1
+            # and beyond where it cut, as on fresh paper
+            rows = slice(25, 50)
+            assert np.array_equal(scraped[rows], fresh[rows])
+
+
+def _sheet_of(seed) -> Sheet:
+    return Sheet(200, 150, paper=papers.CARTRIDGE, seed=seed)
+
+
+def test_the_fibres_come_up_in_the_papers_own_clumps():
+    sand, knife = _scraped(tools.SAND_ERASER), _scraped(tools.KNIFE)
+    # where they come up, and how far, is the paper's: whatever cuts it
+    corr = np.corrcoef(sand.rough[CUT].ravel(), knife.rough[CUT].ravel())[0, 1]
+    assert corr > 0.95
+    # and however often: cut again, none comes up further than its own
+    clump = eng.CLUMP * papers.CARTRIDGE.grain
+    salt = sand._fibres()
+    own = np.array(
+        [[eng.fibres_at(ix, iy, clump, salt) for ix in range(200)] for iy in range(150)]
+    )
+    for _ in range(3):
+        sand.rub(SCRAPED, tools.SAND_ERASER, 1.0, 10)
+    assert (sand.rough <= own + 1e-6).all()
+    assert sand.rough[CUT].mean() > 0.9 * own[CUT].mean()
+    # in clumps: some hardly come up, some all the way
+    assert (own == 0.0).mean() > 0.1 and (own == 1.0).mean() > 0.1
+    # a sheet of the same paper and seed has the same; another seed, others
+    again = _scraped(tools.SAND_ERASER)
+    assert again._fibres() == knife._fibres()
+    other = _scraped(tools.SAND_ERASER, seed=2)
+    corr = np.corrcoef(again.rough[CUT].ravel(), other.rough[CUT].ravel())[0, 1]
+    assert abs(corr) < 0.5
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_a_firm_tip_or_a_stump_lays_the_fibres_down_and_a_light_one_does_not(seed):
+    raised = _scraped(tools.SAND_ERASER, seed)
+    up = float(raised.rough[CUT].mean())
+    light = raised.copy()
+    light.shade(BOX, pencils.HB, 0.3, 6.0, angle=-20, seed=7)
+    assert np.array_equal(light.rough, raised.rough)
+    # a firm tip lays them down as far as it presses: the firmer the further,
+    # towards the level of its load, and no further for going on (seed 1:
+    # four layers at 0.7 leave 0.30 of the 0.48 that stood, nine in ten
+    # pixels below 0.58, its level; at 0.85 0.035, below 0.10; at full
+    # pressure 0.0015)
+    laid = []
+    for pressure in (0.7, 0.85, 1.0):
+        sheet = raised.copy()
+        for layer in range(4):
+            sheet.shade(BOX, pencils.HB, pressure, 6.0, angle=30 - 55 * layer)
+        laid.append(float(sheet.rough[CUT].mean()))
+        level = 1.0 - min(eng.BURNISH * eng.firmness(pressure), 1.0)
+        assert np.quantile(sheet.rough[CUT], 0.9) < level + 0.1
+    assert up > laid[0] > laid[1] > laid[2]
+    assert laid[2] < 0.02 * up
+    # a stump presses them down too, as it presses the dust in (to 0.5 of
+    # what they were in a rub); an eraser does not
+    stump, vinyl = raised.copy(), raised.copy()
+    stump.rub(SCRAPED, tools.STUMP, 0.9)
+    vinyl.rub(SCRAPED, tools.ERASER, 0.9)
+    assert 0.3 * up < stump.rough[CUT].mean() < 0.7 * up
+    assert np.array_equal(vinyl.rough, raised.rough)
+    # and paper laid down takes less than it did, scraped
+    fresh = _over(_sheet_of(seed), pencils.HB, 0.3)
+    on_raised = _over(raised.copy(), pencils.HB, 0.3)
+    on_stumped = _over(stump, pencils.HB, 0.3)
+    assert fresh[CUT].mean() < on_stumped[CUT].mean() < on_raised[CUT].mean()
+
+
+def test_a_copy_and_a_pickle_keep_the_raised_fibres():
+    sheet = _scraped(tools.KNIFE)
+    copy = sheet.copy()
+    assert np.array_equal(copy.rough, sheet.rough) and copy.rough is not sheet.rough
+    copy.rough[:] = 0.0
+    assert sheet.rough.any()
+    thawed = pickle.loads(pickle.dumps(sheet))
+    assert np.array_equal(thawed.rough, sheet.rough)
+    # and what is drawn on either takes it alike
+    assert np.array_equal(
+        _over(thawed, pencils.HB, 0.3), _over(sheet.copy(), pencils.HB, 0.3)
+    )
+
+
+def test_fibres_at_is_a_share_and_always_the_same():
+    values = [
+        eng.fibres_at(ix, iy, 9.0, 12345) for iy in range(0, 90, 7) for ix in range(90)
+    ]
+    assert min(values) >= 0.0 and max(values) <= 1.0
+    assert eng.fibres_at(17, 40, 9.0, 12345) == eng.fibres_at(17, 40, 9.0, 12345)
+    # smooth between the clumps: neighbours differ little
+    steps = [
+        abs(eng.fibres_at(ix + 1, 30, 9.0, 12345) - eng.fibres_at(ix, 30, 9.0, 12345))
+        for ix in range(200)
+    ]
+    assert max(steps) < 0.5
+
+
+# --------------------------------------------------------------------------
+# the ball of a pen
+
+
+def test_a_ballpoint_leaves_a_groove_the_deeper_the_firmer():
+    deep = []
+    for pressure in (0.2, 0.5, 1.0):
+        sheet = _sheet()
+        sheet.stroke(LINE, pens.BLUE, pressure)
+        deep.append(float(sheet.dent.max()))
+        assert not sheet.dent[:70].any() and not sheet.dent[81:].any()
+    assert deep == pytest.approx([p * eng.BALL_DENT for p in (0.2, 0.5, 1.0)], rel=1e-5)
+    assert eng.BALL_DENT < eng.INDENT  # (a stylus is made for it)
+
+
+def test_a_pencil_shades_over_a_light_pen_line_and_skips_a_firm_one():
+    filled = []
+    for pressure in (0.2, 0.6, 1.0):
+        sheet = _sheet()
+        sheet.stroke(LINE, pens.BLUE, pressure)
+        sheet.shade(BOX, pencils.B2, 0.3, angle=60)
+        filled.append(_in_groove(sheet))
+    # (the floor the ball pressed flat bites the pencil less, fusain-d7v:
+    # 0.89 where it was 0.91, 0.26 where 0.42)
+    assert filled[0] > 0.8
+    assert 0.15 < filled[1] < 0.5
+    assert filled[2] < 0.1
+
+
+def test_the_ball_goes_down_into_a_groove():
+    """It is as small as what made it: it writes in a groove as on the
+    paper beside, and one pen line crosses another as if it were flat."""
+    plain, grooved = _sheet(), _sheet()
+    grooved.indent(LINE, 1.0, 6.0)
+    for sheet in (plain, grooved):
+        sheet.stroke(LINE, pens.BLUE, 0.4)
+        sheet.stroke([(100, 20), (100, 130)], pens.BLUE, 0.4)
+    assert plain.ink is not None and grooved.ink is not None
+    assert np.array_equal(plain.ink, grooved.ink)
