@@ -1,5 +1,10 @@
 # Core model: design proposal
 
+*Written when fusain was a repository of its own. Since 19 November 2026 it is
+`murex.fusain`, a part of murex and no longer a package that depends on it;
+where this document says that murex is a third package, read "the modules of
+murex that every medium shares".*
+
 Status: accepted (issue `fusain-ilv`). All six steps of the build order are built.
 
 ## What fusain has to get right
@@ -1214,10 +1219,10 @@ Without a seed everything is as it was, to the bit.
 
 These are numba kernels under the same rules as oilpaint's (no `fastmath`, no
 `parallel`), so a drawing repeats exactly, and what makes them fast changes
-no result: `tools/fingerprint.py` hashes all that a suite of drawings leaves
+no result: `tools/fusain/fingerprint.py` hashes all that a suite of drawings leaves
 on its sheets, and a change that is not meant to alter the picture leaves
 every hash as it is. Their constants are in
-`fusain/_engine.py`. They were set so that tones land near these figures,
+`murex/fusain/_engine.py`. They were set so that tones land near these figures,
 which are estimates from experience, not measurements of real drawings: on
 cartridge paper and without its shine, one even layer of HB reflects about
 0.8 of what the paper does at a light pressure and 0.4 at full pressure; 6B about 0.5 and 0.13; 4H
@@ -1323,7 +1328,7 @@ raking one; it is added to what the pigment sends back.
 
 A throwaway numpy script ran an early form of this step law with a grey ramp
 for colour, before anything was built:
-`docs/design/prototype.png`. Rows, top to bottom: HB hatching with pressure
+`docs/fusain/design/prototype.png`. Rows, top to bottom: HB hatching with pressure
 rising left to right; 6B the same; the side of a charcoal stick with a stump
 dragged through it; one, two, four and eight light layers of HB.
 
@@ -1447,7 +1452,7 @@ kernel and its own layer:
 ## Sketch of the API
 
 ```python
-from fusain import Sheet, Smudger, papers, pencils, pastels, tools
+from murex.fusain import Sheet, Smudger, papers, pencils, pastels, tools
 
 sheet = Sheet(1200, 800, paper=papers.CARTRIDGE, seed=1)
 sheet.stroke([(100, 300), (300, 220), (500, 320)], pencils.HB, pressure=0.4)

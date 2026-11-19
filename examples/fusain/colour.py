@@ -1,7 +1,7 @@
 """Colour: coloured pencils on cartridge paper, and pastels on a dark paper.
 
-Run from the repository root: ``python examples/colour.py``. Writes
-``examples/output/colour.png``.
+Run from the repository root: ``python examples/fusain/colour.py``. Writes
+``examples/fusain/output/colour.png``.
 
 Top, coloured pencils. Left: red, yellow and blue, each lighter to firmer
 from left to right. Middle: the same three laid over one another, which mix
@@ -26,9 +26,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from murex import write_png
 
-from fusain import Sheet, Smudger, papers, pastels, pencils, tools
+from murex import write_png
+from murex.fusain import Sheet, Smudger, papers, pastels, pencils, tools
 
 RED, YELLOW, BLUE = "#c0392b", "#f2c40f", "#2456a6"
 

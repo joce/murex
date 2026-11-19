@@ -5,7 +5,7 @@ before it does not move it."""
 import numpy as np
 import pytest
 
-from fusain import Sheet, Stick, charcoal, papers, pencils, pens, tools
+from murex.fusain import Sheet, Stick, charcoal, papers, pencils, pens, tools
 
 #: What a sheet holds, which a mark changes.
 STATE = (

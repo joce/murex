@@ -7,10 +7,10 @@ import zlib
 from collections.abc import Iterator, Sequence
 
 import numpy as np
-from murex import spectral as sp
-from murex import spline, write_png
-from murex.spline import Profile
 
+from .. import spectral as sp
+from .. import spline, write_png
+from ..spline import Profile
 from . import _engine as eng
 from . import hatching
 from ._engine import BOUND, FILM, HELD, IS, IV, IW, IX, KINDS, LOOSE, PASTE, SET, N

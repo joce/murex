@@ -1,17 +1,12 @@
-# fusain
-
-[![CI](https://github.com/joce/fusain/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/joce/fusain/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/joce/fusain/graph/badge.svg)](https://codecov.io/gh/joce/fusain)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![GitHub License](https://img.shields.io/github/license/joce/fusain)](https://github.com/joce/fusain/blob/main/LICENSE)
+# murex.fusain
 
 A drawing simulator for dry and semi-dry media: graphite and coloured pencils,
 charcoal, pastel, crayon, ballpoint pen and the like, laid down on a paper with
-tooth. Wet media (ink, felt-tip markers, paint) are out of scope; for oil
-paint, see the sister project [oilpaint](https://github.com/joce/oilpaint).
-The two share their colour science and stroke paths through
-[murex](https://github.com/joce/murex).
+tooth. It is the part of [murex](../../README.md) that draws: murex holds the
+colour science and the stroke paths it shares with the other media. Wet media
+(ink, felt-tip markers, watercolour) and oil paint are not its business: for
+oil paint, see [oilpaint](https://github.com/joce/oilpaint), which is moving
+into murex as `murex.huile`.
 
 Early days. So far there are papers, graphite and coloured pencils, charcoal,
 soft, hard and oil pastels, wax crayons, ballpoint pens, stumps, erasers and
@@ -32,10 +27,10 @@ A point wears as it draws, until it is sharpened. A hard pencil pressed
 firmly flattens the tooth, and a stylus indents a line that a tone shaded
 over it skips. Heavy graphite shines under the lamp, polished wax has a soft
 gloss and heavy ballpoint ink bronzes. Fixative sets the dust. The plan for
-the rest is in [docs/design.md](docs/design.md).
+the rest is in [design.md](design.md).
 
 ```python
-from fusain import Sheet, papers, pencils
+from murex.fusain import Sheet, papers, pencils
 
 sheet = Sheet(800, 600, paper=papers.CARTRIDGE, seed=1)
 sheet.stroke([(100, 300), (300, 220), (500, 320)], pencils.B2, pressure=0.6)
@@ -56,33 +51,33 @@ street, a bird, a table of things and a lake in space, lit and looked at
 through a camera; the farm as flat shapes, as its manner asks), and the
 medium is then laid along the forms that result.
 
-* `examples/deco.py`: a sketch of an imagined art deco tower, in charcoal on
+* `examples/fusain/deco.py`: a sketch of an imagined art deco tower, in charcoal on
   a cream paper. The shadow faces are toned up the wall and rubbed with a
   stump, the cast shadows hatched the way the light falls, the windows drawn
   strip by strip between their piers; the sky is vine charcoal rubbed with a
   finger, and the building is lifted back out of it with a kneaded eraser
   (about 7,900 strokes and 1,700 rubs, under a minute).
-* `examples/broadway.py`: Broadway in SoHo on an autumn afternoon, in soft
+* `examples/fusain/broadway.py`: Broadway in SoHo on an autumn afternoon, in soft
   pastel on toned paper. Blocked in with the side of the stick, rubbed and
   fixed; then each cast-iron front in strokes that run with the perspective,
   the roadway, the trees in broken dabs, the cabs and the people, each a
   body in a pose drawn in a handful of strokes; the brightest touches last
   (about 32,500 strokes, under a minute).
-* `examples/macaw.py`: a great green macaw in coloured pencil on white
-  paper. The bird is a solid model (`examples/macaw_model.py`) whose
+* `examples/fusain/macaw.py`: a great green macaw in coloured pencil on white
+  paper. The bird is a solid model (`examples/fusain/macaw_model.py`) whose
   proportions were measured on several photographs of the species, posed and
   lit; the pencil goes on darks first, each colour hatched lightly and then
   stroked along the lie of the feathers, with the head carried furthest.
   The feathers and the bill are then burnished with a colourless blender,
   and the lights scratched out of the wax with the point of a knife (about
   36,700 strokes, over a minute).
-* `examples/stilllife.py`: a still life in blue, black and red ballpoint. A
+* `examples/fusain/stilllife.py`: a still life in blue, black and red ballpoint. A
   jug, a bottle, a bowl of cherries, apples and a striped cloth are built as
   solids and lit; the pen then works patch by patch, laying bundles of
   strokes that follow each form wherever tone is still wanting. Red is the
   fruit, blue the shadows on white things, the jug's pattern and the cloth's
   stripes, black the darkest places (about 11,300 strokes, about a minute).
-* `examples/lake.py`: morning mist on a mountain lake, in graphite. Far to
+* `examples/fusain/lake.py`: morning mist on a mountain lake, in graphite. Far to
   near is also hard lead to soft: the sky is a soft lead laid very lightly on
   its side and rubbed with a finger until its grain is gone; the ridges are
   rubbed to a haze; the far forest is massed in 2B and pulled down into the
@@ -90,50 +85,50 @@ medium is then laid along the forms that result.
   erasers; the near spruces carry the full weight of 8B; and the boat is
   drawn with a sharp point (about 37,000 strokes, 700 rubs and 700 passes of
   an eraser, about three minutes).
-* `examples/farm.py`: a farm on a hill in wax crayon, as naive art has it:
+* `examples/fusain/farm.py`: a farm on a hill in wax crayon, as naive art has it:
   no perspective, everything from its most telling side, bold flat colour.
   Wax resists what comes after it, so the order is a crayon's: black
   outlines first on bare paper, then the patterns, then the colours
   scribbled over them, light before dark; the whites are paper (about
   11,600 strokes, under a minute).
 
-![An art deco tower in charcoal](examples/output/deco.png)
+![An art deco tower in charcoal](../../examples/fusain/output/deco.png)
 
 *An imagined setback skyscraper of the 1930s, in charcoal: vine and
 compressed charcoal, a stump, a finger and a kneaded eraser, on a cream paper
 with an irregular tooth.*
 
-![Broadway in SoHo in pastel](examples/output/broadway.png)
+![Broadway in SoHo in pastel](../../examples/fusain/output/broadway.png)
 
 *Broadway in SoHo on an autumn afternoon, in soft pastel on toned paper: the
 sun low behind the left shoulder, so the fronts on the right are lit and the
 left side lays its shadow across the street.*
 
-![A great green macaw in coloured pencil](examples/output/macaw.png)
+![A great green macaw in coloured pencil](../../examples/fusain/output/macaw.png)
 
 *A great green macaw in coloured pencil: built from measured proportions,
 then drawn darks first, each colour stroked along the feathers, burnished
 with a colourless blender, its lights scratched out with a knife.*
 
-![A still life in three ballpoints](examples/output/stilllife.png)
+![A still life in three ballpoints](../../examples/fusain/output/stilllife.png)
 
 *A still life in blue, black and red ballpoint, every tone a hatching that
 follows its form: the highlights are bare paper, and the inks mix only where
 their lines cross.*
 
-![Morning mist on a mountain lake in graphite](examples/output/lake.png)
+![Morning mist on a mountain lake in graphite](../../examples/fusain/output/lake.png)
 
 *Morning mist on a mountain lake, in graphite: 4H to 8B, the point and the
 side of the lead, finger, stump and chamois, kneaded and vinyl erasers.*
 
-![A farm on a hill in wax crayon](examples/output/farm.png)
+![A farm on a hill in wax crayon](../../examples/fusain/output/farm.png)
 
 *A farm on a hill in wax crayon: outlines first, then patterns, then colour
 scribbled over them, the paper left for every white.*
 
 ## The media
 
-![Graphite pencils on cartridge paper](examples/output/pencils.png)
+![Graphite pencils on cartridge paper](../../examples/fusain/output/pencils.png)
 
 Top: 4H, 2H, HB, 2B, 4B, 6B and 8B, each shaded with the pressure rising from
 left to right. Middle left: HB at a light pressure in 1, 2, 4 and 8 layers.
@@ -172,7 +167,7 @@ pressure crushes the tooth flat, an HB by two fifths at most and a 2B by
 a fifth, however many layers.
 
 ```python
-from fusain import Smudger, charcoal, tools
+from murex.fusain import Smudger, charcoal, tools
 
 sheet.shade((100, 60, 500, 200), charcoal.VINE, pressure=0.6, width=14)
 sheet.smudge([(120, 130), (560, 130)], tools.STUMP)    # drags the dust along
@@ -207,7 +202,7 @@ the join of two pastels leaves a passage from one colour to the other a
 width or two of the finger wide, and a stump dragged out of a tone leaves
 most of what it drags within its own width of the edge, then a faint trail.
 
-![Charcoal, a stump and erasers](examples/output/charcoal.png)
+![Charcoal, a stump and erasers](../../examples/fusain/output/charcoal.png)
 
 Vine charcoal, compressed charcoal and a 4B pencil on Ingres paper. Across all
 three, from the top: untouched; a stump dragged through and out onto the bare
@@ -216,7 +211,7 @@ beside it; a finger rubbed to and fro; a kneaded eraser pulled through three
 times; a vinyl eraser pulled through once.
 
 ```python
-from fusain import pastels
+from murex.fusain import pastels
 
 sheet.shade((100, 60, 300, 200), pencils.coloured("#2456a6"), pressure=0.7)
 sheet.shade((200, 60, 400, 200), pencils.coloured("#f2c40f"), pressure=0.7)  # green where they overlap
@@ -254,7 +249,7 @@ eraser (`tools.SAND_ERASER`) abrades a patch. And a dark goes on over a
 light only while the tooth has room: on a paper with a shallow tooth, which
 four light layers fill, lay the darks first.
 
-![Coloured pencils and pastels](examples/output/colour.png)
+![Coloured pencils and pastels](../../examples/fusain/output/colour.png)
 
 Top, coloured pencils on cartridge paper. Left: red, yellow and blue, lighter
 to firmer. Middle: the same three laid over one another: green, orange and
@@ -274,7 +269,7 @@ sheet.fix()   # fixative: the dust stays where it is, and takes more layers
 # and a light pastel covers a heavily worked dark one again.
 ```
 
-![Fixative](examples/output/fixative.png)
+![Fixative](../../examples/fusain/output/fixative.png)
 
 The same drawing rubbed alike twice; the bottom one was sprayed with fixative
 first. Left: vine charcoal, a stump dragged through and a kneaded eraser
@@ -283,7 +278,7 @@ Right: white pastel strokes laid over a dark ground after the fixative, the
 lower two rubbed with a finger.
 
 ```python
-from fusain import crayons
+from murex.fusain import crayons
 
 sheet.shade((100, 60, 300, 200), crayons.wax("#c0392b"), pressure=0.6, width=9)
 sheet.shade((100, 260, 300, 400), pastels.oil("#e67e22"), pressure=0.7, width=14)
@@ -292,7 +287,7 @@ sheet.stroke([(100, 460), (300, 480)], crayons.wax("#f4f1ea"), pressure=0.9, wid
 sheet.shade((80, 430, 320, 510), charcoal.COMPRESSED, pressure=0.4, width=12)
 ```
 
-![Wax crayons and oil pastels](examples/output/crayons.png)
+![Wax crayons and oil pastels](../../examples/fusain/output/crayons.png)
 
 Top, wax crayons on cartridge paper. Left: red, yellow and blue, lighter to
 firmer. Middle: the same three laid over one another. Right: a white crayon
@@ -309,7 +304,7 @@ kneaded eraser pulled through soft pastel, which it lifts, and through oil
 pastel, which it does not.
 
 ```python
-from fusain import HeldPen, pens
+from murex.fusain import HeldPen, pens
 
 sheet.stroke([(100, 300), (400, 320)], pens.BLUE, pressure=0.6)
 sheet.shade((100, 60, 300, 200), pens.BLACK, pressure=0.4, angle=35)   # hatching
@@ -321,7 +316,7 @@ sheet.shade((100, 60, 300, 200), pen, pressure=0.4)
 pen.wipe()
 ```
 
-![Ballpoint pens](examples/output/ballpoint.png)
+![Ballpoint pens](../../examples/fusain/output/ballpoint.png)
 
 Left: lines from the lightest touch to the firmest, and loops as a hand writes
 them. Middle: hatching in one to four layers, and one layer pressed lighter to
@@ -335,7 +330,7 @@ over it skips where the pen was firm. Bottom right: loops written with a pen
 that has run dry (`sheet.indent`), shaded over.
 
 ```python
-from fusain import Stick
+from murex.fusain import Stick
 
 pencil = Stick(pencils.B6, width=2)      # a sharp point, which wears as it draws
 sheet.stroke([(100, 400), (700, 420)], pencil)
@@ -351,7 +346,7 @@ The side of a stick of charcoal, pastel or crayon lies flat along its length
 does; the side of a pencil is the cone its sharpening bared, and its band is
 soft at the edges.
 
-![A point that wears](examples/output/tips.png)
+![A point that wears](../../examples/fusain/output/tips.png)
 
 One line drawn back and forth down the sheet without sharpening, with a 2H, a
 2B and a 6B, each sharp at the top: the softer the lead, the sooner its point
@@ -369,7 +364,7 @@ sheet.stroke(path, pencils.B6, 0.8, lambda u: 15 - 14 * u)           # tapers to
 sheet.stroke(path, Stick(charcoal.VINE, 6, 6, side=110), tilt=lambda u: u)  # turned onto its side
 ```
 
-![The shape of a stroke](examples/output/strokes.png)
+![The shape of a stroke](../../examples/fusain/output/strokes.png)
 
 Top: round and flat ends between the same two ticks, and short dabs of a
 broad soft pastel beside a long stroke of it. Middle: strokes that narrow as
@@ -385,7 +380,7 @@ image = sheet.render(gloss=0)             # matte, as a scanner sees it
 shiny = sheet.shine("wax")                # how much of each pixel shines: "graphite", "wax", "ink"
 ```
 
-![What shines, under three lamps](examples/output/shine.png)
+![What shines, under three lamps](../../examples/fusain/output/shine.png)
 
 One drawing under a raking lamp, the default lamp and a lamp straight
 overhead. Top row. Left: an HB, a 4B and an 8B, lighter to firmer. Right:
@@ -401,9 +396,9 @@ hardly under the default lamp, so that a burnished dark stays deep; and
 heavy ink like bronze, in the colour it absorbs most (black ink, a blend of
 dyes, in its violet's), with the lamp overhead.
 
-![The papers under a raking light](examples/output/papers.png)
+![The papers under a raking light](../../examples/fusain/output/papers.png)
 
-The papers of `fusain.papers` under a raking light: cartridge, printer paper,
+The papers of `murex.fusain.papers` under a raking light: cartridge, printer paper,
 Bristol, newsprint, Ingres, charcoal paper; cold-pressed, rough, sanded card,
 toned grey, toned tan, black.
 
@@ -429,11 +424,11 @@ uv sync --group dev --frozen   # install the package and the development tools
 uv run pytest                  # run the tests (the first run compiles the numba kernels)
 make pre-push                  # lint, types, the tests under coverage, spelling
 make tox                       # every Python version and the built wheel, as CI runs them
-uv run python tools/fingerprint.py   # whether a change has altered the picture
-uv run python tools/benchmark.py     # how long strokes, rubs and renders take (--against CHECKOUT: compared with another)
-uv run python tools/refcounts.py     # whether a kernel counts references as it works (it must not)
+uv run python tools/fusain/fingerprint.py   # whether a change has altered the picture
+uv run python tools/fusain/benchmark.py     # how long strokes, rubs and renders take (--against CHECKOUT: compared with another)
+uv run python tools/fusain/refcounts.py     # whether a kernel counts references as it works (it must not)
 ```
 
 ## License
 
-[MIT](LICENSE)
+[MIT](../../LICENSE)

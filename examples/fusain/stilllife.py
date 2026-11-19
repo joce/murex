@@ -1,7 +1,7 @@
 """A still life, drawn in blue, black and red ballpoint.
 
-Run from the repository root: ``python examples/stilllife.py``. Writes
-``examples/output/stilllife.png``; ``python examples/stilllife.py FOLDER``
+Run from the repository root: ``python examples/fusain/stilllife.py``. Writes
+``examples/fusain/output/stilllife.png``; ``python examples/fusain/stilllife.py FOLDER``
 also writes the lit studies of the scene and the maps the pen follows to
 FOLDER.
 
@@ -37,10 +37,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from murex import filters, noise, write_png
 from numba import njit
 
-from fusain import Sheet, papers, pens
+from murex import filters, noise, write_png
+from murex.fusain import Sheet, papers, pens
 
 HERE = Path(__file__).parent
 WIDTH, HEIGHT = 1400, 1100
@@ -2670,7 +2670,7 @@ def drawing(m: PenMaps, seed=7) -> Sheet:
 
 
 def main(studies: Path | None = None):
-    """Draw the still life to ``examples/output/stilllife.png``; with a
+    """Draw the still life to ``examples/fusain/output/stilllife.png``; with a
     folder, also write the lit studies and the maps there."""
     parts = scene_parts()
     sc = merge(parts)

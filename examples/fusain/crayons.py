@@ -1,8 +1,8 @@
 """Wax crayons on cartridge paper, oil pastels on a tan paper, and both
 with dry media.
 
-Run from the repository root: ``python examples/crayons.py``. Writes
-``examples/output/crayons.png``.
+Run from the repository root: ``python examples/fusain/crayons.py``. Writes
+``examples/fusain/output/crayons.png``.
 
 Top, wax crayons. Left: red, yellow and blue, each lighter to firmer from
 left to right. Middle: the same three laid over one another, which mix.
@@ -28,9 +28,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from murex import write_png
 
-from fusain import Sheet, Smudger, charcoal, crayons, papers, pastels, tools
+from murex import write_png
+from murex.fusain import Sheet, Smudger, charcoal, crayons, papers, pastels, tools
 
 RED, YELLOW, BLUE = "#c0392b", "#f2c40f", "#2456a6"
 WHITE, BLACK = "#f4f1ea", "#161616"

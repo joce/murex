@@ -5,10 +5,10 @@ import itertools
 
 import numpy as np
 import pytest
+
 from murex import spectral as sp
 from murex.filters import box_blur
-
-from fusain import (
+from murex.fusain import (
     Medium,
     Sheet,
     charcoal,
@@ -19,8 +19,8 @@ from fusain import (
     pens,
     tools,
 )
-from fusain._engine import BALL_INK, IW
-from fusain.sheet import (
+from murex.fusain._engine import BALL_INK, IW
+from murex.fusain.sheet import (
     INK_FULL,
     IV,
     IX,

@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from fusain import Paper, Sheet, charcoal, papers
-from fusain.paper import PIT_SPACING, TEXTURES
+from murex.fusain import Paper, Sheet, charcoal, papers
+from murex.fusain.paper import PIT_SPACING, TEXTURES
 
 
 def _tooth(paper, seed=3, h=120, w=160):

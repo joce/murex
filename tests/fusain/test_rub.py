@@ -5,10 +5,10 @@ from typing import Any
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import Sheet, Smudger, charcoal, hatching, papers, pencils, tools
-from fusain import sheet as sheet_module
+from murex import spectral as sp
+from murex.fusain import Sheet, Smudger, charcoal, hatching, papers, pencils, tools
+from murex.fusain import sheet as sheet_module
 
 PATCH = (30, 30, 270, 170)
 INSIDE = (slice(60, 140), slice(70, 230))

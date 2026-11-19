@@ -33,12 +33,12 @@ for every pixel:
 And a kernel that is called for every step of a stroke (:func:`bear`,
 :func:`rub_under`, :func:`roll_over`) calls no other kernel and allocates
 no array (its caller gives it room to work in), or its own arrays are
-counted at every call. ``tools/refcounts.py`` tells what each kernel still
-counts, and ``tests/test_refcounts.py`` holds it at nothing as it works;
-``tools/benchmark.py`` measures what that is worth. None of it changes a
+counted at every call. ``tools/fusain/refcounts.py`` tells what each kernel still
+counts, and ``tests/fusain/test_refcounts.py`` holds it at nothing as it works;
+``tools/fusain/benchmark.py`` measures what that is worth. None of it changes a
 result.
 
-Speed must not change the picture: ``tools/fingerprint.py`` tells. What is
+Speed must not change the picture: ``tools/fusain/fingerprint.py`` tells. What is
 exact here and must stay so: a table holds values worked out by the very
 expression it replaces (:func:`streaks_of`); a loop skips only pixels that
 it would have left as they were (:func:`row_span`, :func:`settle_dust`),
@@ -55,8 +55,9 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from murex.spectral import N_BANDS
 from numba import njit
+
+from ..spectral import N_BANDS
 
 #: What a kernel calls for every pixel (see above).
 _inlined = njit(cache=True, error_model="numpy", inline="always")
@@ -2789,7 +2790,7 @@ def rub_under(
     Compiled without AVX-512, a stump rubs in a tenth less time, a finger
     in a twentieth less and an eraser in a twentieth more (fusain-lir; the
     README says how). Time a change compiled both ways
-    (``tools/benchmark.py --cpu-against haswell``) before believing a gain
+    (``tools/fusain/benchmark.py --cpu-against haswell``) before believing a gain
     here."""
     height, width = cover.shape
     x, y, tx, ty, pressure = now[0], now[1], now[2], now[3], now[4]

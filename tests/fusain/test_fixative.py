@@ -3,10 +3,10 @@ room for more, measured."""
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import Sheet, charcoal, papers, pastels, pencils, tools
-from fusain.sheet import IS, IV, N
+from murex import spectral as sp
+from murex.fusain import Sheet, charcoal, papers, pastels, pencils, tools
+from murex.fusain.sheet import IS, IV, N
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))

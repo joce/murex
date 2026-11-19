@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fusain import Paper, Sheet, Stick, hatching, pencils
+from murex.fusain import Paper, Sheet, Stick, hatching, pencils
 
 LEVEL = Paper(depth=0)  # nothing but the strokes themselves shows
 

@@ -11,8 +11,7 @@ hard it is polished, and has a waxy gloss under a lamp.
 
 from __future__ import annotations
 
-from murex import ColorLike, Pigment
-
+from .. import ColorLike, Pigment
 from .medium import Medium
 
 #: How strongly a crayon hides what is under it, and how much stronger it is

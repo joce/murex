@@ -1,15 +1,22 @@
-# Changelog
+# Changelog of fusain, before it moved into murex
+
+What changed in fusain while it was a repository of its own
+(<https://github.com/joce/fusain>, never released), up to 19 November 2026,
+when it became `murex.fusain`. Later changes are in murex's
+[CHANGELOG.md](../../CHANGELOG.md). Paths are written as they are here
+(`murex/fusain/`, `tools/fusain/`); pull request numbers are those of the
+fusain repository.
 
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## Up to the move into murex
 
 ### Added
 
 - A coloured pencil's `melts` follows its softness: `Medium.with_(softness=...)` scales it in proportion (clipped to 1), from the new `Medium.pale` (what its colour alone gives at the softness 0.55 of `pencils.coloured`), unless `melts` is given too. A softer, waxier pencil of the same colour burnishes more. The pencils of `coloured` are unchanged. (fusain-6uj)
-- `tools/benchmark.py` times processor time, not the wall clock, and shows
+- `tools/fusain/benchmark.py` times processor time, not the wall clock, and shows
   the best of N runs (`-n`, 7 by default) with how far they spread. With
   `--against CHECKOUT` it runs another checkout of fusain alongside this
   one, each in a process of its own, takes each workload turn about with it,
@@ -34,7 +41,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   generator has been through, and what is drawn after it does not depend on
   it, so that a drawing in which one part changes keeps the grain of every
   mark that does not. Without a seed everything is as it was, to the bit
-  (every hash of `tools/fingerprint.py`, the thorough one too).
+  (every hash of `tools/fusain/fingerprint.py`, the thorough one too).
 
 - The README says how to compile the kernels without AVX-512 on a processor
   that has it (`NUMBA_CPU_FEATURES`, the machine's own and `-avx512f`),
@@ -232,7 +239,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `sheet.polish`. A sheet takes
   four bytes a pixel more (380 for 376). There was one `press` for both,
   and where a pixel held wax it was taken for the wax's polish. Measured
-  on cartridge paper (`tests/test_burnish.py`):
+  on cartridge paper (`tests/fusain/test_burnish.py`):
   - A hard lead pressed under coloured pencil, the pencil then erased:
     three firm layers of 4H crushed the tooth by 0.908; three layers of a
     dark coloured pencil over them, rubbed out four times with a vinyl
@@ -260,7 +267,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
     it cuts; fixative leaves both.
 
   The stroke, rub and pen kernels take the two arrays where they took one.
-  On its own this leaves the five drawings of `tools/fingerprint.py`
+  On its own this leaves the five drawings of `tools/fusain/fingerprint.py`
   without wax as they were in all but the names of the two arrays, and
   changes the eight that have a dry tip over wax, wax over a crushed tooth
   or an eraser on polished wax; with the levels of the next entry, all
@@ -294,7 +301,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   and going over it again went on polishing under the hardest bands of
   each pass. What a firm tip smears and lays is as it was.
 
-  Measured on cartridge paper (`tests/test_burnish.py`, `test_surface.py`),
+  Measured on cartridge paper (`tests/fusain/test_burnish.py`, `test_surface.py`),
   before and now:
   - One pass (a tip 6 wide along each of eight lines, the press under its
     middle): the blender on six light layers of red 0.40 and 0.29 at 0.7,
@@ -382,7 +389,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   coloured pencil 2.11 s and 2.22 s): 2 to 3% for the second array, and
   as much for the level. Rubs and renders take what they took. Every
   drawing where a tip bears harder than 0.4
-  changes, and so do all thirteen of `tools/fingerprint.py`, recorded
+  changes, and so do all thirteen of `tools/fusain/fingerprint.py`, recorded
   again; one whose strokes stay under 0.35 or so is as it was but for a
   trace (the streaks no longer take a light stroke past 0.4: three layers
   of HB at 0.4 crushed the tooth by 0.004, and now by 0.0005).
@@ -408,7 +415,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   and stays one). Over vine charcoal rubbed into a tone, compressed
   charcoal shaded across a white line laid at 0.9 takes on it 0.08 of
   what it takes beside it (0.56), at 0.5 0.47 and at 0.3 0.83. In
-  `examples/output/crayons.png`, third row, the white line is 0.79 to
+  `examples/fusain/output/crayons.png`, third row, the white line is 0.79 to
   0.83 of the paper's tone all along, where it was 0.48 where the stump
   crosses it and 0.67 elsewhere (the stump never darkened it: the line
   was thin there).
@@ -460,7 +467,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   it lays beside, from 0.67; firm ballpoint hatching takes an HB from 0.58
   to 0.62 times what light hatching takes to 0.51 to 0.55, and grooves
   deeper than the tooth are as they were.
-- `tests/test_pens.py` and `tests/test_dust.py` are pinned on what their
+- `tests/fusain/test_pens.py` and `tests/fusain/test_dust.py` are pinned on what their
   bounds mean over several sheets, not on one: the pencil over light and
   firm ink with its grain held alike, and the bare paper left between the
   bands of a vine stick at 0.02 (0.036 to 0.071 over twenty sheets).
@@ -549,12 +556,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   fuller: a stump rubbed over a patch of 6B 7% fuller (it then lays 0.87 of
   it in 28 widths of bare paper, toning it as before, where it laid 0.92 of
   less), a bare stump carries off 1.14 times what it holds from a rub of a
-  dark tone (was 1.01); two thresholds of `tests/test_smudger.py` follow.
+  dark tone (was 1.01); two thresholds of `tests/fusain/test_smudger.py` follow.
   Keeping the passes inside costs a rub about a tenth of a second over the
-  sheet of `tools/benchmark.py` (a kneaded eraser over it took 1.5 s) and
+  sheet of `tools/fusain/benchmark.py` (a kneaded eraser over it took 1.5 s) and
   a hundredth or two over a patch 240 by 140. `Sheet.shade` is as it was,
   to the bit. Every drawing with a rub in
-  it changes: of the thirteen of `tools/fingerprint.py`, the six that rub
+  it changes: of the thirteen of `tools/fusain/fingerprint.py`, the six that rub
   have new hashes and the seven that do not are as they were (and so, over
   `--thorough`, are the 163 of its 325 drawings that do not rub).
 
@@ -576,8 +583,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   drawn. Two rubs over the same area whose pressure is nothing in different
   places leave the generator in the same state, and what is drawn after
   them lies with the same grain where they did not reach
-  (`tests/test_rub.py`). Every drawing
-  with a rub in it changes: of the thirteen of `tools/fingerprint.py`, the
+  (`tests/fusain/test_rub.py`). Every drawing
+  with a rub in it changes: of the thirteen of `tools/fusain/fingerprint.py`, the
   six that rub (`dust/charcoal paper/4`, `dust/rough/5`, `pastel/sanded
   card/6`, `wax/cartridge/7`, `wax/cold-pressed/8`, `drawing/toned grey/13`)
   have new hashes, the seven that do not are as they were.
@@ -595,10 +602,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   that number and its place in the shading, as the stretches of a rub do,
   so that a stroke's grain no longer depends on how many numbers the hand
   took before it. A worn stick still shades with fewer strokes; what is
-  drawn after it has the grain it would have had (`tests/test_shade.py`).
+  drawn after it has the grain it would have had (`tests/fusain/test_shade.py`).
   Every drawing with a shading in it changes, seeded or not: all thirteen
-  of `tools/fingerprint.py` have new hashes, and the ten images of
-  `examples/output/` drawn with a shading. Nine tests whose bounds held
+  of `tools/fusain/fingerprint.py` have new hashes, and the ten images of
+  `examples/fusain/output/` drawn with a shading. Nine tests whose bounds held
   for the one sample of the hand they were measured on, and not for every
   sample (the old code failed them on other sheets too), have bounds that
   take in the spread over several sheets, with the values measured; the
@@ -621,17 +628,17 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   those after it room to reach the last: 0.69, 0.66 and 0.50 at worst, where
   a steady hand leaves 0.81, 0.83 and 0.66. It draws the same numbers as
   before, so a rub moves only where a pass would have strayed too far.
-  `tests/test_rub.py` checks the gaps over 200 samples of the hand, and the
+  `tests/fusain/test_rub.py` checks the gaps over 200 samples of the hand, and the
   rows of a rub and its edge over five: the edge test took one sample, which
   had passed by luck (its bounds failed on other samples, before and after);
   its outermost pixels are now asked to be rubbed at all (the rim of a tool
   reaches them as little as a few thousandths as much as the middle), and
   a light eraser, which takes as each pass bears, half as much as the
   middle from the rim in. Five of the thirteen drawings of
-  `tools/fingerprint.py` have new hashes (`dust/charcoal paper/4`,
+  `tools/fusain/fingerprint.py` have new hashes (`dust/charcoal paper/4`,
   `dust/rough/5`, `wax/cartridge/7`, `wax/cold-pressed/8`, `drawing/toned
   grey/13`); `pastel/sanded card/6` rubs but no pass of it strayed too far.
-  Of `examples/output/`, `charcoal.png`, `crayons.png` and `lake.png`
+  Of `examples/fusain/output/`, `charcoal.png`, `crayons.png` and `lake.png`
   change.
 
 - A drop of ballpoint ink inks a pixel as far as it is ink (fusain-9dg).
@@ -709,7 +716,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   0.83 of the film stays, and 0.87 and 0.81 of its shine; what they spread
   is dust and shines as it did. Soft pastel laid over the 6B lines at 0.5
   and 0.8 leaves 0.55 and 0.23 of their shine. Every hash of the sheets,
-  the reflectances and the returned numbers of `tools/fingerprint.py` is
+  the reflectances and the returned numbers of `tools/fusain/fingerprint.py` is
   unchanged on every paper (`--thorough`, 325 drawings); the shine, the
   render under the default lamp and the raking render change in the 184
   drawings that lay a pencil over a dustier medium's mark (the sticks,
@@ -756,7 +763,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   than the one before, and the tone goes from 0.65 of the pastel's to
   0.46. A medium over its own layers, or on a ground no dustier than its
   own mark, meets no bed and draws as before, to the bit: every hash of
-  the graphite and ballpoint drawings of `tools/fingerprint.py` is as it
+  the graphite and ballpoint drawings of `tools/fusain/fingerprint.py` is as it
   was, on every paper, and vine charcoal over pastel, dust on dust, lays
   what it laid (a tenth over the two layers). Over its own dust that a
   stump or a finger has moved a medium changes by next to nothing (a 2B
@@ -912,7 +919,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   that holds 1e-6 drawn through firm hatching took the ink of every pixel
   it cut, 167 to 351 times what it holds). No preset ever reaches the
   limit: every drawing of
-  `tools/fingerprint.py --thorough` is as it was, to the bit.
+  `tools/fusain/fingerprint.py --thorough` is as it was, to the bit.
 
 - A smudge or an erase is as strong where it lands and lifts as in its
   middle. A tool rubbed only as it slid on, so the paper under it where it
@@ -981,11 +988,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   the half band the cut took, about 100). A stroke with no such hook is
   laid as it was, to the bit: a straight flat end, a last leg of half a
   tip or more, a curve no tighter than the tip, round ends. Every
-  recorded hash of `tools/fingerprint.py` is as it was, and 318 of the
+  recorded hash of `tools/fusain/fingerprint.py` is as it was, and 318 of the
   325 drawings of `--thorough`; the seven are `drawing` on seven papers,
   where the unsteady hand bends the stroke of a flat-ended shading that
   the corner of its area leaves 3 to 5 pixels long, for a tip 8 wide: a
-  hook as long as the stroke. No image of `examples/output/` changes:
+  hook as long as the stroke. No image of `examples/fusain/output/` changes:
   `strokes.png`, `deco.png` and `broadway.png`, whose scripts draw flat
   ends, are regenerated byte for byte, and the others draw none.
 
@@ -1096,7 +1103,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Examples
 
-- `examples/stilllife.py` plans its drawing in about an eighth less time
+- `examples/fusain/stilllife.py` plans its drawing in about an eighth less time
   (processor time 34 to 37 s before, 30 to 31 s after; three runs each, one
   after the other, on a machine busy with other work), and the picture is
   the same to the byte (`stilllife.png`). Two things, from a profile before
@@ -1153,7 +1160,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `farm`, `fixative`, `macaw`, `papers`, `pencils`, `shine`, `stilllife`,
   `strokes`, `tips`) rub with `smudge` or not at all, and are unchanged to
   the byte by this.
-- `lake.png`: `LIGHTEST_RUB`, the least that `examples/lake.py` let a rub
+- `lake.png`: `LIGHTEST_RUB`, the least that `examples/fusain/lake.py` let a rub
   press anywhere in its mask so that a field that fell to nothing here and
   there did not cut each pass in stretches with a seed each, is gone: it
   was kept for the fault above and for nothing else. The rub is still made
@@ -1182,14 +1189,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `fixative.png` was 65 from the orange and 78 from the blue and is 38 and
   89; two widths right of it, 72 and 72, now 87 and 46 (the two colours
   are 108 apart, and the middle of the passage, their mix, is about 70
-  from both). `examples/colour.py` rubs each row of its join both ways, as
+  from both). `examples/fusain/colour.py` rubs each row of its join both ways, as
   the other two do: rubbed one way by turns, the rows showed as stripes,
   now that a pass carries a colour less than a width. In the lower half of
   `fixative.png`, the join that was fixed before it was rubbed stays a
   join, where the finger blurred it half-way.
 - `charcoal.png`: the stump's trail out of each tone is shorter (vine
   charcoal: 0.50 of the paper's tone 16 pixels past the edge of the tone,
-  now 0.84, and 0.69 at 50 pixels, now 0.95). `examples/charcoal.py` loads
+  now 0.84, and 0.69 at 50 pixels, now 0.95). `examples/fusain/charcoal.py` loads
   its stump on a scrap of the medium before it draws down the bare paper:
   a stump fills slowly, and one more pass through the tone no longer loads
   it. The lines it draws are about as dark as they were, and last longer
@@ -1200,7 +1207,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - `crayons.png`, third row: where the stump crosses the crayon lines over
   rubbed charcoal it lays less dust on them, and they still grey (see
   Fixed).
-- `deco.png`: `examples/deco.py` rubbed with a clean stump or finger at
+- `deco.png`: `examples/fusain/deco.py` rubbed with a clean stump or finger at
   every stroke, which used to carry off much of the charcoal and now
   carries off little, and its finger went through the bank of cloud and on
   over the clear sky: under the new rubbing the picture came out darker
@@ -1243,15 +1250,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   tested: under NumPy 1.26.4 (with Python 3.12 and numba 0.68.1) the colour
   of every paper comes out as other numbers than under NumPy 2
   (`murex.spectral.srgb_to_reflectance`), so 44 of the 421 marks of
-  `tools/fingerprint.py` differ, in all thirteen drawings, and
-  `examples/stilllife.py` draws another picture. With the same Python and
+  `tools/fusain/fingerprint.py` differ, in all thirteen drawings, and
+  `examples/fusain/stilllife.py` draws another picture. With the same Python and
   numba and NumPy 2.5.4 all 421 are as recorded, and so they are with the
   oldest pair now allowed, NumPy 2.0.2 and numba 0.60.0. Nothing changes
   for anyone on NumPy 2.
 
 - A short stroke takes a little less time around its kernel (fusain-238),
   and no picture changes: the thorough fingerprint (325 drawings) and
-  every image of `examples/output/` come out as before, to the byte. A
+  every image of `examples/fusain/output/` come out as before, to the byte. A
   pressure, a width or a tilt given as a number is made an array of that
   number straight away; murex was asked to evaluate it as a profile, and
   fusain then broadcast and checked what came back: about 4 microseconds
@@ -1260,7 +1267,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   (4 microseconds). Measured with the kernel replaced by a compiled
   function of the same arguments that does nothing (CPU time, best of 25,
   on a shared 4-core machine): each of the 2000 short strokes of
-  `tools/benchmark.py` took 95 microseconds around its kernel and takes
+  `tools/fusain/benchmark.py` took 95 microseconds around its kernel and takes
   75; the strokes of a shading, whose pressure is a function, 167 and 155.
   With the kernel, the 2000 short strokes take 0.50 s of CPU, from 0.55 s
   (best of 20, three times over), a tenth less; 40 small patches of
@@ -1273,7 +1280,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   into fewer would save next to nothing).
 - What a ballpoint's ball gathers beyond the most it holds is documented
   (fusain-45t; `HeldPen`, `fusain._engine.roll_stroke` and
-  `docs/design.md`). The rim holds a drop at most (`BALL_BLOB`: 0.48 for a
+  `docs/fusain/design.md`). The rim holds a drop at most (`BALL_BLOB`: 0.48 for a
   pen three pixels wide), and what the ball would gather beyond that is
   not gathered: it is on neither the paper nor the ball. So the ink of its
   drops and the ink on its ball are `BALL_GATHER` times that of its lines
@@ -1284,7 +1291,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   it and rubs with an eraser a fifth, and no picture changes: every array
   of a sheet after any sequence of calls, every number returned and every
   rendered image is what it was, to the last bit (the recorded fingerprint,
-  the thorough one, 325 drawings, and every image of `examples/output/`).
+  the thorough one, 325 drawings, and every image of `examples/fusain/output/`).
   On a sheet of 1120 by 820 pixels (one core of a 2.3 GHz Xeon, best of 5):
   shading it with an HB of width 6 takes 1.4 s, from 2.9 s, and over a tone
   1.65 s, from 3.0 s; with a soft pastel of width 24, 1.0 s, from 2.0 s,
@@ -1311,7 +1318,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
     (`for _ in once(...)`), where the `if` or the early return was; what a
     tool lifts is worked out from the numbers of the pixel, read once
     (`layer_at`), and then taken; one helper pushes along for both kinds of
-    tool (`push_along`). The top of `fusain/_engine.py` says why and how.
+    tool (`push_along`). The top of `murex/fusain/_engine.py` says why and how.
   - The kernels called for every step of a stroke or a rub (`bear`,
     `rub_under`) call no other kernel and allocate nothing, so their own
     arrays are no longer counted at every call (30 places, and 48 in
@@ -1319,8 +1326,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
     `sunk_into` works out is compiled into `bear`, `lay_stroke` turns the
     tip itself where a stroke turns sharply (`in_parts`, `turned`), and
     `rub_stroke` gives `rub_under` the room it works in.
-  - `tools/refcounts.py` tells what each kernel still counts, from its
-    LLVM, and `tests/test_refcounts.py` fails if one counts anything as it
+  - `tools/fusain/refcounts.py` tells what each kernel still counts, from its
+    LLVM, and `tests/fusain/test_refcounts.py` fails if one counts anything as it
     works (nothing, on Python 3.11 to 3.15).
   - A tip or a tool does no work that would leave a pixel as it is. An
     eraser presses nothing in, stirs nothing and spreads nothing, and went
@@ -1358,7 +1365,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   stroke that does not bend near its end is cut by one line, as it was.
   `bear_on_row` cuts in a loop of its own, which only a tip near a square
   end goes through. A stroke takes what it took, with round ends or flat:
-  over thirteen workloads (those of `tools/benchmark.py` that draw, and
+  over thirteen workloads (those of `tools/fusain/benchmark.py` that draw, and
   shadings, short strokes and tapering strokes with flat ends), the best
   of eleven runs of each, before and after turn and turn about on a busy
   machine, differ by 5% less to 4% more, as two runs of the same code do
@@ -1446,7 +1453,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   nothing there: so of the strokes of a shading near that pressure, each a
   little firmer or lighter than the next, some polished and some did not,
   and the area was polished in streaks, which the gloss of wax showed (the
-  navy ground of oil pastel in `examples/output/crayons.png`). The wax and
+  navy ground of oil pastel in `examples/fusain/output/crayons.png`). The wax and
   the paper now give way at pressures spread evenly from 0.4 to 0.8
   (`BURNISH_SOFT`, 0.2 either side of `BURNISH_FROM`): a tip polishes as
   the square of how far it bears past 0.4, and from 0.8 on as it did
@@ -1478,7 +1485,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   layers to 12.6, and the gloss on them varies from place to place by 0.52
   L* (smoothed over the grain), from 1.51. Under a raking lamp polished
   wax no longer shines. Graphite and ink shine as they did.
-  `examples/macaw.py` is rendered under the default lamp again, gloss
+  `examples/fusain/macaw.py` is rendered under the default lamp again, gloss
   included: on its burnished darks the gloss adds 1.3 L* (4.8 with the
   wide lobe), varying by 0.5 (1.7).
 - A flattened patch is level in its relief, without pits (fusain-8au).
@@ -1502,7 +1509,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Examples
 
-- `examples/macaw.py`: the light under the bill's cutting edge is
+- `examples/fusain/macaw.py`: the light under the bill's cutting edge is
   scratched with the knife at 0.7, from 0.3. Part of that light was white
   flecks of the paper, which the blender now closes as it polishes at the
   rim of its tip; the knife makes it up. On the lower mandible within 12
@@ -1554,7 +1561,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   as dark to the third decimal. A drop also inks all of a pixel that holds
   a pass's worth of ink, so white specks in heavy hatching are no longer
   filled by drops nobody could see: in the pen drawings of
-  `tools/fingerprint.py`, 0.4% of the pixels move by more than two levels
+  `tools/fusain/fingerprint.py`, 0.4% of the pixels move by more than two levels
   (of 255), some by half their tone.
 - fusain requires murex 0.2.0.
 - `roll_stroke` (in `fusain._engine`) takes, in `pen`, how much the pen
@@ -1589,7 +1596,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   holds 0.327 (`BALL_GATHER`, 0.05, of it), and where the next line lands
   at 0.7 with a share of 0.52 coming round it leaves 0.1272 more than a pen
   that gathers nothing, 0.745 of 0.52 of 0.327, to four digits.
-  `tools/fingerprint.py` draws one.
+  `tools/fusain/fingerprint.py` draws one.
 - `Pen.bronze`, and `pens.ballpoint(..., bronze=...)`: the colour heavy ink
   mirrors under a lamp. By default the light the ink absorbs most, as
   before; a black ink is a blend of dyes, which bronzes as the one that
@@ -1600,19 +1607,19 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   one. It scales the drop the ball can hold and what it gathers, and leaves
   the line as it is: `Pen.flow` was the only control, and it darkens the
   line with the blobs.
-- `tools/fingerprint.py`: whether a change has altered the picture. It
+- `tools/fusain/fingerprint.py`: whether a change has altered the picture. It
   draws a suite of small drawings (every family of medium, sticks and tilt,
   width profiles and flat ends, shading, tools bare and in the hand, a
   knife, a blender, fixative, a stylus, ballpoint pens, on several papers)
   and hashes every array that the sheets, the sticks and the tools in the hand hold,
   the numbers the calls returned and the rendered images.
-  `tools/fingerprint.json` holds the hashes of the code as it was before it
-  was made faster, and `tests/test_fingerprint.py` checks them (they are
+  `tools/fusain/fingerprint.json` holds the hashes of the code as it was before it
+  was made faster, and `tests/fusain/test_fingerprint.py` checks them (they are
   skipped, with the reason, on a machine whose `pow` or numpy rounds
   differently from the one they were recorded on). `--thorough` draws the
   suite on every paper with three seeds, to save before a change and compare
   after; `--record` is for a change that is meant to alter the picture.
-- `tools/benchmark.py`: the timings above.
+- `tools/fusain/benchmark.py`: the timings above.
 
 ### Added
 
@@ -1675,7 +1682,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - The blender shows. `pencils.BLENDER` was a coloured pencil without
   colour, and pressed hard it made little difference: one firm layer of it
   over three layers of red at 0.5 on cartridge paper left two fifths of the
-  white flecks, and in `examples/macaw.py`, on a paper with a shallow tooth,
+  white flecks, and in `examples/fusain/macaw.py`, on a paper with a shallow tooth,
   half of them. A blender is soft clear wax and nothing else, and it melts
   into the film it is pressed on: `Medium.melts` (0 to 1; 1 for the blender,
   0 for every other preset) says how far. A tip that melts polishes a film
@@ -1714,7 +1721,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Examples
 
-- `examples/macaw.py`: the feathers, the bill and the brow are burnished
+- `examples/fusain/macaw.py`: the feathers, the bill and the brow are burnished
   with the blender, along the lie of the feathers and the arch of the horn
   (4,250 strokes of it after the 32,500 of the pencils), all but the end of
   the tail. The white flecks are gone from the plumage and its colour is
@@ -1725,7 +1732,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   the burnishing; no feather is drawn across the eye; the image is rendered
   without gloss, as a scanner sees it (under a lamp the burnished wax greys
   the darks).
-- `examples/colour.py`: the red square, half burnished, is crossed by three
+- `examples/fusain/colour.py`: the red square, half burnished, is crossed by three
   lights: a line indented before the red was laid, a vinyl eraser rubbed to
   and fro (it clears the half that kept its tooth and slides on the
   burnished one) and two lines scratched with the knife.
@@ -1816,13 +1823,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Examples
 
-- `examples/shine.py` shows all that shines, under its three lamps: a row is
+- `examples/fusain/shine.py` shows all that shines, under its three lamps: a row is
   added with a 2H laid lightly and pressed hard, a coloured pencil half
   burnished, a crayon and an oil pastel pressed hard, and three ballpoints
-  hatched eight times over. `examples/ballpoint.py` has a row for blobs (a
+  hatched eight times over. `examples/fusain/ballpoint.py` has a row for blobs (a
   zigzag and a scribble to and fro), for the groove of a pen under a soft
   pencil, and for loops written with a pen that has run dry and shaded over.
-  `examples/pencils.py` has a row for the surface: indented lines under a
+  `examples/fusain/pencils.py` has a row for the surface: indented lines under a
   light and a firm tone, blades of grass kept white, and a tone over a tooth
   a 2H flattened.
 - Every image is regenerated but `broadway.png` and `deco.png`. The
@@ -1883,7 +1890,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Examples
 
-- `examples/strokes.py` (`strokes.png`): round and flat ends, short dabs,
+- `examples/fusain/strokes.py` (`strokes.png`): round and flat ends, short dabs,
   strokes that recede and taper, and the side of a stick of charcoal and of
   pastel.
 - Every image is regenerated. Shadings end crisply at the edge of their
@@ -1913,10 +1920,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   and wore a tone away: eight rubs of a stump over a firm layer of 8B took
   four tenths of the graphite off the sheet, and now take under three
   hundredths. A stump lifted over a gap now lands beyond it with the dust it
-  carries. Pictures that rub an area change: `examples/lake.py` no longer
+  carries. Pictures that rub an area change: `examples/fusain/lake.py` no longer
   presses its tones several times too hard to make up for what the rubbing
   took (it presses for the darkening wanted, by a measured table), and its
-  ridges, water and reflections come out even; `examples/broadway.py` pulls
+  ridges, water and reflections come out even; `examples/fusain/broadway.py` pulls
   its haze down from the sky with a finger wiped before each pull.
 - `Sheet.smudge`, `Sheet.erase` and `Sheet.rub` return what the tool took
   off the sheet less what it laid back, which is less than nothing for a
@@ -1974,7 +1981,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   the lead has, so a rubbed 4B or 8B turns smooth and can be dragged out onto
   bare paper, an HB evens a little, and a hard lead hardly moves. Graphite
   under set fixative stays put, and no other medium slides. Pictures that rub
-  a pencil change (`examples/output/charcoal.png`).
+  a pencil change (`examples/fusain/output/charcoal.png`).
 - Sanded card takes many more layers of pastel than paper, as it does in
   life: a `Paper` has a `hold` (how much its tooth holds for its depth), and
   `papers.SANDED` holds two and a half times what a paper of its depth does.
@@ -1991,7 +1998,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- A third row in `examples/crayons.py`, what lies over what: a sun and
+- A third row in `examples/fusain/crayons.py`, what lies over what: a sun and
   waves in one firm line of crayon each with charcoal shaded over them (wax
   resist), crayon lines over rubbed charcoal and over soft pastel with a
   stump dragged through, and a kneaded eraser pulled through soft pastel and
@@ -2016,12 +2023,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   (`charcoal.py`, which now also draws with the loaded stump, `colour.py`,
   `crayons.py`, `fixative.py`, `lake.py`).
 - Four drawings as examples, each a script and the image it writes: an art
-  deco tower in charcoal (`examples/deco.py`), Broadway in SoHo in pastel
-  (`examples/broadway.py`), a great green macaw in coloured pencil
-  (`examples/macaw.py`) and a still life in three ballpoints
-  (`examples/stilllife.py`).
+  deco tower in charcoal (`examples/fusain/deco.py`), Broadway in SoHo in pastel
+  (`examples/fusain/broadway.py`), a great green macaw in coloured pencil
+  (`examples/fusain/macaw.py`) and a still life in three ballpoints
+  (`examples/fusain/stilllife.py`).
 - Two more: morning mist on a mountain lake in graphite
-  (`examples/lake.py`) and a naive farm in wax crayon (`examples/farm.py`).
+  (`examples/fusain/lake.py`) and a naive farm in wax crayon (`examples/fusain/farm.py`).
 - `Sheet.rub(area, tool, ...)`: rubs or erases a whole area, in passes side
   by side, to and fro. It is to `smudge` and `erase` what `shade` is to
   `stroke`: the pressure may be a function of (x, y), and where it is nothing

@@ -7,18 +7,18 @@ blender, fixative, a stylus, ballpoint pens bare and in the hand, on several
 papers and seeds) is drawn on small sheets, and every array a sheet, a
 smudger, a stick and a pen in the hand hold
 is hashed, with the numbers the calls return and the rendered images. The
-hashes are compared with those recorded in ``tools/fingerprint.json``::
+hashes are compared with those recorded in ``tools/fusain/fingerprint.json``::
 
-    python tools/fingerprint.py              # compare with the recorded ones
-    python tools/fingerprint.py --thorough --save before.json
-    python tools/fingerprint.py --thorough --against before.json
-    python tools/fingerprint.py --record     # the picture is meant to change
+    python tools/fusain/fingerprint.py              # compare with the recorded ones
+    python tools/fusain/fingerprint.py --thorough --save before.json
+    python tools/fusain/fingerprint.py --thorough --against before.json
+    python tools/fusain/fingerprint.py --record     # the picture is meant to change
 
 A change that is not meant to alter the picture (an optimisation, a
 refactoring) must leave every hash as it is. ``--thorough`` draws the suite
 on every paper with several seeds: save its hashes before such a change and
 compare after. Record again only with a change that is meant to alter the
-picture. ``tests/test_fingerprint.py`` runs the recorded suite.
+picture. ``tests/fusain/test_fingerprint.py`` runs the recorded suite.
 
 Hashes are those of the machine they were recorded on: another platform's
 ``pow`` or numpy's ``exp`` may round a last bit differently. The file
@@ -41,7 +41,7 @@ import numba
 import numpy as np
 from numba import njit
 
-from fusain import (
+from murex.fusain import (
     HeldPen,
     Paper,
     Sheet,

@@ -6,10 +6,11 @@ import math
 from dataclasses import dataclass, replace
 
 import numpy as np
-from murex import ColorLike
-from murex import noise as nz
-from murex import spectral as sp
-from murex.filters import box_blur
+
+from .. import ColorLike
+from .. import noise as nz
+from .. import spectral as sp
+from ..filters import box_blur
 
 TEXTURES = ("wove", "laid", "rough", "pebbled", "sanded")
 
@@ -41,7 +42,7 @@ class Paper:
     """A paper. Presets live in :mod:`fusain.papers`; change one with
     :meth:`with_` or make your own::
 
-        from fusain import Paper, Sheet, papers
+        from murex.fusain import Paper, Sheet, papers
         sheet = Sheet(1200, 800, paper=papers.INGRES)
         toned = papers.CARTRIDGE.with_(color="#b9a98c")
         mine = Paper(texture="rough", grain=6, depth=1.5, bite=0.7)

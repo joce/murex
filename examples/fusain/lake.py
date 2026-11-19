@@ -1,8 +1,8 @@
 """Morning mist on a mountain lake, in graphite pencil.
 
-Run from the repository root: ``python examples/lake.py``. Writes
-``examples/output/lake.png`` (about three minutes). With a folder as argument
-(``python examples/lake.py studies/``) it also writes there the tonal study
+Run from the repository root: ``python examples/fusain/lake.py``. Writes
+``examples/fusain/output/lake.png`` (about three minutes). With a folder as argument
+(``python examples/fusain/lake.py studies/``) it also writes there the tonal study
 the drawing is planned from, and its maps.
 
 A mountain lake at dawn, seen from its near shore. The scene is built in
@@ -111,10 +111,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from murex import CatmullRom, filters, noise, write_png
 from numba import njit
 
-from fusain import Medium, Sheet, Smudger, Stick, papers, pencils, tools
+from murex import CatmullRom, filters, noise, write_png
+from murex.fusain import Medium, Sheet, Smudger, Stick, papers, pencils, tools
 
 HERE = Path(__file__).parent
 WIDTH, HEIGHT = 1500, 1000
@@ -3225,7 +3225,7 @@ STEPS = (
 
 
 def main(studies: Path | None = None) -> None:
-    """Build the scene, see it, draw it and write ``examples/output/lake.png``;
+    """Build the scene, see it, draw it and write ``examples/fusain/output/lake.png``;
     with a folder, also write the study and its maps there."""
     world = build_world()
     st = study(world)

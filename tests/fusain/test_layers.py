@@ -6,10 +6,31 @@ import itertools
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import Sheet, Smudger, charcoal, crayons, papers, pastels, pencils, tools
-from fusain._engine import ID, IP, IV, IW, IX, PASTY, SET, STICKS, N, dry_film, paste_of
+from murex import spectral as sp
+from murex.fusain import (
+    Sheet,
+    Smudger,
+    charcoal,
+    crayons,
+    papers,
+    pastels,
+    pencils,
+    tools,
+)
+from murex.fusain._engine import (
+    ID,
+    IP,
+    IV,
+    IW,
+    IX,
+    PASTY,
+    SET,
+    STICKS,
+    N,
+    dry_film,
+    paste_of,
+)
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))

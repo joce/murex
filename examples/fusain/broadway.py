@@ -1,7 +1,7 @@
 """Broadway in SoHo on an autumn afternoon, in soft pastel on toned paper.
 
-Run from the repository root: ``python examples/broadway.py``. Writes
-``examples/output/broadway.png``.
+Run from the repository root: ``python examples/fusain/broadway.py``. Writes
+``examples/fusain/output/broadway.png``.
 
 The street is built in space and then looked at; nothing is a shape to
 fill. The eye stands in the roadway at a crossing and looks uptown, so the
@@ -46,9 +46,9 @@ from pathlib import Path
 from typing import TypedDict
 
 import numpy as np
-from murex import Polyline, filters, noise, write_png
 
-from fusain import Medium, Sheet, papers, pastels, tools
+from murex import Polyline, filters, noise, write_png
+from murex.fusain import Medium, Sheet, papers, pastels, tools
 
 WIDTH, HEIGHT = 1000, 1180
 SEED = 1873

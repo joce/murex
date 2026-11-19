@@ -1,16 +1,16 @@
 """What makes the engine fast changes no result: a table holds the values of
 the expression it replaces, a loop skips only pixels it would have left as
 they were, and a path worked out once is the path it was.
-(``tests/test_fingerprint.py`` checks whole drawings.)"""
+(``tests/fusain/test_fingerprint.py`` checks whole drawings.)"""
 
 import math
 
 import numpy as np
 import pytest
 
-from fusain import Sheet, charcoal, pastels, pencils
-from fusain import _engine as eng
-from fusain.sheet import _sample
+from murex.fusain import Sheet, charcoal, pastels, pencils
+from murex.fusain import _engine as eng
+from murex.fusain.sheet import _sample
 
 
 def test_the_streaks_of_a_pass_are_those_worked_out_one_by_one():

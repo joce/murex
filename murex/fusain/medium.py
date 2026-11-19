@@ -5,8 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 
-from murex import Pigment
-
+from .. import Pigment
 from ._engine import SIDE
 
 

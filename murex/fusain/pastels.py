@@ -10,8 +10,7 @@ covers a dark one, and a kneaded eraser does not lift it.
 
 from __future__ import annotations
 
-from murex import ColorLike, Pigment
-
+from .. import ColorLike, Pigment
 from .medium import Medium
 
 

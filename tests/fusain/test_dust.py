@@ -1,15 +1,15 @@
 """Dust: what lies loose on the paper, and the tools that move it or take it
-off (behaviour 3 of docs/design.md), measured."""
+off (behaviour 3 of docs/fusain/design.md), measured."""
 
 from typing import Any
 
 import numpy as np
 import pytest
+
 from murex import filters
 from murex import spectral as sp
-
-from fusain import Sheet, Tool, charcoal, papers, pencils, tools
-from fusain.sheet import IS, IV, N
+from murex.fusain import Sheet, Tool, charcoal, papers, pencils, tools
+from murex.fusain.sheet import IS, IV, N
 
 PATCH = (20, 20, 180, 130)  # the rectangle shaded
 BAND = (slice(62, 78), slice(40, 160))  # what a tool rubbed along y = 70 covers

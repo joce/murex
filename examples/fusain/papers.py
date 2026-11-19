@@ -1,7 +1,7 @@
 """The papers of :mod:`fusain.papers`, side by side under a raking light.
 
-Run from the repository root: ``python examples/papers.py``. Writes
-``examples/output/papers.png``, one swatch per paper in the order of
+Run from the repository root: ``python examples/fusain/papers.py``. Writes
+``examples/fusain/output/papers.png``, one swatch per paper in the order of
 ``papers.ALL``.
 """
 
@@ -10,9 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from murex import write_png
 
-from fusain import Sheet, papers
+from murex import write_png
+from murex.fusain import Sheet, papers
 
 SWATCH = 220
 GAP = 8
