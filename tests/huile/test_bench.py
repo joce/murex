@@ -1,4 +1,4 @@
-"""tools/bench.py: the kept state and picture of a scene, and how they compare."""
+"""tools/huile/bench.py: the kept state and picture of a scene, and how they compare."""
 
 import importlib.util
 import os
@@ -8,8 +8,8 @@ from types import ModuleType
 import numpy as np
 import pytest
 
-from oilpaint import Canvas, brushes, surfaces
-from oilpaint import palette as P
+from murex.huile import Canvas, brushes, surfaces
+from murex.huile import palette as P
 
 
 def _load_tool(name: str, path: str) -> ModuleType:
@@ -33,8 +33,8 @@ def _load_tool(name: str, path: str) -> ModuleType:
 
 
 bench = _load_tool(
-    "oilpaint_tools_bench",
-    os.path.join(os.path.dirname(__file__), "..", "tools", "bench.py"),
+    "huile_tools_bench",
+    os.path.join(os.path.dirname(__file__), "..", "..", "tools", "huile", "bench.py"),
 )
 
 

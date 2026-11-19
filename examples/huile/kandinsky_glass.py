@@ -12,7 +12,7 @@ on in reverse: the black lines first, then the small details, then the
 colours, and the sky last of all, each layer left to dry before the next.
 Every mark is a `canvas.stroke(...)`; numpy only works out where they go.
 
-    python examples/kandinsky_glass.py [output.png]
+    python examples/huile/kandinsky_glass.py [output.png]
 """
 
 import os
@@ -21,10 +21,10 @@ import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import Canvas, Paint, brushes, surfaces
-from oilpaint import palette as P
+from murex.huile import Canvas, Paint, brushes, surfaces
+from murex.huile import palette as P
 
 W, H = 1000, 760
 rng = np.random.default_rng(1911)

@@ -4,9 +4,9 @@ thick a load goes on."""
 import numpy as np
 import pytest
 
-from oilpaint import Canvas, brushes
-from oilpaint import brush as bm
-from oilpaint import palette as P
+from murex.huile import Canvas, brushes
+from murex.huile import brush as bm
+from murex.huile import palette as P
 
 X0, X1, YC = 60, 410, 60
 
@@ -371,7 +371,7 @@ def test_a_knife_presses_paint_into_ridges_at_its_blade_ends():
 def test_a_brush_s_edge_ridge_is_as_wide_as_the_paint_in_it():
     # paint pushed out at the side of a step of a 36 px hog flat, laid as a
     # ridge: twice the paint, a ridge wider (and taller), not just taller
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     def ridge(volume):
         c = Canvas(470, 120, seed=12)
@@ -403,7 +403,7 @@ def test_a_brush_s_edge_ridge_is_as_wide_as_the_paint_in_it():
 
 
 def test_tube_paint_settles_softer_than_paint_stiffened_with_impasto_medium():
-    from oilpaint import Paint
+    from murex.huile import Paint
 
     def rms(paint):
         out = []
@@ -468,7 +468,7 @@ def test_no_lane_of_hair_is_narrower_than_a_couple_of_pixels():
 
 def _skim(pressure, load=0.22):
     """Paint a small knife skimming dry ridges lays (mean of three strokes)."""
-    from oilpaint import Brush
+    from murex.huile import Brush
 
     laid = []
     for seed in (1, 2, 3):
@@ -515,7 +515,7 @@ def _volume(c):
 
 
 def test_rounding_off_pressing_out_and_pulling_up_keep_the_paint():
-    from oilpaint import Brush
+    from murex.huile import Brush
 
     kw: dict
     for bt, path, kw in (
@@ -537,7 +537,7 @@ def test_rounding_off_pressing_out_and_pulling_up_keep_the_paint():
 def test_a_dry_brush_tail_keeps_its_length():
     # the green stroke of the strokes demo sheet: a round dragged on until it
     # runs dry and breaks up (its tail ended at x = 424 before the relief work)
-    from oilpaint.spline import Bezier
+    from murex.huile.spline import Bezier
 
     c = Canvas(900, 520, seed=2)
     c.stroke(

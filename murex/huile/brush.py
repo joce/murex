@@ -6,7 +6,7 @@ character of its hair, from which its behaviour in a stroke follows
 (:meth:`BrushType.physics`). A :class:`Brush` is one such tool with paint on
 it, which it keeps (with any dirt) between strokes. A :class:`Stroke` is one
 pass of a tool along a path; :func:`apply_stroke` paints it (both in
-:mod:`oilpaint.stroke`, and found here too).
+:mod:`huile.stroke`, and found here too).
 
 Paint on a brush is held in narrow bristle *columns* (:data:`COLUMNS`),
 each with three depths: the tip that touches the canvas, the belly, and the
@@ -186,10 +186,10 @@ SHAPES = ("round", "flat", "filbert", "fan") + KNIFE_SHAPES
 class BrushType:
     """The physical tool: shape, size and bristle character of a brush (or knife).
 
-    Ready-made tools live in :mod:`oilpaint.brushes`; build your own or tweak a
+    Ready-made tools live in :mod:`huile.brushes`; build your own or tweak a
     preset with :meth:`with_` / :meth:`sized`::
 
-        from oilpaint import BrushType, brushes
+        from murex.huile import BrushType, brushes
         big_flat = brushes.FLAT_HOG.sized(48)
         my_brush = BrushType(shape="filbert", width=26, aspect=0.45, stiffness=0.6)
 
@@ -259,7 +259,7 @@ class BrushType:
         0..1: how deep a point cuts into the wet paint under it, as a share
         of that paint (1: down to the dry paint or the canvas beneath), pushing
         it aside into low ridges. The handle of a brush scratched through wet
-        paint (sgraffito); see :data:`oilpaint.brushes.BRUSH_HANDLE`.
+        paint (sgraffito); see :data:`huile.brushes.BRUSH_HANDLE`.
     blending:
         0..1: how readily different paints loaded on the brush merge into each
         other as it is used. Low (soft synthetic flats) keeps a double-loaded
@@ -886,7 +886,7 @@ def _physics(bt: BrushType, stroke: Stroke | None = None) -> dict:
 
 
 #: What a stroke paints with is defined here; the stroke and its simulation
-#: are in oilpaint.stroke, which builds on this module. These names of it are
+#: are in huile.stroke, which builds on this module. These names of it are
 #: found here too: imported from there when first asked for, and kept.
 _OF_THE_STROKE = (
     "Stroke",

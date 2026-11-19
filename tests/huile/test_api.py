@@ -1,5 +1,5 @@
 """The public API as tools see it: type hints that resolve, and the names of
-oilpaint.brush, the stroke's included; what the presets list; the tables
+huile.brush, the stroke's included; what the presets list; the tables
 shared between modules; and what a stroke uses of a canvas."""
 
 import importlib
@@ -9,20 +9,20 @@ import typing
 import numpy as np
 import pytest
 
-import oilpaint
-from oilpaint import Paint, Surface, brushes, palette, surfaces
-from oilpaint import brush as bm
-from oilpaint import stroke as sm
-from oilpaint.brush import BrushType
+from murex import huile
+from murex.huile import Paint, Surface, brushes, palette, surfaces
+from murex.huile import brush as bm
+from murex.huile import stroke as sm
+from murex.huile.brush import BrushType
 
 PUBLIC = [
-    oilpaint.Stroke,
-    oilpaint.Brush,
-    oilpaint.BrushType,
-    oilpaint.Canvas,
-    oilpaint.Paint,
-    oilpaint.Surface,
-    oilpaint.Reference,
+    huile.Stroke,
+    huile.Brush,
+    huile.BrushType,
+    huile.Canvas,
+    huile.Paint,
+    huile.Surface,
+    huile.Reference,
 ]
 
 
@@ -57,7 +57,7 @@ def test_the_public_type_aliases_hold_no_names_to_look_up(name):
     assert not list(_forward_refs(getattr(bm, name)))
 
 
-def test_the_stroke_is_found_in_oilpaint_brush():
+def test_the_stroke_is_found_in_huile_brush():
     for name in ("Stroke", "apply_stroke"):
         bm.__dict__.pop(name, None)  # (as if not looked up yet)
         assert name in dir(bm)
@@ -67,7 +67,7 @@ def test_the_stroke_is_found_in_oilpaint_brush():
     assert dict(inspect.getmembers(bm))["Stroke"] is sm.Stroke
     namespace: dict = {}
     bm.__dict__.pop("apply_stroke")
-    exec("from oilpaint.brush import *", namespace)
+    exec("from murex.huile.brush import *", namespace)
     assert namespace["Stroke"] is sm.Stroke
     assert namespace["apply_stroke"] is sm.apply_stroke
     for name in ("Brush", "BrushType", "StrokePaint", "load_paint", "np"):
@@ -76,9 +76,9 @@ def test_the_stroke_is_found_in_oilpaint_brush():
         bm.nothing  # ruff: ignore[useless-expression]  # pyright: ignore[reportAttributeAccessIssue]
 
 
-def test_import_star_from_oilpaint_brush_gives_what_all_lists():
+def test_import_star_from_huile_brush_gives_what_all_lists():
     namespace: dict = {}
-    exec("from oilpaint.brush import *", namespace)
+    exec("from murex.huile.brush import *", namespace)
     assert set(namespace) - {"__builtins__"} == set(bm.__all__)
     assert not [name for name in bm.__all__ if name.startswith("_")]
 
@@ -126,7 +126,7 @@ def test_all_lists_every_preset_of_its_module(module, kind):
 )
 def test_shared_tables_are_read_only(table):
     module, name = table.split(".")
-    value = getattr(importlib.import_module("oilpaint." + module), name)
+    value = getattr(importlib.import_module("murex.huile." + module), name)
     for a in value if isinstance(value, tuple) else (value,):
         with pytest.raises(ValueError, match="read-only"):
             a[0] = 0.5
@@ -141,7 +141,7 @@ def test_the_paint_a_knife_holds_back_stays_writable():
 
 
 def _engine_run():
-    c = oilpaint.Canvas(80, 60, seed=1)
+    c = huile.Canvas(80, 60, seed=1)
     run = sm._Run.begin(c, sm.Stroke([(10, 10), (70, 50)], "#884422", width=12))
     run.pend = sm._pending(*run.bounds())
     return run
@@ -163,7 +163,7 @@ def test_a_step_reaches_the_engine_with_each_field_its_own_type():
 
 
 def test_the_brush_kit_takes_the_engine_bundles_by_name_only():
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     run = _engine_run()
     bundles: list[typing.Any] = [
@@ -190,7 +190,7 @@ def test_the_brush_kit_takes_the_engine_bundles_by_name_only():
 
 
 def test_a_canvas_is_what_a_stroke_paints_on():
-    c = oilpaint.Canvas(30, 20, seed=1)
+    c = huile.Canvas(30, 20, seed=1)
     for name in (*sm._Canvas.__annotations__, "top_v", "und_v"):
         assert hasattr(c, name), name
     for name in ("_stroke_rng", "_new_stroke_id", "_relief"):

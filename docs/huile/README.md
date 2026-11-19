@@ -1,18 +1,16 @@
-# oilpaint
+# murex.huile
 
-[![CI](https://github.com/joce/oilpaint/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/joce/oilpaint/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/joce/oilpaint/graph/badge.svg)](https://codecov.io/gh/joce/oilpaint)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![GitHub License](https://img.shields.io/github/license/joce/oilpaint)](https://github.com/joce/oilpaint/blob/main/LICENSE)
+Oil painting, simulated. You describe **strokes** (a spline, a paint, an
+amount of paint, a brush width and pressure) and the library simulates how the
+paint is laid down, picked up, dragged and mixed on the canvas. Colors mix
+like real pigments (blue + yellow gives green, not grey), using spectral
+Kubelka-Munk theory.
 
-A small Python API that mimics oil painting. You describe **strokes** (a spline,
-a paint, an amount of paint, a brush width and pressure) and the library
-simulates how the paint is laid down, picked up, dragged and mixed on the
-canvas. Colors mix like real pigments (blue + yellow gives green, not grey),
-using spectral Kubelka-Munk theory.
-
-Install with `pip install oilpaint` (Python 3.11 or newer).
+It is the part of [murex](../../README.md) that paints in oils, and was a
+library of its own, [oilpaint](https://github.com/joce/oilpaint), until
+November 2026: `pip install oilpaint` still installs its release 0.1.0, which
+is not updated any more. Here it comes with murex (`from murex.huile import
+Canvas`), Python 3.11 or newer.
 
 Dependencies: `numpy` and `numba` (the stroke engine and the renderer are
 compiled: the first stroke after installing takes about 35 seconds while it
@@ -24,7 +22,7 @@ per machine). Pillow is optional, for `Canvas.to_pil()` and
 ## Quick start
 
 ```python
-from oilpaint import Canvas, Paint
+from murex.huile import Canvas, Paint
 
 canvas = Canvas(600, 400)
 
@@ -44,8 +42,8 @@ canvas.stroke([(80, 300), (560, 300)], width=40, pressure=0.6)
 canvas.save("painting.png")
 ```
 
-Run `python examples/demo.py` to regenerate the demo images in
-`examples/output/` (about a minute and a half); see
+Run `python examples/huile/demo.py` to regenerate the demo images in
+`examples/huile/output/` (about a minute and a half); see
 [Development](#development) for the tests and checks.
 
 ## Four paintings made with it
@@ -60,10 +58,10 @@ any particular painting. The Rembrandt copies one real painting, matching a
 photograph of it as closely as the strokes allow. The Kandinsky is made up in
 his manner, like the Bruegel, and painted on the back of glass, in reverse.
 
-* `examples/bruegel_winter.py`: a winter village in the manner of Pieter
+* `examples/huile/bruegel_winter.py`: a winter village in the manner of Pieter
   Bruegel the Elder, painted thinly on an oak panel with soft sable brushes,
   back to front, letting layers dry (about 21,000 strokes, ~2 minutes).
-* `examples/bob_ross_style.py`: a mountain lake painted wet-on-wet in the
+* `examples/huile/bob_ross_style.py`: a mountain lake painted wet-on-wet in the
   manner of Bob Ross, in the order he worked on the show: Liquid White over
   the whole canvas; the sky in criss-cross strokes with a two-inch brush;
   clouds scrubbed in and blended; the mountain cut in with the knife, its snow
@@ -71,9 +69,9 @@ his manner, like the Bruegel, and painted on the back of glass, in reverse.
   evergreens built with the fan brush from the top down; happy little bushes
   tapped dark and then highlighted; water lines cut with the knife edge
   (about 32,000 strokes, ~3 minutes).
-* `examples/rembrandt_self_portrait.py`: a study after Rembrandt's
+* `examples/huile/rembrandt_self_portrait.py`: a study after Rembrandt's
   *Self-Portrait* of 1659 (National Gallery of Art, Washington; public
-  domain), painted from a reproduction (`examples/reference`) the way he
+  domain), painted from a reproduction (`examples/huile/reference`) the way he
   worked: a warm brown ground; a monochrome "dead colouring" left to dry; the
   background, coat and beret brushed in thin and fluid, then softened with a
   mop; the head worked up wet-into-wet from big brushes to small, each stroke
@@ -84,7 +82,7 @@ his manner, like the Bruegel, and painted on the back of glass, in reverse.
   wet paint with the brush handle or drawn on with a liner;
   transparent glazes over the dried shadows (about 18,000 strokes, ~5 minutes;
   `REMBRANDT_SCALE=0.5` for a quick half-size version).
-* `examples/kandinsky_glass.py`: a reverse glass painting in the manner of
+* `examples/huile/kandinsky_glass.py`: a reverse glass painting in the manner of
   Wassily Kandinsky's Murnau years (1909-1911), when he and Gabriele Münter
   took up the Bavarian folk craft of painting behind glass. Onion-domed towers
   on a snowy hill, a rider galloping up it in front of blue mountains, a sun
@@ -96,20 +94,20 @@ his manner, like the Bruegel, and painted on the back of glass, in reverse.
   all, over everything. Black card behind the glass, as Kandinsky used
   (about 4,800 strokes, ~1.5 minutes).
 
-![bruegel](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/bruegel_winter.png)
+![bruegel](../../examples/huile/output/bruegel_winter.png)
 
 *A winter village in the manner of Pieter Bruegel the Elder, painted from
 memory with no picture to look at: thin paint on an oak panel, soft sable
 brushes, back to front, each layer left to dry. About 21,000 strokes.*
 
-![bob ross style](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/bob_ross_style.png)
+![bob ross style](../../examples/huile/output/bob_ross_style.png)
 
 *A mountain lake in the manner of Bob Ross, following his method step by step
 rather than any one painting: wet-on-wet over Liquid White, criss-cross sky,
 the mountain cut in with the knife, a misty tree line, fan-brush evergreens,
 happy little bushes, and water lines cut with the knife edge.*
 
-![after rembrandt](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/rembrandt_self_portrait.png)
+![after rembrandt](../../examples/huile/output/rembrandt_self_portrait.png)
 
 *A study after Rembrandt's* Self-Portrait *of 1659, copying the real painting
 from a photograph of it: a monochrome underpainting left to dry, the head
@@ -117,7 +115,7 @@ worked up wet-into-wet from big brushes to small with each stroke following
 the form, the lights piled up in lead white, the curls scratched into the wet
 paint, and glazes over the dried shadows. About 18,000 strokes.*
 
-![kandinsky glass](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/kandinsky_glass.png)
+![kandinsky glass](../../examples/huile/output/kandinsky_glass.png)
 
 *A reverse glass painting in the manner of Kandinsky's Murnau years, made up
 rather than copied: painted on the back of the glass, black lines first and
@@ -127,21 +125,21 @@ glass, only colour.*
 ### Two masters, two tools
 
 Each of these studies is painted from a photograph of a real painting
-(`examples/reference`, all public domain), and painted mostly with one of the
+(`examples/huile/reference`, all public domain), and painted mostly with one of the
 tools from **Dabbing and spatter**, the way its painter is known to
 have used it. They are painted up coarse to fine, the way the Rembrandt study
 is: every pass looks at the canvas so far, compares it with the photograph as
 a tool of that size sees it, and paints only where the two still differ, in
-the colour that brings the canvas closer (`examples/_studies.py`).
+the colour that brings the canvas closer (`examples/huile/_studies.py`).
 
-* `examples/seurat_grande_jatte.py`: Georges Seurat's *Gray Weather, Grande
+* `examples/huile/seurat_grande_jatte.py`: Georges Seurat's *Gray Weather, Grande
   Jatte* (about 1886-88, The Metropolitan Museum of Art), in pointillist dots
   tapped on with `canvas.stipple` over a thin lay-in of about 4,000 strokes:
   about 134,000 dots, bigger ones first, each the colour the photograph shows
   where it falls, made purer and set further apart from its neighbours'
   colours, with now and then a dot of its complement. Each layer of dots is tapped on in sittings
   left to dry, so the dots keep their own colour (~3 minutes).
-* `examples/whistler_rocket.py`: James McNeill Whistler's *Nocturne in Black
+* `examples/huile/whistler_rocket.py`: James McNeill Whistler's *Nocturne in Black
   and Gold: The Falling Rocket* (1875, Detroit Institute of Arts), the
   painting John Ruskin said flung "a pot of paint in the public's face": thin
   washes of fluid paint swept over a dark ground with a mop, the smoke soft;
@@ -149,12 +147,12 @@ the colour that brings the canvas closer (`examples/_studies.py`).
   sparks in the photograph, falling from just above it (about 3,200 brush
   strokes, then 160 flicks and 1,700 drops; ~1 minute).
 
-![after seurat](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/seurat_grande_jatte.png)
+![after seurat](../../examples/huile/output/seurat_grande_jatte.png)
 
 *After Seurat's* Gray Weather, Grande Jatte*: over a hundred thousand dots of
 nearly pure colour, tapped on side by side.*
 
-![after whistler](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/whistler_rocket.png)
+![after whistler](../../examples/huile/output/whistler_rocket.png)
 
 *After Whistler's* Nocturne in Black and Gold: The Falling Rocket*: thin washes
 of night and smoke, and the falling sparks spattered on.*
@@ -183,7 +181,7 @@ Useful members:
 * `paint.appearance(thickness, over=color)` gives the color of a layer over a ground.
 * `paint.masstone` is the color straight from the tube.
 * `mix_colors(["#1b3fa0", "#f5d000"])` gives the hex color of a quick palette mix.
-* `oilpaint.palette` has ready-made paints: `TITANIUM_WHITE`, `CADMIUM_YELLOW`,
+* `murex.huile.palette` has ready-made paints: `TITANIUM_WHITE`, `CADMIUM_YELLOW`,
   `ULTRAMARINE_BLUE`, `ALIZARIN_CRIMSON`, `PHTHALO_BLUE`, `BURNT_UMBER`, …
   It also has `MEDIUM`, a clear, fluid medium for thinning paint into a glaze:
   `Paint.mix((ALIZARIN_CRIMSON, 1), (MEDIUM, 3))`, and `IMPASTO_MEDIUM`, a
@@ -202,7 +200,7 @@ Useful members:
   `paint`, the recipe `parts` and the `error` (CIELAB delta E):
 
   ```python
-  from oilpaint import palette
+  from murex.huile import palette
 
   m = palette.match("#c89070", palette.OLD_MASTER, over="#5a4532")
   m.parts     # [(Lead White, 1.0), (Lead-Tin Yellow, 1.6), (Red Lake, 3.9)]
@@ -259,7 +257,7 @@ takes about as long as it would on that larger canvas.
 
 ### Brushes
 
-`oilpaint.brushes` is a rack of ready-made tools:
+`murex.huile.brushes` is a rack of ready-made tools:
 
 | preset | what it is |
 |--------|------------|
@@ -279,7 +277,7 @@ takes about as long as it would on that larger canvas.
 | `STIPPLER` | A short, dense, flat-topped round, tapped straight down (`canvas.stipple`): clusters of dots for foliage, textures, broken colour. |
 
 ```python
-from oilpaint import BrushType, brushes
+from murex.huile import BrushType, brushes
 
 canvas.stroke(path, "#1d3f9a", brush=brushes.FLAT_HOG)                 # 24 px hog flat
 canvas.stroke(path, "#1d3f9a", brush=brushes.FLAT_HOG.sized(48))       # a bigger one
@@ -319,7 +317,7 @@ hair (`hog`, `mongoose`, `synthetic`, `sable`, `squirrel`) and the bristle
 length (0 = short like a bright: stiffer, smaller tip capacity; 1 = long:
 springier, larger tip capacity). `brushes.catalog()` lists the presets.
 
-![brush rack](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/brush_rack.png)
+![brush rack](../../examples/huile/output/brush_rack.png)
 
 *Sixteen of the presets, top to bottom: `ROUND`, `ROUND_SABLE`, `LINER`,
 `RIGGER`, `MOP`, `DEER_FOOT`, `FLAT_HOG`, `BRIGHT`, `ANGLED`, `DAGGER`,
@@ -328,7 +326,7 @@ springier, larger tip capacity). `brushes.catalog()` lists the presets.
 pressure, a dab, a stroke on the brush's edge, and a stroke that twists from
 broadside to edge-on.*
 
-![brush uses](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/brush_uses.png)
+![brush uses](../../examples/huile/output/brush_uses.png)
 
 *Calligraphy with a flat at a fixed angle, filbert leaves, hog-fan grass,
 deer-foot stippling, a mop blending two wet colors, palette-knife slabs, rigger
@@ -357,13 +355,13 @@ Some marks aren't brushed at all: they are tapped, pressed or flicked.
   or by the canvas (0 with no paint).
 
 ```python
-from oilpaint import brushes
+from murex.huile import brushes
 
 canvas.stipple(points, "#3c6e2f", amount=12, pressure=0.25)               # stippled foliage
 canvas.spatter((80, 400), "#f2c230", direction=-20, spread=15, reach=250, size=1.5)  # a fine flick
 ```
 
-![dabbing and spatter](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/dabs_and_spatter.png)
+![dabbing and spatter](../../examples/huile/output/dabs_and_spatter.png)
 
 *Top left: the stippler tapped from light to firm, then with 10, 40 and 160
 tips at the same pressure, and a bush stippled dark to light. Top right: a
@@ -388,7 +386,7 @@ what a painter looks for before each stroke, at the scale of the brush:
 All of them take arrays of points as well.
 
 ```python
-from oilpaint import Reference, palette
+from murex.huile import Reference, palette
 
 ref = Reference("portrait.jpg", canvas.width, canvas.height)
 x, y = 420, 310
@@ -436,7 +434,7 @@ canvas.stroke(path, paint=paint, width=14)
 
 ### Surfaces
 
-`oilpaint.surfaces` has ready-made supports:
+`murex.huile.surfaces` has ready-made supports:
 
 | preset | what it is |
 |--------|------------|
@@ -451,7 +449,7 @@ canvas.stroke(path, paint=paint, width=14)
 | `GLASS` | Clear glass: perfectly smooth, the slickest of all (paint wipes off clean), nothing absorbed. Its `ground` is what shows through it, a white backing card by default. Paint it on the front, or on the back as a reverse glass painting. |
 
 ```python
-from oilpaint import Canvas, Surface, surfaces
+from murex.huile import Canvas, Surface, surfaces
 
 canvas = Canvas(1200, 800, surface=surfaces.GESSO_PANEL)
 canvas = Canvas(1200, 800, surface=surfaces.LINEN_FINE.with_(toning="#c49a6c"))      # toned ground
@@ -478,7 +476,7 @@ canvas = Canvas(1200, 800, surface=Surface(texture="twill", scale=5, tooth=0.6, 
 `surfaces.catalog()` lists the presets. Scales assume about 1 px ≈ 0.3 mm;
 use `.with_(scale=...)` to match other canvas sizes.
 
-![surfaces](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/surfaces.png)
+![surfaces](../../examples/huile/output/surfaces.png)
 
 *The same marks on each surface, left to right and top to bottom: canvas, fine
 linen, coarse linen, cotton duck, canvas board, oil paper, gesso panel, copper,
@@ -502,7 +500,7 @@ Münter took it up in Murnau around 1910, and Ivan Generalić and the Hlebine
 school in Croatia made it their main medium.
 
 ```python
-from oilpaint import Canvas, brushes, surfaces
+from murex.huile import Canvas, brushes, surfaces
 
 glass = Canvas(800, 600, surface=surfaces.GLASS, reverse=True)
 # the outlines first ...
@@ -521,7 +519,7 @@ Coordinates are as seen from the front, so nothing has to be painted mirrored.
 card behind his glass paintings to deepen the colours
 (`surfaces.GLASS.with_(ground="#151515")`).
 
-![reverse glass](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/reverse_glass.png)
+![reverse glass](../../examples/huile/output/reverse_glass.png)
 
 *The same flower painted three ways. Left: on the front of the glass, in the
 usual order (background, colours, details, outlines); the brush marks show in
@@ -541,7 +539,7 @@ picks up) between strokes. On a round brush the columns go around the bundle,
 so it has a front and a back that you can turn to the canvas by rolling it.
 
 ```python
-from oilpaint import Brush, brushes, palette as P
+from murex.huile import Brush, brushes, palette as P
 
 brush = Brush(brushes.FLAT_SABLE)
 brush.load(P.CADMIUM_RED, amount=8)                        # the whole brush
@@ -620,7 +618,7 @@ What painters do with it:
   stroke that starts light and darkens, or a stroke you can revive with a
   darker colour by pressing.
 
-![multi loading](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/multi_loading.png)
+![multi loading](../../examples/huile/output/multi_loading.png)
 
 *Top: a double-loaded flat (red with a white edge), the same twisted half a
 turn, one-stroke petals, tip-loaded leaves. Then a triple-loaded sky stroke;
@@ -629,7 +627,7 @@ double load at blending 0.05, 0.4 and 1.0 (right); a viridian/yellow load
 worked 0, 2 and 6 times on the palette; double-loaded fan grass; a two-tone
 knife slab; and a white stroke whose lower side picked up wet red.*
 
-![manipulations](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/manipulations.png)
+![manipulations](../../examples/huile/output/manipulations.png)
 
 *Top left: a round loaded red on one side and yellow on the other, not
 rolled, rolled half a turn, and rolled three turns along the stroke. Top
@@ -641,7 +639,7 @@ and then pressed hard (only the squeezed-out heel paint comes off); a round
 with umber in the heel, blue in the belly and white on the tip, painted once,
 then pressed hard to squeeze out the umber.*
 
-![dirty brush](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/dirty_brush.png)
+![dirty brush](../../examples/huile/output/dirty_brush.png)
 
 *A dirty brush. A flat full of yellow is dragged through wet blue (left),
 then lifted and used again on clean canvas without new paint (right). From
@@ -714,7 +712,7 @@ the canvas, and the tools push it around:
   slumps a little where it stands as a sheer cliff.
 
 ```python
-from oilpaint import Paint, brushes, palette as P
+from murex.huile import Paint, brushes, palette as P
 
 # an overloaded hog flat, pressed firmly: bristle grooves, ridges along both edges
 canvas.stroke(path, P.CADMIUM_RED, amount=45, brush=brushes.FLAT_HOG.sized(36), pressure=0.8)
@@ -723,7 +721,7 @@ canvas.stroke(path, Paint.mix((P.CADMIUM_RED, 1), (P.MEDIUM, 3)), amount=45, bru
 canvas.save("impasto.png", light=(-0.6, -0.8, 0.7))     # a raking light shows the relief
 ```
 
-![impasto](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/impasto.png)
+![impasto](../../examples/huile/output/impasto.png)
 
 *Top: the same hog flat loaded with `amount` 6, 15, 30 and 60. The colour is
 the same; the relief grows. Second row: an overloaded flat (`amount=45`) at
@@ -768,7 +766,7 @@ the blade is filled up to the blade and everything above it is pushed away, so:
   * pressing hard scrapes a channel down through both layers and carries
     the mixture along, piling it where the knife lifts.
 
-  ![knife drag](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/knife_drag.png)
+  ![knife drag](../../examples/huile/output/knife_drag.png)
 
   *A thick purple field with white knifed over its left half while wet, then
   a clean knife dragged from the white out into the purple at pressure 0.3,
@@ -805,7 +803,7 @@ the blade is filled up to the blade and everything above it is pushed away, so:
 | `SCRAPER` | wide, stiff | scraping back to the canvas, big flat planes |
 
 ```python
-from oilpaint import brushes
+from murex.huile import brushes
 
 canvas.stroke(path, "#e8c040", amount=40, brush=brushes.PALETTE_KNIFE, pressure=0.3)   # a thick slab
 canvas.stroke(path, "#e8c040", amount=40, brush=brushes.PALETTE_KNIFE, pressure=0.9)   # scraped thin
@@ -814,7 +812,7 @@ canvas.stroke(path, "#e8c040", amount=40, brush=brushes.PALETTE_KNIFE, pressure=
 canvas.stroke([(outer_x, outer_y), (centre_x, centre_y)], paint=[("#f6f5f0", 10), ("#f7c600", 3, "right")],
               brush=brushes.KNIFE_PEAR, angle=10, width=[36, 12], pressure=[0.3, 0.55])
 # a swatch that tears out: partly mixed paints, not too much of them
-from oilpaint import Brush
+from murex.huile import Brush
 knife = Brush(brushes.PALETTE_KNIFE.sized(90)).load_mix([("#b8246e", 2), ("#f6f5f0", 1)], 12, mixing=0.25)
 canvas.stroke([(430, 100), (60, 102)], brush=knife, pressure=[0.25, 0.55])
 # make your own: shape, blade length, flexibility (0 stiff .. 1 very flexible), teeth
@@ -835,7 +833,7 @@ they're held:
 * **Handle.** A cranked (offset) handle keeps the knuckles out of the wet paint;
   it changes nothing in the mark, so it isn't modelled.
 
-![knives](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/knives.png)
+![knives](../../examples/huile/output/knives.png)
 
 *Top: a palette knife at pressure 0.15, 0.4, 0.7 and 0.95, from a thick slab
 to paint scraped into the weave. Second row: the large trowel, small-trowel
@@ -860,7 +858,7 @@ and `S` by volume; that's why mixes behave like pigments (darker, subtractive,
 complementaries going to near-black, white making tints rather than washing
 out).
 
-![mixing chart](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/mixing_chart.png)
+![mixing chart](../../examples/huile/output/mixing_chart.png)
 
 *In each pair of rows, the top row is paint mixing and the bottom row is naive
 RGB averaging.*
@@ -880,7 +878,7 @@ paint stirs into the wet layer instead. So white scrubbed over white on a wet
 blue sky stays white where the strokes overlap; it doesn't leave a blue ring
 at every soft edge.
 
-![glazing](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/glazing.png)
+![glazing](../../examples/huile/output/glazing.png)
 
 *Left two columns: transparent glazes over a dried value study. Right two columns:
 opaque paints that hide it.*
@@ -971,8 +969,8 @@ the inside of each turn is passed over twice.) The footprint is swept at its cur
 along the stroke), which is what makes a flat's square ends, its thin edge
 and its twisted ribbons.
 
-![blending](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/blending.png)
-![strokes](https://raw.githubusercontent.com/joce/oilpaint/main/examples/output/strokes.png)
+![blending](../../examples/huile/output/blending.png)
+![strokes](../../examples/huile/output/strokes.png)
 
 **Light.** Rendering lights the same surface the paint is pushed around on:
 the canvas weave, dried paint and wet paint. Thin strokes get soft
@@ -1052,16 +1050,16 @@ after installing does.
 CI runs the spell check, then the tox checks on each Python version, the
 tests and the built wheel on Windows, and the coverage (sent to Codecov), on
 every pull request and every push to `main`. The coverage leaves out the
-compiled engine (`oilpaint/_engine.py`): coverage.py can't see inside
+compiled engine (`murex/huile/_engine.py`): coverage.py can't see inside
 numba-compiled code, though every test runs it.
 
-`tools/bench.py` times the stroke engine on sixteen fixed scenes of marks
+`tools/huile/bench.py` times the stroke engine on sixteen fixed scenes of marks
 and prints a hash of what each paints, so a change meant to make it faster
 can show that it paints the same:
 
 ```bash
-uv run python tools/bench.py                 # the timing table
-uv run python tools/bench.py -k knife -n 9   # the scenes whose name has "knife", best of 9
-uv run python tools/bench.py --save DIR      # also keep each scene's canvas state
-uv run python tools/bench.py --compare DIR   # ... and compare with a kept one, byte for byte
+uv run python tools/huile/bench.py                 # the timing table
+uv run python tools/huile/bench.py -k knife -n 9   # the scenes whose name has "knife", best of 9
+uv run python tools/huile/bench.py --save DIR      # also keep each scene's canvas state
+uv run python tools/huile/bench.py --compare DIR   # ... and compare with a kept one, byte for byte
 ```

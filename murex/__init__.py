@@ -3,7 +3,8 @@
 Here, what they share: colour as pigments that mix like the real thing
 (spectral Kubelka-Munk), stroke paths, noise for textures, reference images
 and PNG output. The media are subpackages, imported only when asked for:
-``murex.fusain`` draws with dry media (pencils, charcoal, pastel, crayon).
+``murex.fusain`` draws with dry media (pencils, charcoal, pastel, crayon) and
+``murex.huile`` paints in oils.
 """
 
 from . import filters, noise, reference, spectral

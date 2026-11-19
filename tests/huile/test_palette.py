@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from oilpaint import palette as P
-from oilpaint import spectral as sp
+from murex.huile import palette as P
+from murex.huile import spectral as sp
 
 FLESH = [
     P.LEAD_WHITE,

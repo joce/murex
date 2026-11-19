@@ -5,10 +5,10 @@ from typing import Any
 import numpy as np
 import pytest
 
-from oilpaint import Canvas, Paint, brushes, surfaces
-from oilpaint import palette as P
-from oilpaint import spectral as sp
-from oilpaint.canvas import _composite
+from murex.huile import Canvas, Paint, brushes, surfaces
+from murex.huile import palette as P
+from murex.huile import spectral as sp
+from murex.huile.canvas import _composite
 
 RAKING = (-0.6, -0.8, 0.7)
 
@@ -231,7 +231,7 @@ def test_unlit_and_reverse_renders_ignore_light_relief_and_gloss():
 
 
 def test_light_none_is_the_default_lamp():
-    from oilpaint.canvas import DEFAULT_LIGHT
+    from murex.huile.canvas import DEFAULT_LIGHT
 
     c = _ridge()
     want = c.render()
@@ -264,7 +264,7 @@ def test_gloss_zero_adds_no_highlight_at_all():
     L = np.asarray(light) / np.linalg.norm(light)
     no_gloss = c._light(lin, L, 1.0, 0.0)
     # the same shading with every highlight term switched off by hand
-    from oilpaint import canvas as cm
+    from murex.huile import canvas as cm
 
     saved = cm.GLOSS_WET, cm.GLOSS_DRY
     cm.GLOSS_WET = cm.GLOSS_DRY = 0.0
@@ -276,7 +276,7 @@ def test_gloss_zero_adds_no_highlight_at_all():
 
 def test_paint_sunk_into_an_absorbent_ground_shines_less():
     # wet paint on a slope that mirrors the lamp to the viewer
-    from oilpaint import _render
+    from murex.huile import _render
 
     c = _layer(
         Canvas(40, 30, surface=surfaces.GLASS.with_(transparent=False)),
@@ -301,8 +301,8 @@ def test_paint_sunk_into_an_absorbent_ground_shines_less():
 
 
 def test_compiled_box_blur_matches_the_filter():
-    from oilpaint import _render
-    from oilpaint._filters import _box_blur
+    from murex.huile import _render
+    from murex.huile._filters import _box_blur
 
     a = (np.random.default_rng(0).random((37, 53)) * 10).astype(np.float32)
     for r in (0, 1, 3, 20, 60):
@@ -470,7 +470,7 @@ def _glint_width(S):
 
 
 def test_the_glint_along_a_level_crest_stays_narrow(monkeypatch):
-    from oilpaint import canvas as cm
+    from murex.huile import canvas as cm
 
     for furrows, seed in ((0.0, 1), (0.3, 1), (0.3, 2)):
         c, light, _ = _furrowed_ridge(0, seed, furrows)
@@ -522,7 +522,7 @@ def _dome(sigma, top, n=64):
 
 def test_domes_and_round_dabs_keep_their_own_highlight(monkeypatch):
     # nothing is gathered on round paint: the curvature runs no one way
-    from oilpaint import canvas as cm
+    from murex.huile import canvas as cm
 
     def both(c, light):
         lin = c._render_linear()
@@ -562,7 +562,7 @@ def test_domes_and_round_dabs_keep_their_own_highlight(monkeypatch):
 
 
 def test_a_row_of_highlight_spreads_to_exactly_its_neighbourhood():
-    from oilpaint import _render
+    from murex.huile import _render
 
     rng = np.random.default_rng(0)
     for W in (1, 2, 7, 40):
@@ -577,7 +577,7 @@ def test_a_row_of_highlight_spreads_to_exactly_its_neighbourhood():
 def _own_and_gathered(c, light, monkeypatch, **const):
     """The canvas lit (black paint: the highlight alone, rolled off) with
     the highlight gathered, and each pixel's own (GLOSS_SPAN 0)."""
-    from oilpaint import canvas as cm
+    from murex.huile import canvas as cm
 
     black = np.zeros((c.height, c.width, 3), np.float32)
     with monkeypatch.context() as m:
@@ -592,7 +592,7 @@ def _own_and_gathered(c, light, monkeypatch, **const):
 def test_far_from_any_highlight_nothing_changes(monkeypatch):
     # a pixel takes highlight only from within the span (and the pixel next
     # to it); elsewhere the light is exactly the ungathered light
-    from oilpaint import canvas as cm
+    from murex.huile import canvas as cm
 
     c, light, _ = _furrowed_ridge(30, 1, furrows=0.0)
     got, own = _own_and_gathered(c, light, monkeypatch)
@@ -612,7 +612,7 @@ def test_far_from_any_highlight_nothing_changes(monkeypatch):
 
 def test_paint_too_thin_to_shine_takes_no_highlight_from_its_neighbours():
     # gathered light is shown as glossy as the pixel's own film lets it
-    from oilpaint import canvas as cm
+    from murex.huile import canvas as cm
 
     c, light, _ = _furrowed_ridge(30, 1, furrows=0.0)
     n = c.width
@@ -653,8 +653,8 @@ def test_bowls_planes_and_saddles_keep_their_highlight_up_to_the_border(
 
 
 def test_gathered_light_takes_the_receiving_pixels_mattness(monkeypatch):
-    from oilpaint import _render
-    from oilpaint import canvas as cm
+    from murex.huile import _render
+    from murex.huile import canvas as cm
 
     c, light, _ = _furrowed_ridge(30, 1)
     black = np.zeros((c.height, c.width, 3), np.float32)
@@ -753,8 +753,8 @@ def _gathered_by_hand(own, h, span, taps, gate):
 def test_the_highlight_is_its_own_averaged_along_the_crest(monkeypatch):
     # the kernel against the definition, on a furrowed slanting crest under
     # a high lamp (no cast shadows: every pixel sees all of it)
-    from oilpaint import _render
-    from oilpaint import canvas as cm
+    from murex.huile import _render
+    from murex.huile import canvas as cm
 
     c, _, _ = _furrowed_ridge(30, 2, n=64)
     a = np.radians(30)
@@ -789,7 +789,7 @@ def test_the_highlight_is_its_own_averaged_along_the_crest(monkeypatch):
 def _brute_shadows(h, L, light_size, max_reach):
     """``_render.shadows`` the slow way: every ray of the lamp marched one
     pixel at a time to the end of its reach, nothing skipped."""
-    from oilpaint import _render as R
+    from murex.huile import _render as R
 
     H, W = h.shape
     L = np.asarray(L, float) / np.linalg.norm(L)
@@ -880,8 +880,8 @@ def _adversarial_fields(S=96):
     ],
 )
 def test_cast_shadows_match_a_brute_force_march(light):
-    from oilpaint import _render as R
-    from oilpaint.canvas import LIGHT_SIZE
+    from murex.huile import _render as R
+    from murex.huile.canvas import LIGHT_SIZE
 
     for name, h in _adversarial_fields().items():
         for max_reach in (400.0, 30.0):  # the whole way, and cut short (fading)

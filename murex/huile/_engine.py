@@ -2,7 +2,7 @@
 
 Everything here works on plain arrays, one pixel at a time, so a step of a
 small brush costs microseconds rather than the overhead of hundreds of small
-numpy calls. :mod:`oilpaint.brush` holds the brush and stroke model and calls
+numpy calls. :mod:`huile.brush` holds the brush and stroke model and calls
 these kernels; the physics is described there.
 
 Arrays: the canvas layers ``top``/``und`` are (H, W, PACKED) float32, their

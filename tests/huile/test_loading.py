@@ -4,8 +4,8 @@ and worked."""
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, brushes
-from oilpaint.brush import COLUMNS
+from murex.huile import Brush, Canvas, brushes
+from murex.huile.brush import COLUMNS
 
 
 def _rgb_rows(c, x0, x1):
@@ -141,7 +141,7 @@ def test_stroke_accepts_a_list_of_paints():
 
 
 def test_across_options_and_errors():
-    from oilpaint.brush import _across_weights
+    from murex.huile.brush import _across_weights
 
     for across in (
         None,
@@ -209,7 +209,7 @@ def test_rolling_a_round_turns_the_other_side_to_the_paper():
 
 
 def test_dip_depth_spreads_the_load_over_tip_belly_and_heel():
-    from oilpaint.brush import _depth_weights
+    from murex.huile.brush import _depth_weights
 
     assert np.allclose(_depth_weights(0.1), [1, 0, 0])
     w = _depth_weights(1.0)

@@ -15,14 +15,14 @@ Washington; public domain), painted the way he worked:
 * thin transparent glazes deepening the shadows once it was dry; then the
   last touches: the glints of the gold chain, the lights in the eyes.
 
-The reproduction in ``examples/reference`` is used the way a copyist uses the
+The reproduction in ``examples/huile/reference`` is used the way a copyist uses the
 original: to see where things are and how light or dark, warm or cool they
 are; a close-up of the head shows the curls of the hair, which are too fine
 to survive in the whole picture at that size. Each stroke's paint is mixed from
-the old palette to match (:func:`oilpaint.palette.match`), and each stroke
-follows the forms (:class:`oilpaint.Reference`).
+the old palette to match (:func:`huile.palette.match`), and each stroke
+follows the forms (:class:`huile.Reference`).
 
-    python examples/rembrandt_self_portrait.py [output.png]
+    python examples/huile/rembrandt_self_portrait.py [output.png]
 
 It takes about 5 minutes; ``REMBRANDT_SCALE=0.5`` paints a half-size version in
 about half the time.
@@ -35,9 +35,9 @@ import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import (
+from murex.huile import (
     Brush,
     Canvas,
     Paint,
@@ -45,10 +45,10 @@ from oilpaint import (
     brushes,
     surfaces,
 )
-from oilpaint import (
+from murex.huile import (
     palette as P,
 )
-from oilpaint import (
+from murex.huile import (
     spectral as sp,
 )
 
@@ -332,7 +332,7 @@ _TOE_MAP = []
 
 def toe_map():
     if not _TOE_MAP:
-        from oilpaint.reference import _blur
+        from murex.huile.reference import _blur
 
         head = _blur(mask(FACE, COLLAR).astype(np.float32), 8 * S)
         _TOE_MAP.append(TOE - 5.0 * head)
@@ -352,7 +352,7 @@ def target_map(scale, color_fn=None):
 
 def box_mean(a, r):
     """Mean over a (2r+1)-pixel square around each pixel."""
-    from oilpaint.reference import _blur
+    from murex.huile.reference import _blur
 
     return _blur(a.astype(np.float32), max(r / 2.0, 0.5))
 

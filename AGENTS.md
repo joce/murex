@@ -3,7 +3,7 @@
 `murex` simulates artists' media. It holds what the media share (pigments and Kubelka-Munk mixing, stroke paths, noise, reference images and PNG output) and the media themselves, each family a subpackage named in French after one of its own:
 
 - `murex.fusain` draws with dry and semi-dry media (graphite and coloured pencils, charcoal, pastel, crayon, ballpoint pen) on a paper with tooth.
-- `murex.huile` will be oil paint: `oilpaint` is still a repository of its own and moves in next.
+- `murex.huile` paints in oils: brushes and knives lay, drag, mix and lift paint on a canvas, and a renderer lights the result. It was `oilpaint`, and for now still carries its own copies of the shared modules (`murex-9r5.3` merges them).
 - `murex.aquarelle` will be the wet media (ink, watercolour, felt-tip markers).
 
 The epic `murex-9r5` says why it is one package and in what order the rest arrives.
@@ -22,7 +22,7 @@ Work is tracked with Beads (`bd`), not with TODO lists or memory files. `bd prim
 ## Pull requests
 
 - Finished work goes on a branch and into a pull request, merged (squash) once CI is green, without asking first. Publishing a release is still asked for.
-- The one exception to the squash: a pull request that brings in a library with its history (fusain, then oilpaint) is merged with a merge commit, or the history it carries is lost.
+- The one exception to the squash: a pull request that brings in a library with its history (fusain, oilpaint) is merged with a merge commit, or the history it carries is lost.
 
 ## Build and test
 
@@ -36,7 +36,12 @@ make tox                       # every Python version and the built wheel, as CI
 uv run python tools/fusain/fingerprint.py   # whether fusain's picture has changed: hashes of a suite of drawings
 uv run python tools/fusain/benchmark.py     # how long strokes, rubs and renders take, in processor time; --against CHECKOUT compares with another checkout, run by run
 uv run python tools/fusain/refcounts.py     # whether a kernel of fusain counts references as it works (it must not)
+uv run python tools/huile/bench.py                 # time huile's 16 benchmark scenes
+uv run python tools/huile/bench.py --save DIR      # keep each scene's painted state and picture
+uv run python tools/huile/bench.py --compare DIR   # compare byte for byte with a kept state
 ```
+
+The first run of huile's tests compiles its kernels (about a minute).
 
 ## Layout
 
@@ -58,16 +63,26 @@ A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `e
 - `_engine.py`: the numba kernels that lay a medium on the paper, those a render gathers its layers with, and their constants.
 - `docs/fusain/design.md`: the model and the build order.
 
+`murex/huile/`:
+
+- `paint.py`, `palette.py`: a paint (a pigment with a body) and the ready-made ones.
+- `canvas.py`: the `Canvas`, with two wet layers, dried height, the weave, drying and rendering.
+- `brush.py`, `brushes.py`, `stroke.py`, `_knife.py`, `_geometry.py`, `_hair.py`, `_dab.py`: the tools and how a stroke is sampled and run.
+- `_engine.py`: the numba kernels that move paint at each step of a stroke. `_render.py`: the kernels that light the picture.
+- `surface.py`, `surfaces.py`: grounds and supports.
+- `spectral.py`, `spline.py`, `noise.py`, `reference.py`, `png.py`, `_filters.py`: its own copies of the shared modules, as oilpaint had them, until `murex-9r5.3` merges them with murex's. Do not mend one copy without looking at the other.
+- `examples/huile/`: the example paintings and their rendered images. `tools/huile/bench.py`: the benchmark scenes.
+
 ## Conventions
 
 For all of murex:
 
 - Imports point one way. Colour (`spectral`, `pigment`) imports nothing else of murex. The other shared modules import colour and each other, never a medium. A medium imports the shared modules (relatively: `from .. import spectral`), never another medium: media meet through what they share. Importing `murex` does not import a medium, so nobody compiles an engine they do not use.
 - What two media need goes in the shared modules, not in one of them.
-- The pictures depend on the numbers computed in the shared modules, and are checked to the bit. A change that alters a result of `spectral`, `spline`, `noise` or `filters` is a breaking change: say so in the changelog, and check every medium (fusain's fingerprints here; oilpaint, until it has moved in, in its own repository, which checks its pictures byte for byte).
-- Kernels are `@njit(cache=True, error_model="numpy")`, without `fastmath` and without `parallel`, so that results repeat exactly.
+- The pictures depend on the numbers computed in the shared modules, and are checked to the bit. A change that alters a result of `spectral`, `spline`, `noise` or `filters` is a breaking change: say so in the changelog, and check every medium (fusain's fingerprints, huile's benchmark scenes).
+- Kernels are `@njit(cache=True, error_model="numpy")`, without `fastmath` and without `parallel` (in huile: without `parallel` in the stroke path), so that results repeat exactly.
 - A medium has no version of its own: murex's is the version.
-- ruff caps function complexity at 13.
+- ruff caps function complexity at 13 everywhere except `murex/huile/_render.py` and huile's example paintings.
 
 For `murex.fusain`:
 
@@ -76,3 +91,12 @@ For `murex.fusain`:
 - A change that is not meant to alter the picture (an optimisation, a refactoring) leaves every hash of `tools/fusain/fingerprint.py` as it is (`tests/fusain/test_fingerprint.py` checks the recorded ones; for more, `--thorough --save` before and `--thorough --against` after) and regenerates every image byte for byte. One that is meant to alter it records the hashes again, `python tools/fusain/fingerprint.py --record`, with the images.
 - The medium is conserved: what leaves the tip is on the paper, and what a stump or an eraser takes off is on the tool. Tests check this.
 - A change meant to alter the picture is judged by measurements, not by looking at two renders side by side, and regenerates every image in `examples/fusain/output/` with the final code.
+
+For `murex.huile`:
+
+- Constants its kernels use live in `_engine.py`.
+- A change that should not alter the picture must leave `tools/huile/bench.py --compare` identical on all scenes.
+- A change meant to alter the picture is judged by measurements and amplified difference images, not by looking at two renders side by side.
+- Such a change also regenerates every image its README uses, with the final code: all of `examples/huile/output/` (`examples/huile/demo.py`, `examples/huile/quickstart.py` and each painting script), not only the images expected to differ.
+- Paint must be conserved: what leaves the brush lands on the canvas or is accounted for off its edge. Tests check this.
+- A decision must not hang on the last bit of a computed value: counts worked out from ratios use `whole_floor`/`whole_ceil`, and comparisons use a tolerance placed away from where values cluster (`ROUND_PX`, `EMPTY`). `tests/huile/test_rounding.py` nudges inputs by an ulp.

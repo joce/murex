@@ -18,10 +18,10 @@ the next): the mean cross-section over their middle rows, both sides."""
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, Stroke, brushes
-from oilpaint import _engine as eng
-from oilpaint import palette as P
-from oilpaint import stroke as sm
+from murex.huile import Brush, Canvas, Stroke, brushes
+from murex.huile import _engine as eng
+from murex.huile import palette as P
+from murex.huile import stroke as sm
 
 H = 330
 Y0, Y1 = 100, 250  # the strokes run down from Y0 to Y1

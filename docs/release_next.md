@@ -11,6 +11,16 @@ pens on a paper with tooth, with stumps, erasers, a knife and fixative.
 `from murex.fusain import Sheet, papers, pencils`; see
 `docs/fusain/README.md`. `import murex` alone does not load it.
 
+## murex.huile: oil painting
+
+oilpaint moves in too, as `murex.huile`: `from murex.huile import Canvas,
+Paint`; see `docs/huile/README.md`. It is oilpaint 0.1.0 and everything
+oilpaint gained since, which was never released under that name:
+`docs/huile/release_since_0.1.0.md` has those notes (impasto with the
+structure of oil paint, new lighting, stippling and spatter, reverse glass
+painting, strokes off the edge, clear errors, speed). `pip install oilpaint`
+still gives 0.1.0, which is not updated any more.
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and

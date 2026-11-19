@@ -2,7 +2,7 @@
 
 Presets cover the usual oil-painting tools::
 
-    from oilpaint import brushes
+    from murex.huile import brushes
     canvas.stroke(path, paint, brush=brushes.FLAT_HOG)              # 24 px hog flat
     canvas.stroke(path, paint, brush=brushes.FILBERT_SABLE.sized(40))
 

@@ -4,8 +4,8 @@ import numpy as np
 
 
 def test_compiled_max_filter_is_the_max_filter():
-    from oilpaint import _engine as eng
-    from oilpaint._filters import _max_filter
+    from murex.huile import _engine as eng
+    from murex.huile._filters import _max_filter
 
     rng = np.random.default_rng(3)
     for k in range(40):
@@ -18,7 +18,7 @@ def test_compiled_max_filter_is_the_max_filter():
 
 
 def test_box_blur_of_some_rows_is_the_box_blur_there():
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     rng = np.random.default_rng(4)
     for r in (1, 3):
@@ -34,21 +34,21 @@ def test_box_blur_of_some_rows_is_the_box_blur_there():
 
 
 def test_the_dab_pattern_spans_what_the_engine_reads():
-    from oilpaint import _dab
-    from oilpaint import _engine as eng
+    from murex.huile import _dab
+    from murex.huile import _engine as eng
 
     assert _dab.SPAN == eng.DAB_SPAN
 
 
 def test_the_renderer_reads_paint_where_the_engine_packs_it():
-    from oilpaint import _engine as eng
-    from oilpaint import _render
+    from murex.huile import _engine as eng
+    from murex.huile import _render
 
     assert (_render.N, _render.IS, _render.IV) == (eng.N, eng.IS, eng.IV)
 
 
 def test_dab_patterns_are_laid_out_and_turned_as_before():
-    from oilpaint import _dab
+    from murex.huile import _dab
 
     def reference(n, spacing, rng):  # the pattern, in numpy, cone by cone
         X, Y = _dab._coords(n)

@@ -1,6 +1,6 @@
 """Generate a set of demo images showing what the API does.
 
-python examples/demo.py [output_dir]
+python examples/huile/demo.py [output_dir]
 """
 
 import os
@@ -9,25 +9,25 @@ import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import (
+from murex.huile import (
     Bezier,
     Brush,
     Canvas,
     Paint,
 )
-from oilpaint import (
+from murex.huile import (
     brushes as B,
 )
-from oilpaint import (
+from murex.huile import (
     palette as P,
 )
-from oilpaint import spectral as sp
-from oilpaint import (
+from murex.huile import spectral as sp
+from murex.huile import (
     surfaces as S,
 )
-from oilpaint.png import write_png
+from murex.huile.png import write_png
 
 OUT = (
     sys.argv[1]

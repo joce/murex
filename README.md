@@ -14,9 +14,10 @@ The media are parts of it, each family named after one of its own:
 - [`murex.fusain`](docs/fusain/README.md) draws with dry media: graphite and
   coloured pencils, charcoal, pastel, crayon and ballpoint pen, on a paper with
   tooth.
-- Oil paint ([oilpaint](https://github.com/joce/oilpaint), still a library of
-  its own) is moving in as `murex.huile`, and wet media will follow as
-  `murex.aquarelle`.
+- [`murex.huile`](docs/huile/README.md) paints in oils: brushes and knives
+  lay, drag, mix and lift paint on a canvas, and a renderer lights the
+  impasto.
+- Wet media (ink, watercolour, markers) will follow as `murex.aquarelle`.
 
 ```python
 from murex.fusain import Sheet, papers, pencils
@@ -28,6 +29,17 @@ sheet.save("drawing.png")
 ```
 
 ![Morning mist on a mountain lake in graphite](examples/fusain/output/lake.png)
+
+```python
+from murex.huile import Canvas, Paint
+
+canvas = Canvas(800, 600)
+canvas.stroke([(100, 300), (300, 220), (500, 320)], paint=Paint("#1d3f9a"), amount=8, width=40)
+canvas.stroke([(300, 150), (320, 300), (280, 450)], "#f2c80f", amount=6, width=30)
+canvas.save("painting.png")
+```
+
+![A winter landscape in the manner of Bruegel](examples/huile/output/bruegel_winter.png)
 
 Importing `murex` alone loads no medium, and compiles none.
 

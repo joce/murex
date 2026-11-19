@@ -1,10 +1,10 @@
 """Time the stroke engine on a fixed mix of marks, and fingerprint what it paints.
 
-    python tools/bench.py                 # the timing table
-    python tools/bench.py -k knife -n 9   # some scenes, best of 9
-    python tools/bench.py --save DIR      # also keep each scene's state and picture
-    python tools/bench.py --compare DIR   # ... and compare with kept ones
-    python tools/bench.py --compare DIR --no-picture   # the paint only
+    python tools/huile/bench.py                 # the timing table
+    python tools/huile/bench.py -k knife -n 9   # some scenes, best of 9
+    python tools/huile/bench.py --save DIR      # also keep each scene's state, picture
+    python tools/huile/bench.py --compare DIR   # ... and compare with kept ones
+    python tools/huile/bench.py --compare DIR --no-picture   # the paint only
 
 Every scene is painted with fixed seeds, so the same code always paints the
 same canvas: the ``state`` column is a hash of everything the scene left on
@@ -44,10 +44,10 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import Brush, Canvas, Paint, brushes, surfaces
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, Paint, brushes, surfaces
+from murex.huile import palette as P
 
 W, H = 800, 600
 

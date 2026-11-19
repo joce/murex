@@ -7,8 +7,8 @@ import math
 import numpy as np
 from numba import njit
 
-from oilpaint import _engine as eng
-from oilpaint._engine import IV, PACKED, SAME_LAYER, SAME_PAINT
+from murex.huile import _engine as eng
+from murex.huile._engine import IV, PACKED, SAME_LAYER, SAME_PAINT
 
 
 @njit(cache=False, error_model="numpy")
@@ -213,8 +213,8 @@ def test_a_brush_footprint_is_the_same_where_it_is_read():
     """A brush's footprint is worked out only where it can touch (see
     _engine.may_touch): where it touches, and every plane over the part it
     touches, are as over all of the window."""
-    from oilpaint import Canvas, Stroke, brushes
-    from oilpaint.stroke import _Run
+    from murex.huile import Canvas, Stroke, brushes
+    from murex.huile.stroke import _Run
 
     rng = np.random.default_rng(5)
     for k, bt in enumerate(
@@ -272,8 +272,8 @@ def _along_blade_ref(lat, under, values, span):
 def _blade_rest_ref(run, s, at=None):
     """(``at``: the canvas pixels to read, if not the step's ``sl``: past the
     edge, the gathered nearest ones.)"""
-    from oilpaint._engine import IB
-    from oilpaint._knife import _KNIFE_SINK
+    from murex.huile._engine import IB
+    from murex.huile._knife import _KNIFE_SINK
 
     canvas, bt, st = run.canvas, run.bt, s.st
     p, sl, wsl = st.hold.p, s.sl if at is None else at, s.wsl
@@ -303,8 +303,8 @@ def _blade_rest_ref(run, s, at=None):
 
 
 def _blade_level_ref(run, s, gap, film, at=None):
-    from oilpaint._filters import _smoothstep
-    from oilpaint._knife import _KNIFE_FILM, _KNIFE_SKIM
+    from murex.huile._filters import _smoothstep
+    from murex.huile._knife import _KNIFE_FILM, _KNIFE_SKIM
 
     st, wsl = s.st, s.wsl
     rest = _blade_rest_ref(run, s, at)
@@ -329,10 +329,10 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
     wet paint of earlier strokes; and a blade wider than 128 px on the
     canvas, whose paint below is summed as numpy summed it (over a strided
     view of the canvas, see _knife._blade_rest)."""
-    import oilpaint.stroke as stm
-    from oilpaint import Brush, Canvas, brushes
-    from oilpaint import _knife as kn
-    from oilpaint import palette as P
+    import murex.huile.stroke as stm
+    from murex.huile import Brush, Canvas, brushes
+    from murex.huile import _knife as kn
+    from murex.huile import palette as P
 
     checked = {"on": 0, "whole": 0, "wide": 0}
     original = kn._knife_step

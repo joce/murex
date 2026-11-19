@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from oilpaint import Brush, BrushType, Canvas, Surface, brushes
-from oilpaint import palette as P
+from murex.huile import Brush, BrushType, Canvas, Surface, brushes
+from murex.huile import palette as P
 
 
 def _band_width(canvas, x, thresh=0.15):

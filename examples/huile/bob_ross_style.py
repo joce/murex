@@ -17,7 +17,7 @@ one sitting, everything wet:
 
 Every mark is a ``canvas.stroke(...)``; numpy only decides where they go.
 
-    python examples/bob_ross_style.py [output.png]
+    python examples/huile/bob_ross_style.py [output.png]
 """
 
 import itertools
@@ -27,16 +27,16 @@ import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import Brush, Canvas, Paint, brushes, surfaces
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, Paint, brushes, surfaces
+from murex.huile import palette as P
 
 W, H = 1200, 900
 rng = np.random.default_rng(1983)
 
 # ===========================================================================
-# His palette (the nearest paints in oilpaint.palette, and simple mixes)
+# His palette (the nearest paints in huile.palette, and simple mixes)
 # ===========================================================================
 
 

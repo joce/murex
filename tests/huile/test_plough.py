@@ -11,11 +11,11 @@ where they can be: one stroke's hair pattern is chance."""
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, Stroke, brushes, spline
-from oilpaint import _engine as eng
-from oilpaint import palette as P
-from oilpaint import stroke as stm
-from oilpaint._engine import IB, IS, IV
+from murex.huile import Brush, Canvas, Stroke, brushes, spline
+from murex.huile import _engine as eng
+from murex.huile import palette as P
+from murex.huile import stroke as stm
+from murex.huile._engine import IB, IS, IV
 
 W, H = 200, 240
 X = W // 2  # where the stroke crosses the bed
