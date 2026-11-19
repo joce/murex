@@ -92,6 +92,8 @@ include = [
     "examples/fusain/macaw_model.py",
     "CHANGELOG.md",
     "LICENSE",
+    # tests/huile/test_inputs.py runs its spell-changed target
+    "Makefile",
     "README.md",
     "RELEASING.md",
     "pyproject.toml",
