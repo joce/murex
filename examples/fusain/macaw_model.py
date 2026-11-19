@@ -59,6 +59,7 @@ from itertools import pairwise
 from typing import Protocol
 
 import numpy as np
+
 from murex import noise
 from murex.filters import box_blur, smoothstep
 

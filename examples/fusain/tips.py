@@ -1,7 +1,7 @@
 """Tips: a point that wears as it draws.
 
-Run from the repository root: ``python examples/tips.py``. Writes
-``examples/output/tips.png``. One line drawn back and forth down the sheet
+Run from the repository root: ``python examples/fusain/tips.py``. Writes
+``examples/fusain/output/tips.png``. One line drawn back and forth down the sheet
 without lifting or sharpening, with a 2H pencil (left), a 2B (middle) and a
 6B (right), each sharp at the top: the softer the lead, the sooner its
 point is a flat and its line a band.
@@ -12,8 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from murex import Polyline
-
-from fusain import Sheet, Stick, papers, pencils
+from murex.fusain import Sheet, Stick, papers, pencils
 
 ROWS = 14
 

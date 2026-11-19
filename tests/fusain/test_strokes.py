@@ -6,9 +6,9 @@ from typing import Any
 
 import numpy as np
 import pytest
-from murex import Polyline, spline
 
-from fusain import Paper, Sheet, Stick, charcoal, papers, pastels, pencils, pens
+from murex import Polyline, spline
+from murex.fusain import Paper, Sheet, Stick, charcoal, papers, pastels, pencils, pens
 
 LEVEL = Paper(depth=0)  # touched all over: the mark shows what the tip lays
 PASTEL = pastels.soft("#203050")

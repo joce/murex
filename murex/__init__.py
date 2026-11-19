@@ -1,8 +1,9 @@
-"""murex: what simulations of artists' media share.
+"""murex: simulations of artists' media, and what they share.
 
-Colour as pigments that mix like the real thing (spectral Kubelka-Munk),
-stroke paths, noise for textures, reference images and PNG output. Used by
-``oilpaint`` and ``fusain``.
+Here, what they share: colour as pigments that mix like the real thing
+(spectral Kubelka-Munk), stroke paths, noise for textures, reference images
+and PNG output. The media are subpackages, imported only when asked for:
+``murex.fusain`` draws with dry media (pencils, charcoal, pastel, crayon).
 """
 
 from . import filters, noise, reference, spectral

@@ -1,17 +1,17 @@
 """Graphite on paper: grain, saturation and conservation (behaviours 1, 2 and
-7 of docs/design.md), measured."""
+7 of docs/fusain/design.md), measured."""
 
 from itertools import pairwise
 from typing import Any
 
 import numpy as np
 import pytest
+
 from murex import Pigment, Polyline
 from murex import spectral as sp
-
-from fusain import Medium, Paper, Sheet, papers, pencils
-from fusain._engine import unit_noise
-from fusain.sheet import IS, IV, N
+from murex.fusain import Medium, Paper, Sheet, papers, pencils
+from murex.fusain._engine import unit_noise
+from murex.fusain.sheet import IS, IV, N
 
 BOX = (10, 10, 130, 50)  # the rectangle shaded
 INSIDE = (slice(15, 45), slice(20, 120))  # well inside it

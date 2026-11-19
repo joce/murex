@@ -3,10 +3,10 @@ and what takes over their wax, measured."""
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import Sheet, charcoal, crayons, papers, pastels, pencils, tools
-from fusain._engine import IV, RESIST, RESIST_DRY, resist_of
+from murex import spectral as sp
+from murex.fusain import Sheet, charcoal, crayons, papers, pastels, pencils, tools
+from murex.fusain._engine import IV, RESIST, RESIST_DRY, resist_of
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))

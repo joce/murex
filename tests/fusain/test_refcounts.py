@@ -1,14 +1,14 @@
 """The kernels count no reference to an array as they work
-(``tools/refcounts.py``): numba counts one wherever an array is handed to a
+(``tools/fusain/refcounts.py``): numba counts one wherever an array is handed to a
 helper in a way it cannot see through, for every pixel, which costs more
-than the work. The top of ``fusain/_engine.py`` says how a helper is written
+than the work. The top of ``murex/fusain/_engine.py`` says how a helper is written
 so that it does not."""
 
 import subprocess
 import sys
 from pathlib import Path
 
-TOOL = Path(__file__).parent.parent / "tools" / "refcounts.py"
+TOOL = Path(__file__).parents[2] / "tools" / "fusain" / "refcounts.py"
 
 
 def test_no_kernel_counts_references_as_it_works():

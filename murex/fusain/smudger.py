@@ -19,7 +19,7 @@ class Smudger:
     as bare paper empties its surface (``Tool.deep``), so one that has been
     used for long stays grey::
 
-        from fusain import Sheet, Smudger, pencils, tools
+        from murex.fusain import Sheet, Smudger, pencils, tools
         stump = Smudger(tools.STUMP)
         sheet.rub(patch, stump)           # it loads as it rubs
         sheet.smudge(path, stump)         # and tones the bare paper

@@ -1,5 +1,10 @@
 # Handoff: the open issues, 18 November 2026
 
+*Written in the fusain repository, the day before it moved into murex as
+`murex.fusain`: "here" is that repository, and its pull request numbers are
+joce/fusain's. Its two open issues are still in that repository's tracker
+until `murex-9r5.4` brings them over.*
+
 Where the issues stand after the passes of 15 to 18 November (pull requests
 #49 to #82 here, #7 to #10 in murex), and what can be picked up next. The
 issues themselves are in Beads: `bd show <id>` has the description and the
@@ -46,7 +51,7 @@ Closed, each with its measurements in the issue's closing note:
 
 - `fusain-hn4` (#61): `firmness` is exactly nothing at the onset of
   burnishing.
-- `fusain-5sj` (#62), `fusain-lir` (#66): `tools/benchmark.py` times
+- `fusain-5sj` (#62), `fusain-lir` (#66): `tools/fusain/benchmark.py` times
   processor time and runs two checkouts turn about; `--cpu-against haswell`
   compiles truly without AVX-512 (`NUMBA_CPU_NAME=haswell` alone keeps it).
   Without AVX-512 a shading takes about 0.95 of its time and a stump rub
@@ -73,7 +78,7 @@ Closed, each with its measurements in the issue's closing note:
   over tiles. Laying once per pixel per stroke (about 1.4 times more) is
   noted in the issue, not filed.
 - In murex, `murex-krb` half (#9): `spectral`'s tables are stored, and
-  `tests/test_bits.py` pins its numbers on x86-64.
+  `tests/fusain/test_bits.py` pins its numbers on x86-64.
 
 ## What the pass of 17 November evening did
 
@@ -172,12 +177,12 @@ Results that the numbers cannot settle:
   several.
 - Timings run one at a time on an idle machine: processor time, both
   versions as live processes taking each workload turn about, best of many
-  (`tools/benchmark.py --against`), and on an AVX-512 machine again with
+  (`tools/fusain/benchmark.py --against`), and on an AVX-512 machine again with
   `--cpu-against haswell`.
 - A lane that changes no picture is checked with
-  `tools/fingerprint.py --thorough --save` before and `--against` after,
+  `tools/fusain/fingerprint.py --thorough --save` before and `--against` after,
   and by running every example again: `git status` must show nothing.
-  After any change to a kernel or a helper, `tools/refcounts.py`.
+  After any change to a kernel or a helper, `tools/fusain/refcounts.py`.
 - A git worktree under a checkout that has `node_modules` or a warm cache
   hides what a fresh clone shows: reproduce such a fault in a clone
   outside it.

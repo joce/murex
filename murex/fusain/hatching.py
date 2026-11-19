@@ -7,7 +7,8 @@ import math
 from collections.abc import Callable, Iterator
 
 import numpy as np
-from murex import spline
+
+from .. import spline
 
 #: How far apart the strokes of a shading are, in widths of the tip.
 SPACING = 0.55

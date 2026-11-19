@@ -26,9 +26,9 @@ scratched out with ``tools.KNIFE``.
 from __future__ import annotations
 
 import numpy as np
-from murex import ColorLike, Pigment
-from murex import spectral as sp
 
+from .. import ColorLike, Pigment
+from .. import spectral as sp
 from .medium import Medium
 
 #: The grades from hardest to softest.

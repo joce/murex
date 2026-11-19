@@ -1,4 +1,4 @@
-"""The fingerprint of what the engine draws (``tools/fingerprint.py``): the
+"""The fingerprint of what the engine draws (``tools/fusain/fingerprint.py``): the
 drawings of its suite still give the hashes recorded for them, so a change
 that is not meant to alter the picture has not."""
 
@@ -11,9 +11,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from fusain import Sheet, Smudger, Stick, pencils, pens, tools
+from murex.fusain import Sheet, Smudger, Stick, pencils, pens, tools
 
-TOOL = Path(__file__).parent.parent / "tools" / "fingerprint.py"
+TOOL = Path(__file__).parents[2] / "tools" / "fusain" / "fingerprint.py"
 
 
 def _tool():
@@ -59,7 +59,7 @@ def test_a_drawing_gives_the_recorded_hashes(name, scene, paper, seed):
         )
     assert not differing, (
         "the picture has changed (if it was meant to, record it again: "
-        "python tools/fingerprint.py --record)"
+        "python tools/fusain/fingerprint.py --record)"
     )
 
 

@@ -4,20 +4,20 @@ time (``time.process_time``, which a busy machine inflates much less than the
 wall clock) and the best of several runs is shown, with how far the runs
 spread::
 
-    python tools/benchmark.py                  # every workload, best of 7
-    python tools/benchmark.py rub pen          # those whose name has "rub" or "pen"
-    python tools/benchmark.py -n 15 render     # best of 15
-    python tools/benchmark.py --save before.json
+    python tools/fusain/benchmark.py                # every workload, best of 7
+    python tools/fusain/benchmark.py rub pen        # those named "rub..." or "pen..."
+    python tools/fusain/benchmark.py -n 15 render   # best of 15
+    python tools/fusain/benchmark.py --save before.json
 
-To compare two versions, give ``--against`` another checkout of fusain (a
+To compare two versions, give ``--against`` another checkout of murex (a
 clone or a ``git worktree``). Both versions run at once, each in a process of
 its own that imports its own fusain and has compiled its kernels, and they
 take each workload turn about, run by run, so that whatever else the machine
 is doing falls on both alike. The ratio shown is this checkout's best over
 the other's: below 1, this one is quicker::
 
-    git worktree add ../fusain-base origin/main
-    python tools/benchmark.py --against ../fusain-base
+    git worktree add ../murex-base origin/main
+    python tools/fusain/benchmark.py --against ../murex-base
 
 ``--cpu NAME`` compiles the kernels of both for the processor NAME, with the
 instructions it has and no others (``NUMBA_CPU_NAME``, and an empty
@@ -27,17 +27,17 @@ side's alone, so one checkout can be compared with itself compiled two ways.
 On an AVX-512 machine, repeat a comparison with ``--cpu haswell``: a change
 can gain there and lose without those wide registers, or the other way::
 
-    python tools/benchmark.py --against . --cpu-against haswell
+    python tools/fusain/benchmark.py --against . --cpu-against haswell
 
 ``--against`` may also name a file written by an earlier ``--save``; that
 run's times are compared with these, one after the other, so noise on the
 machine counts against the ratio.
 
 Run it before and after a change meant to make drawing faster (the first run
-after a change to ``fusain/_engine.py`` compiles the kernels, which is not
-timed), and ``tools/fingerprint.py`` to see that the picture has not changed.
+after a change to ``murex/fusain/_engine.py`` compiles the kernels, which is not
+timed), and ``tools/fusain/fingerprint.py`` to see that the picture has not changed.
 Where a stroke or a rub has become much slower for no change to what it
-works out, ``tools/refcounts.py`` tells whether a kernel has started to
+works out, ``tools/fusain/refcounts.py`` tells whether a kernel has started to
 count references to its arrays.
 """
 
@@ -57,7 +57,7 @@ from pathlib import Path
 
 import numpy as np
 
-from fusain import Sheet, Smudger, charcoal, papers, pastels, pencils, pens, tools
+from murex.fusain import Sheet, Smudger, charcoal, papers, pastels, pencils, pens, tools
 
 W, H = 1120, 820
 AREA = (0, 0, W, H)
@@ -158,7 +158,7 @@ def _serve() -> int:
     """Time the workloads whose names arrive on standard input, in processor
     time, and answer each with its seconds. Only the last workload's sheet is
     kept (a sheet is some tens of megabytes)."""
-    import fusain
+    from murex import fusain
 
     _warm_up()
     _send({"fusain": fusain.__file__})
@@ -265,7 +265,7 @@ def _arguments(arguments: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--against",
         metavar="CHECKOUT_OR_FILE",
-        help="another checkout of fusain to run alongside this one, run by run, "
+        help="another checkout of murex to run alongside this one, run by run, "
         "or a file written by --save",
     )
     parser.add_argument(
@@ -283,7 +283,7 @@ def _arguments(arguments: Sequence[str]) -> argparse.Namespace:
 
 def _compare(args: argparse.Namespace, names: list[str]) -> dict[str, list[float]]:
     """Run, print the rows, and return this checkout's times."""
-    here = Path(__file__).resolve().parent.parent
+    here = Path(__file__).resolve().parents[2]
     other = Path(args.against).resolve() if args.against else None
     saved = None
     if other is not None and other.is_file():

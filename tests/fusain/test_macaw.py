@@ -9,9 +9,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from fusain import Sheet
+from murex.fusain import Sheet
 
-EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
+EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "fusain"
 
 
 def _example(name: str):

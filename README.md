@@ -6,9 +6,33 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![GitHub License](https://img.shields.io/github/license/joce/murex)](https://github.com/joce/murex/blob/main/LICENSE)
 
-What simulations of artists' media share. The murex is the sea snail Tyrian
-purple was made from; this is where [oilpaint](https://github.com/joce/oilpaint)
-and [fusain](https://github.com/joce/fusain) get their colour.
+Simulations of artists' media, and what they share. The murex is the sea snail
+Tyrian purple was made from; this is where the media get their colour.
+
+The media are parts of it, each family named after one of its own:
+
+- [`murex.fusain`](docs/fusain/README.md) draws with dry media: graphite and
+  coloured pencils, charcoal, pastel, crayon and ballpoint pen, on a paper with
+  tooth.
+- Oil paint ([oilpaint](https://github.com/joce/oilpaint), still a library of
+  its own) is moving in as `murex.huile`, and wet media will follow as
+  `murex.aquarelle`.
+
+```python
+from murex.fusain import Sheet, papers, pencils
+
+sheet = Sheet(800, 600, paper=papers.CARTRIDGE, seed=1)
+sheet.stroke([(100, 300), (300, 220), (500, 320)], pencils.B2, pressure=0.6)
+sheet.shade((100, 360, 500, 520), pencils.HB, pressure=0.4)
+sheet.save("drawing.png")
+```
+
+![Morning mist on a mountain lake in graphite](examples/fusain/output/lake.png)
+
+Importing `murex` alone loads no medium, and compiles none.
+
+## What the media share
+
 
 - `Pigment` and `murex.spectral`: colours as pigments that mix like the real
   thing (blue and yellow give green, not grey), using spectral Kubelka-Munk
@@ -57,7 +81,7 @@ path.length
 
 ```bash
 uv sync --group dev --frozen   # install the package and the development tools
-uv run pytest                  # run the tests
+uv run pytest                  # run the tests (the first run compiles the numba kernels)
 make pre-push                  # lint, types, the tests under coverage, spelling
 make tox                       # every Python version and the built wheel, as CI runs them
 ```

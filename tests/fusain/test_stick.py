@@ -1,4 +1,4 @@
-"""A stick: a medium with a tip that wears (behaviour 6 of docs/design.md)."""
+"""A stick: a medium with a tip that wears (behaviour 6 of docs/fusain/design.md)."""
 
 import math
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from fusain import (
+from murex.fusain import (
     Medium,
     Paper,
     Sheet,
@@ -17,7 +17,7 @@ from fusain import (
     pastels,
     pencils,
 )
-from fusain import _engine as eng
+from murex.fusain import _engine as eng
 
 LEVEL = Paper(depth=0)  # the width of a line shows exactly
 

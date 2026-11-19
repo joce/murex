@@ -1,7 +1,7 @@
 """A sketch of an art deco tower, in charcoal on a cream charcoal paper.
 
-Run from the repository root: ``python examples/deco.py``. Writes
-``examples/output/deco.png``.
+Run from the repository root: ``python examples/fusain/deco.py``. Writes
+``examples/fusain/output/deco.png``.
 
 An imagined setback skyscraper of the 1930s, seen from the street, corner on,
 so that it towers. It is built as its architect would build it, in three
@@ -37,9 +37,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from murex import filters, noise, write_png
 
-from fusain import Medium, Sheet, Smudger, charcoal, papers, tools
+from murex import filters, noise, write_png
+from murex.fusain import Medium, Sheet, Smudger, charcoal, papers, tools
 
 WIDTH, HEIGHT = 900, 1300
 #: Charcoal paper: a felted tooth with no pattern to it, on a thick, soft

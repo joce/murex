@@ -7,9 +7,9 @@ import pickle
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import (
+from murex import spectral as sp
+from murex.fusain import (
     Paper,
     Sheet,
     charcoal,
@@ -20,8 +20,8 @@ from fusain import (
     pens,
     tools,
 )
-from fusain import _engine as eng
-from fusain.sheet import TOOTH_HEIGHT
+from murex.fusain import _engine as eng
+from murex.fusain.sheet import TOOTH_HEIGHT
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))

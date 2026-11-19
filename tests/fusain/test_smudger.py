@@ -1,16 +1,16 @@
 """A tool in the hand: a stump or a finger that keeps what it carries from
-pass to pass (behaviours 3 and 7 of docs/design.md), measured."""
+pass to pass (behaviours 3 and 7 of docs/fusain/design.md), measured."""
 
 from typing import Any
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import Sheet, Smudger, charcoal, crayons, pastels, pencils, tools
-from fusain import _engine as eng
-from fusain._engine import CARRIED, IC, IP
-from fusain.sheet import IS, IV, IW, N
+from murex import spectral as sp
+from murex.fusain import Sheet, Smudger, charcoal, crayons, pastels, pencils, tools
+from murex.fusain import _engine as eng
+from murex.fusain._engine import CARRIED, IC, IP
+from murex.fusain.sheet import IS, IV, IW, N
 
 TONE = (20, 20, 380, 180)  # the rectangle shaded
 INNER = (120, 50, 300, 150)  # the part of it that is rubbed

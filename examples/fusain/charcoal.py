@@ -1,7 +1,7 @@
 """Charcoal, a stump and erasers, with graphite beside them for comparison.
 
-Run from the repository root: ``python examples/charcoal.py``. Writes
-``examples/output/charcoal.png``. Three columns: vine charcoal, compressed
+Run from the repository root: ``python examples/fusain/charcoal.py``. Writes
+``examples/fusain/output/charcoal.png``. Three columns: vine charcoal, compressed
 charcoal and a 4B pencil, each shaded lighter towards the bottom. Across all
 three, from the top: untouched; a stump dragged through from left to right
 and out onto the bare paper, where it leaves little, then loaded on a scrap
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fusain import Sheet, Smudger, charcoal, papers, pencils, tools
+from murex.fusain import Sheet, Smudger, charcoal, papers, pencils, tools
 
 COLUMNS = ((charcoal.VINE, 14.0), (charcoal.COMPRESSED, 14.0), (pencils.B4, 7.0))
 

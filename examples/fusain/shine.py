@@ -1,7 +1,7 @@
 """What shines: one drawing under three lamps.
 
-Run from the repository root: ``python examples/shine.py``. Writes
-``examples/output/shine.png``.
+Run from the repository root: ``python examples/fusain/shine.py``. Writes
+``examples/fusain/output/shine.png``.
 
 Top row of the drawing. Left: an HB, a 4B and an 8B, each shaded lighter to
 firmer from left to right. Right: three firm layers of 8B beside three of
@@ -28,9 +28,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from murex import write_png
 
-from fusain import Sheet, charcoal, crayons, papers, pastels, pencils, pens
+from murex import write_png
+from murex.fusain import Sheet, charcoal, crayons, papers, pastels, pencils, pens
 
 LAMPS = ((-1.0, -1.0, 0.6), None, (0.0, 0.0, 1.0))
 

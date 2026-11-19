@@ -23,9 +23,9 @@ import math
 from dataclasses import dataclass, replace
 
 import numpy as np
-from murex import ColorLike, Pigment
-from murex import spectral as sp
 
+from .. import ColorLike, Pigment
+from .. import spectral as sp
 from ._engine import BALL_INK
 
 #: How strongly the ink hides what is under it: a dye, nearly clear.
@@ -128,7 +128,7 @@ class HeldPen:
     some of it comes off where it lands (as a pen just picked up leaves a
     dot), and the rest where the line first turns sharply::
 
-        from fusain import HeldPen, Sheet, pens
+        from murex.fusain import HeldPen, Sheet, pens
         pen = HeldPen(pens.BLUE)
         sheet.stroke(path, pen)           # the ball gathers ink as it rolls
         sheet.stroke(other, pen)          # and lands with it

@@ -1,8 +1,8 @@
 """The shape of a stroke: its ends, a width that changes along it, the side
 of a stick.
 
-Run from the repository root: ``python examples/strokes.py``. Writes
-``examples/output/strokes.png``. On grey pastel paper, from the top:
+Run from the repository root: ``python examples/fusain/strokes.py``. Writes
+``examples/fusain/output/strokes.png``. On grey pastel paper, from the top:
 
 - strokes of a hard pastel, round-ended and flat-ended, between the same two
   pencil ticks: a round end reaches half the tip past them, a flat one stops
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-from fusain import Sheet, Stick, charcoal, papers, pastels, pencils
+from murex.fusain import Sheet, Stick, charcoal, papers, pastels, pencils
 
 INK = "#2b2b3a"
 WHITE = "#f1ede2"

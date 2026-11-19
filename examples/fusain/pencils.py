@@ -1,8 +1,8 @@
 """Graphite pencils on cartridge paper: what grade, pressure, layering and
 the tilt of the pencil do, and what the pencil does to the paper.
 
-Run from the repository root: ``python examples/pencils.py``. Writes
-``examples/output/pencils.png``:
+Run from the repository root: ``python examples/fusain/pencils.py``. Writes
+``examples/fusain/output/pencils.png``:
 
 * top, one band per grade (4H, 2H, HB, 2B, 4B, 6B, 8B from the top), shaded
   with the pressure rising from left to right;
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-from fusain import Sheet, papers, pencils
+from murex.fusain import Sheet, papers, pencils
 
 GRADES = ("4H", "2H", "HB", "2B", "4B", "6B", "8B")
 

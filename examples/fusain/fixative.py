@@ -1,7 +1,7 @@
 """Fixative: the same drawing rubbed twice, the second time after fixing.
 
-Run from the repository root: ``python examples/fixative.py``. Writes
-``examples/output/fixative.png``.
+Run from the repository root: ``python examples/fusain/fixative.py``. Writes
+``examples/fusain/output/fixative.png``.
 
 Each row is drawn alike and then rubbed alike; the bottom one is sprayed with
 fixative in between. Left: vine charcoal, a stump dragged through it and out
@@ -16,9 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from murex import write_png
 
-from fusain import Sheet, Smudger, charcoal, papers, pastels, tools
+from murex import write_png
+from murex.fusain import Sheet, Smudger, charcoal, papers, pastels, tools
 
 
 def draw(sheet: Sheet) -> None:

@@ -1,6 +1,12 @@
 # Agent instructions
 
-`murex` holds what simulations of artists' media share: pigments and Kubelka-Munk mixing, stroke paths, noise, reference images and PNG output. `oilpaint` and `fusain` are built on it.
+`murex` simulates artists' media. It holds what the media share (pigments and Kubelka-Munk mixing, stroke paths, noise, reference images and PNG output) and the media themselves, each family a subpackage named in French after one of its own:
+
+- `murex.fusain` draws with dry and semi-dry media (graphite and coloured pencils, charcoal, pastel, crayon, ballpoint pen) on a paper with tooth.
+- `murex.huile` will be oil paint: `oilpaint` is still a repository of its own and moves in next.
+- `murex.aquarelle` will be the wet media (ink, watercolour, felt-tip markers).
+
+The epic `murex-9r5` says why it is one package and in what order the rest arrives.
 
 ## Issues
 
@@ -16,19 +22,57 @@ Work is tracked with Beads (`bd`), not with TODO lists or memory files. `bd prim
 ## Pull requests
 
 - Finished work goes on a branch and into a pull request, merged (squash) once CI is green, without asking first. Publishing a release is still asked for.
+- The one exception to the squash: a pull request that brings in a library with its history (fusain, then oilpaint) is merged with a merge commit, or the history it carries is lost.
 
 ## Build and test
 
 ```bash
 uv sync --group dev --frozen   # install the package and the development tools
-uv run pytest                  # run the tests
+uv run pytest                  # run the tests (the first run compiles the numba kernels)
 uv run pytest -n auto          # the tests on every core
+uv run pytest tests/fusain     # one medium's tests only
 make pre-push                  # before a push: black, ruff, pyright, the tests once under coverage (80% required), spelling
 make tox                       # every Python version and the built wheel, as CI runs them
+uv run python tools/fusain/fingerprint.py   # whether fusain's picture has changed: hashes of a suite of drawings
+uv run python tools/fusain/benchmark.py     # how long strokes, rubs and renders take, in processor time; --against CHECKOUT compares with another checkout, run by run
+uv run python tools/fusain/refcounts.py     # whether a kernel of fusain counts references as it works (it must not)
 ```
+
+## Layout
+
+What every medium shares is at the top of the package:
+
+- `spectral.py`, `_spectral_tables.py`, `pigment.py`: colour. Pigments and Kubelka-Munk mixing over 24 spectral bands.
+- `spline.py`, `noise.py`, `filters.py`, `reference.py`, `png.py`: stroke paths, textures, small image filters, reference images and output.
+
+A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `examples/` (scripts, and the images they write to `output/`) and `docs/` (its README, its design, its changelog from before it moved here).
+
+`murex/fusain/`:
+
+- `paper.py`, `papers.py`: a paper's texture, tooth and colour, and the presets.
+- `sheet.py`: the `Sheet`, with the tooth, how far the paper has been crushed (`crush`) and the wax on it polished (`polish`: `press` is what a tip meets of the two), how far it has been indented (`dent`) and its fibres raised (`rough`), the pigment it holds and the two layers that lie over it (dust, what a binder holds there: `bonded`, and a film on each: `films`), strokes, a stylus, rubbing and erasing, fixative, what shines, and rendering.
+- `medium.py`, `pencils.py`, `charcoal.py`, `pastels.py`, `crayons.py`: what a stick is made of; graphite and coloured pencils, charcoals, soft, hard and oil pastels, wax crayons.
+- `stick.py`: a medium in the hand, with a tip that wears. `pens.py`: ballpoint pens, whose ink is a stain in the paper, and a pen in the hand (`HeldPen`), which keeps the ink its ball gathers.
+- `tools.py`: stumps, fingers and erasers, which lay nothing of their own, and what scrapes wax off: a sand eraser and a knife. `smudger.py`: a tool in the hand, which keeps what it picks up.
+- `hatching.py`: the strokes of a shading, as a hand lays them.
+- `_engine.py`: the numba kernels that lay a medium on the paper, those a render gathers its layers with, and their constants.
+- `docs/fusain/design.md`: the model and the build order.
 
 ## Conventions
 
-- Two libraries depend on the numbers computed here, and oilpaint checks its pictures byte for byte. A change that alters a result of `spectral`, `spline`, `noise` or `filters` is a breaking change: say so in the changelog and check both libraries.
+For all of murex:
+
+- Imports point one way. Colour (`spectral`, `pigment`) imports nothing else of murex. The other shared modules import colour and each other, never a medium. A medium imports the shared modules (relatively: `from .. import spectral`), never another medium: media meet through what they share. Importing `murex` does not import a medium, so nobody compiles an engine they do not use.
+- What two media need goes in the shared modules, not in one of them.
+- The pictures depend on the numbers computed in the shared modules, and are checked to the bit. A change that alters a result of `spectral`, `spline`, `noise` or `filters` is a breaking change: say so in the changelog, and check every medium (fusain's fingerprints here; oilpaint, until it has moved in, in its own repository, which checks its pictures byte for byte).
 - Kernels are `@njit(cache=True, error_model="numpy")`, without `fastmath` and without `parallel`, so that results repeat exactly.
+- A medium has no version of its own: murex's is the version.
 - ruff caps function complexity at 13.
+
+For `murex.fusain`:
+
+- What its kernels call for every pixel is `@_inlined` (a kernel compiled into its caller: `inline="always"`). Only options that numba documents are used. Constants the kernels use live in `_engine.py`.
+- A kernel counts no reference to an array as it works: left in, that counting doubles the time of a stroke and nearly triples that of a rub. A per-pixel helper is given numbers where the kernel has them; given an array, it reads what it needs of it before its first `if`, and what it does to it only sometimes is in `for _ in once(...)`, not under an `if` or after an early `return`. A kernel called for every step calls no other kernel and allocates nothing. The top of `_engine.py` says why and how; `tools/fusain/refcounts.py` tells what is still counted, and `tests/fusain/test_refcounts.py` fails if anything is. Check it after any change to a kernel or a helper.
+- A change that is not meant to alter the picture (an optimisation, a refactoring) leaves every hash of `tools/fusain/fingerprint.py` as it is (`tests/fusain/test_fingerprint.py` checks the recorded ones; for more, `--thorough --save` before and `--thorough --against` after) and regenerates every image byte for byte. One that is meant to alter it records the hashes again, `python tools/fusain/fingerprint.py --record`, with the images.
+- The medium is conserved: what leaves the tip is on the paper, and what a stump or an eraser takes off is on the tool. Tests check this.
+- A change meant to alter the picture is judged by measurements, not by looking at two renders side by side, and regenerates every image in `examples/fusain/output/` with the final code.

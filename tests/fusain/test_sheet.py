@@ -4,11 +4,11 @@ from typing import Any
 
 import numpy as np
 import pytest
+
 from murex import Pigment
 from murex import spectral as sp
-
-from fusain import Paper, Sheet, papers
-from fusain.sheet import HELD, IS, IV, LOOSE, N
+from murex.fusain import Paper, Sheet, papers
+from murex.fusain.sheet import HELD, IS, IV, LOOSE, N
 
 FLAT: dict[str, Any] = {"lighting": False}
 RAKING: dict[str, Any] = {"light": (-0.6, -0.8, 0.45)}

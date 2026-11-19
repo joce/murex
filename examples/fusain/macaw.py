@@ -1,7 +1,7 @@
 """A great green macaw, in coloured pencil on white paper.
 
-Run from the repository root: ``python examples/macaw.py``. Writes
-``examples/output/macaw.png`` (in a little over a minute).
+Run from the repository root: ``python examples/fusain/macaw.py``. Writes
+``examples/fusain/output/macaw.png`` (in a little over a minute).
 
 A great green macaw (Ara ambiguus) on a branch, its body turned a little
 toward us and leaning forward, its head turned further and cocked, the long
@@ -50,10 +50,10 @@ from pathlib import Path
 
 import macaw_model as mm
 import numpy as np
+
 from murex import noise, write_png
 from murex.filters import bilinear, box_blur, smoothstep
-
-from fusain import Medium, Paper, Sheet, pencils, tools
+from murex.fusain import Medium, Paper, Sheet, pencils, tools
 
 WIDTH, HEIGHT = mm.WIDTH, mm.HEIGHT
 SEED = 7

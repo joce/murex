@@ -13,7 +13,7 @@ class Stick:
     and its tip, which wears as it draws. A point wears to a flat, so its
     line widens until it is sharpened again::
 
-        from fusain import Sheet, Stick, pencils
+        from murex.fusain import Sheet, Stick, pencils
         pencil = Stick(pencils.B2, width=2)
         sheet.stroke(path, pencil)        # the line widens as it goes
         sheet.shade(area, pencil)         # and so do these strokes

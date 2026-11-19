@@ -1,7 +1,7 @@
 """Ballpoint pens, on cartridge paper.
 
-Run from the repository root: ``python examples/ballpoint.py``. Writes
-``examples/output/ballpoint.png``.
+Run from the repository root: ``python examples/fusain/ballpoint.py``. Writes
+``examples/fusain/output/ballpoint.png``.
 
 Left: lines in blue from the lightest touch to the firmest, then a line of
 loops as a hand writes them, pressing harder on the way down. Middle: black
@@ -28,9 +28,9 @@ import math
 from pathlib import Path
 
 import numpy as np
-from murex import Polyline, write_png
 
-from fusain import HeldPen, Sheet, crayons, papers, pencils, pens, tools
+from murex import Polyline, write_png
+from murex.fusain import HeldPen, Sheet, crayons, papers, pencils, pens, tools
 
 
 def lines(sheet: Sheet) -> None:

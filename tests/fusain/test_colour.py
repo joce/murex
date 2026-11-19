@@ -1,14 +1,14 @@
 """Colour: layers that mix or cover, and wax (behaviours 4 and 5 of
-docs/design.md), measured."""
+docs/fusain/design.md), measured."""
 
 import itertools
 
 import numpy as np
 import pytest
-from murex import spectral as sp
 
-from fusain import Sheet, papers, pastels, pencils, tools
-from fusain._engine import IV, IW
+from murex import spectral as sp
+from murex.fusain import Sheet, papers, pastels, pencils, tools
+from murex.fusain._engine import IV, IW
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))

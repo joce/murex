@@ -7,8 +7,7 @@ kneaded eraser lifts.
 
 from __future__ import annotations
 
-from murex import Pigment
-
+from .. import Pigment
 from .medium import Medium
 
 #: Thickness 1 is about a tooth full of it, as for a pencil lead.

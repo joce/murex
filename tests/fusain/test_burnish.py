@@ -5,10 +5,10 @@ from itertools import pairwise
 
 import numpy as np
 import pytest
+
 from murex import spectral as sp
 from murex.filters import box_blur
-
-from fusain import (
+from murex.fusain import (
     Paper,
     Sheet,
     Smudger,
@@ -20,7 +20,7 @@ from fusain import (
     pencils,
     tools,
 )
-from fusain._engine import (
+from murex.fusain._engine import (
     BOUND,
     BURNISH,
     BURNISH_FROM,
@@ -47,7 +47,7 @@ from fusain._engine import (
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))
 RED, YELLOW, BLUE, DARK = "#c0392b", "#f2c40f", "#2456a6", "#141416"
-#: A smooth drawing paper with a shallow tooth, as examples/macaw.py uses.
+#: A smooth drawing paper with a shallow tooth, as examples/fusain/macaw.py uses.
 SMOOTH = Paper("wove", grain=2.0, depth=0.4, bite=0.5, give=0.4, color="#fbfaf6")
 
 
@@ -448,7 +448,7 @@ def test_a_softer_pencil_of_the_same_colour_melts_and_burnishes_more():
 
 
 def test_firmness_is_exactly_nothing_at_the_onset():
-    from fusain._engine import BURNISH_ONSET
+    from murex.fusain._engine import BURNISH_ONSET
 
     assert pytest.approx(BURNISH_FROM - BURNISH_SOFT) == BURNISH_ONSET
     assert firmness(0.4) == 0.0
@@ -1311,7 +1311,7 @@ def test_a_dark_over_a_light_darkens_it_a_good_deal_while_the_tooth_has_room():
 
 
 def test_a_dark_takes_badly_over_a_shallow_tooth_that_light_layers_filled():
-    # (what the issue saw on the paper of examples/macaw.py: there the darks
+    # (what the issue saw on the paper of examples/fusain/macaw.py: there the darks
     # go first)
     shares = [_dark_over_light(SMOOTH, layers) for layers in (1, 2, 4)]
     assert shares[0][0] > shares[1][0] > shares[2][0]

@@ -4,17 +4,17 @@ Numba counts a reference to an array wherever one is handed on, and drops
 the counting where it can see that it cancels. What it leaves is done for
 every pixel, or every step, that a kernel works on, and costs more than the
 work: left in, it was half the time of a stroke and two thirds of that of a
-rub. The top of ``fusain/_engine.py`` says how the kernels are written so
+rub. The top of ``murex/fusain/_engine.py`` says how the kernels are written so
 that none is left; this tells whether that still holds::
 
-    python tools/refcounts.py           # every kernel: what it still counts
-    python tools/refcounts.py -v bear   # and where, in those named "bear..."
+    python tools/fusain/refcounts.py           # every kernel: what it still counts
+    python tools/fusain/refcounts.py -v bear   # and where, in those named "bear..."
 
 For each kernel, how many times it adds to a count and takes from one:
 outside its loops (once a call) and inside them. The status is 1 if a kernel
 counts anything inside a loop, or anything at all in one that is called for
 every step of a stroke (:data:`EVERY_STEP`), which numba compiles into no
-other; ``tests/test_refcounts.py`` runs it.
+other; ``tests/fusain/test_refcounts.py`` runs it.
 
 The kernels are compiled afresh, in a cache of their own (some twenty
 seconds): numba keeps the LLVM of what it compiles, not of what it loads
@@ -157,8 +157,8 @@ def kernels() -> dict[str, object]:
     """Every kernel of the engine, compiled by drawing with a stick, a tool,
     a pen and a stylus, and rendering. (What they call for every pixel is
     compiled into them: it is no kernel of its own.)"""
-    from fusain import Sheet, Smudger, pastels, pencils, pens, tools
-    from fusain import _engine as eng
+    from murex.fusain import Sheet, Smudger, pastels, pencils, pens, tools
+    from murex.fusain import _engine as eng
 
     sheet = Sheet(64, 64, seed=1)
     sheet.shade((4, 4, 60, 60), pencils.HB)
@@ -203,7 +203,7 @@ def report(arguments: list[str]) -> int:
             for depth, which, array, block in sorted(left):
                 print(f"    {which} {array} ({depth} loops deep, in {block})")
     if failed:
-        print("A kernel counts references as it works: see fusain/_engine.py.")
+        print("A kernel counts references as it works: see murex/fusain/_engine.py.")
     return 1 if failed else 0
 
 

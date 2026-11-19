@@ -6,10 +6,10 @@ import itertools
 
 import numpy as np
 import pytest
+
 from murex import Pigment, Polyline
 from murex import spectral as sp
-
-from fusain import (
+from murex.fusain import (
     HeldPen,
     Pen,
     Sheet,
@@ -21,8 +21,8 @@ from fusain import (
     pens,
     tools,
 )
-from fusain import _engine as eng
-from fusain.sheet import IV
+from murex.fusain import _engine as eng
+from murex.fusain.sheet import IV
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))

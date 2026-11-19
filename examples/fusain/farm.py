@@ -1,8 +1,9 @@
 """A joyful farm on a hill, in wax crayon: naive art in bold colours.
 
-Run from the repository root: ``python examples/farm.py``. Writes
-``examples/output/farm.png`` (in under a minute); ``python examples/farm.py
-FILE`` writes it to FILE instead, and ``python examples/farm.py --study
+Run from the repository root: ``python examples/fusain/farm.py``. Writes
+``examples/fusain/output/farm.png`` (in under a minute);
+``python examples/fusain/farm.py FILE`` writes it to FILE instead, and
+``python examples/fusain/farm.py --study
 FOLDER`` writes the flat design study (cut-paper shapes in flat colour, with
 their outlines) and enlarged crops of it to FOLDER.
 
@@ -39,9 +40,9 @@ from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
-from murex import CatmullRom, filters, noise, write_png
 
-from fusain import Sheet, crayons, papers
+from murex import CatmullRom, filters, noise, write_png
+from murex.fusain import Sheet, crayons, papers
 
 HERE = Path(__file__).parent
 WIDTH, HEIGHT = 1400, 1050
