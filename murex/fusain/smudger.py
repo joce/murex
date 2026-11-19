@@ -1,0 +1,88 @@
+"""A tool in the hand: a stump, a finger or a chamois, and what it carries."""
+
+from __future__ import annotations
+
+import numpy as np
+
+from ._engine import CARRIED, IC, IV, LOOSE
+from .stick import _width
+from .tools import Tool
+
+
+class Smudger:
+    """A stump, a finger or a chamois as it is held: the tool, and the
+    pigment it has picked up, which it keeps from one pass to the next until
+    it is cleaned. A stump fills slowly as it is rubbed in a tone and takes
+    nothing more once it is full, so it blends a tone without wearing it
+    away; and bare paper takes the dust off it, so it draws a tone of its
+    own there. What it picks up works into its fibres, and back out slowly
+    as bare paper empties its surface (``Tool.deep``), so one that has been
+    used for long stays grey::
+
+        from murex.fusain import Sheet, Smudger, pencils, tools
+        stump = Smudger(tools.STUMP)
+        sheet.rub(patch, stump)           # it loads as it rubs
+        sheet.smudge(path, stump)         # and tones the bare paper
+        stump.clean()
+
+    Rub with a bare tool (``sheet.smudge(path, tools.STUMP)``) for one that
+    is clean every time and takes away what it lifted.
+
+    Parameters
+    ----------
+    tool:
+        What it is, e.g. ``tools.STUMP``.
+    width:
+        Its width in pixels (by default the tool's own).
+
+    ``load`` is the volume of pigment it carries now (``deep`` the part of
+    it worked into its fibres), and ``wax`` the volume of wax that came
+    with it (a finger that smears an oil pastel takes its
+    wax along with its paste). An eraser can be held this way too: it lays
+    nothing back, so its load is what it has taken off since it was cleaned.
+    """
+
+    def __init__(self, tool: Tool, width: float | None = None):
+        if not isinstance(tool, Tool):
+            raise TypeError(f"tool must be a Tool, such as tools.STUMP, got {tool!r}")
+        self.tool = tool
+        self.width = _width("width", tool.width if width is None else width)
+        # what it has lifted (on its surface), the dust on its face, the
+        # held graphite it is pushing along and what it has worked deep into
+        # its fibres, each packed as the dust of a sheet is, with the volume
+        # of it that is paste and the volume of wax that came with it after
+        self._carried = np.zeros((4, CARRIED))
+
+    @property
+    def load(self) -> float:
+        """Volume of pigment it carries now."""
+        return float(self._carried[:, IV].sum())
+
+    @property
+    def deep(self) -> float:
+        """Volume of pigment it has worked deep into its fibres: part of its
+        load, which comes back out to its surface slowly."""
+        return float(self._carried[3, IV])
+
+    @property
+    def carried(self) -> np.ndarray:
+        """What it carries, packed as the dust of a sheet is: [K (N bands),
+        S, volume, sheen]."""
+        return self._carried[:, :LOOSE].sum(axis=0)
+
+    @property
+    def wax(self) -> float:
+        """Volume of wax in what it carries: what came off the sheet with
+        the film, the paste and the held pigment it took."""
+        return float(self._carried[:, IC].sum())
+
+    def clean(self) -> float:
+        """Clean it (a stump on sandpaper, a finger on a rag): it carries
+        nothing afterwards. Returns the volume of pigment that came off."""
+        load = self.load
+        self._carried[:] = 0.0
+        return load
+
+    def __repr__(self) -> str:
+        name = self.tool.name or "tool"
+        return f"Smudger({name}, width={self.width:g}, load={self.load:.2f})"

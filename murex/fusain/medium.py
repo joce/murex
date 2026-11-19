@@ -1,0 +1,114 @@
+"""A medium: what a stick is made of and how it behaves on paper."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, replace
+
+from .. import Pigment
+from ._engine import SIDE
+
+
+@dataclass(frozen=True)
+class Medium:
+    """What a pencil lead, a charcoal stick or a pastel is made of. Presets
+    live in modules such as :mod:`fusain.pencils`.
+
+    Parameters
+    ----------
+    pigment:
+        What it leaves on the paper, as a :class:`murex.Pigment`.
+    softness:
+        0..1: how easily it wears and how far it gives to reach into the
+        tooth. A hard lead (low) lays a thin, pale film on the peaks and
+        fills up early; a soft one (high) lays a lot, reaches the valleys
+        and goes on darkening.
+    binding:
+        0..1: the share of what it lays that is held by the paper at once,
+        the rest lying on it as dust that can still be moved (or, for a
+        medium that is waxy and soft, as paste, which only smears). That is
+        on its own ground: where a firm stick meets a bed of dust, more of
+        it than its own crumbs, that share lies on the dust as a film.
+    wax:
+        0..1: the share of it that is wax (or oil). Wax films over the tooth
+        and makes it slick: later layers take less and less, and a firm pass
+        polishes the film flat, which closes up the white specks of the
+        paper (burnishing). Laid over dust, the film lies on the dust and
+        binds part of it. Graphite, charcoal and soft pastel have none.
+    sheen:
+        0..1: how much of it mirrors the light once the paper holds it, as
+        graphite does. A thick layer of it shines under a lamp, so that it
+        never looks quite black. Charcoal, pastel and wax have none. (Wax
+        has a gloss of another kind, which is not the medium's but its
+        polish's: see :meth:`fusain.Sheet.shine`.)
+    melts:
+        0..1: how far it melts into a film of wax it is pressed hard on. A
+        colourless blender is soft clear wax and nothing else: it works into
+        the film under it, however thin, and stirs it into the valleys of
+        the tooth, so that the white flecks of the paper close. A lead or a
+        crayon, whose wax binds its own pigment, polishes a film only as far
+        as the film is slick already, and stirs it less; a pale one, mostly
+        wax and white filler, melts the more the paler it is
+        (:func:`fusain.pencils.melts_of`), and the softer it is.
+    pale:
+        0..1: for a coloured lead, how far its colour alone would have it
+        melt, at the softness of an ordinary coloured pencil
+        (:func:`fusain.pencils.melts_of`). :meth:`with_` scales ``melts``
+        by the softness it is given from this, unless it is given ``melts``
+        too. 0 (the default) for a medium whose ``melts`` is its own.
+    side:
+        How many times as wide as its point the side of a stick of it
+        marks, held flat (at full tilt): what length of it lies on the
+        paper. The exposed lead of a sharpened pencil marks a band five
+        times its point (the default); a piece of charcoal or a pastel laid
+        flat marks a band as wide as the piece is long. A
+        :class:`fusain.Stick` can give the length in pixels instead.
+    flat_side:
+        Whether its side lies flat on the paper all along its length. The
+        side of a pencil (the default, False) is the cone of lead its
+        sharpening bared: it bears hardest along its middle, so the band it
+        marks is darkest down the middle of the stroke and fades to its
+        edges. A stick of charcoal, pastel or crayon laid on its side
+        (True) bears alike all along its length: its band is even across
+        and ends where the stick does, within the thickness of the stick.
+    name:
+        Optional label.
+    """
+
+    pigment: Pigment
+    softness: float
+    binding: float = 0.85
+    wax: float = 0.0
+    sheen: float = 0.0
+    side: float = SIDE
+    name: str = ""
+    melts: float = 0.0
+    flat_side: bool = False
+    pale: float = 0.0
+
+    def __post_init__(self):
+        if not isinstance(self.pigment, Pigment):
+            raise TypeError(f"pigment must be a murex Pigment, got {self.pigment!r}")
+        for field in ("softness", "binding", "wax", "sheen", "melts", "pale"):
+            if not 0.0 <= getattr(self, field) <= 1.0:
+                raise ValueError(
+                    f"{field} must be between 0 and 1, got {getattr(self, field)!r}"
+                )
+        if not isinstance(self.flat_side, bool):
+            raise TypeError(f"flat_side must be True or False, got {self.flat_side!r}")
+        if not (math.isfinite(self.side) and self.side >= 1.0):
+            raise ValueError(
+                f"side must be at least 1 (as wide as the point), got {self.side!r}"
+            )
+
+    def with_(self, **changes) -> Medium:
+        """A copy with some fields changed. A coloured pencil's ``melts``
+        follows its ``softness`` (see :attr:`pale`), unless ``melts`` is
+        given; giving ``melts`` alone fixes it from then on."""
+        if "melts" in changes:
+            changes.setdefault("pale", 0.0)
+        elif "softness" in changes and self.pale > 0.0:
+            from .pencils import melts_at
+
+            changes["melts"] = melts_at(self.pale, changes["softness"])
+        return replace(self, **changes)
