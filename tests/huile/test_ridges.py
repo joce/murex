@@ -13,10 +13,10 @@ from itertools import starmap
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, Paint, Stroke, brushes
-from oilpaint import _engine as eng
-from oilpaint import palette as P
-from oilpaint import stroke as sm
+from murex.huile import Brush, Canvas, Paint, Stroke, brushes
+from murex.huile import _engine as eng
+from murex.huile import palette as P
+from murex.huile import stroke as sm
 
 H = 200
 ROWS = slice(50, H - 50)

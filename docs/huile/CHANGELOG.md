@@ -1,10 +1,18 @@
-# Changelog
+# Changelog of oilpaint, before it moved into murex
+
+What changed in oilpaint while it was a repository of its own
+(<https://github.com/joce/oilpaint>), up to 19 November 2026, when it became
+`murex.huile`. Its release 0.1.0 is on PyPI; what came after it was never
+released as oilpaint, and ships first in murex. Later changes are in murex's
+[CHANGELOG.md](../../CHANGELOG.md). Paths are written as they are here
+(`murex/huile/`, `tools/huile/`); pull request numbers are those of the
+oilpaint repository.
 
 All notable changes to oilpaint are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## After 0.1.0, up to the move into murex
 
 ### Added
 
@@ -18,8 +26,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Two studies after the masters, each painted mostly with one of the new
   tools: Seurat's *Gray Weather, Grande Jatte* (stippled dots) and
   Whistler's *The Falling Rocket* (spatter). Each is painted up coarse to
-  fine from a public-domain photograph in `examples/reference`, every pass
-  going only where the canvas still differs from it (`examples/_studies.py`).
+  fine from a public-domain photograph in `examples/huile/reference`, every pass
+  going only where the canvas still differs from it (`examples/huile/_studies.py`).
 - Glass (`surfaces.GLASS`): a clear, perfectly smooth and slick support, with
   whatever is behind it showing through.
 - Reverse glass painting: `Canvas(..., surface=surfaces.GLASS, reverse=True)`
@@ -27,18 +35,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   first paint laid is in front. A new `reverse_glass` demo shows a flower
   painted on the front, on the back in reverse order, and on the back in the
   wrong order.
-- A fourth example painting, `examples/kandinsky_glass.py`: a reverse glass
+- A fourth example painting, `examples/huile/kandinsky_glass.py`: a reverse glass
   painting in the manner of Kandinsky's Murnau years, painted on the back of
   the glass in reverse order.
 - `spectral.km_film`: the reflectance and transmittance of a paint film on
   its own.
-- A dirty-brush demo (`examples/demo.py`, shown in the README): a full brush
+- A dirty-brush demo (`examples/huile/demo.py`, shown in the README): a full brush
   dragged through thin, medium and thick wet paint, then used again on clean
   canvas.
 - `Canvas.copy()`: an independent copy of a canvas (its wet and dry paint,
   its surface and where its random numbers have got to), which paints on
   exactly as the original would. `copy.copy(canvas)` does the same.
-- `tools/bench.py`, a benchmark of the stroke engine: sixteen scenes (small
+- `tools/huile/bench.py`, a benchmark of the stroke engine: sixteen scenes (small
   rounds, liners, wide flats, wet blending, fans, knives laid on and lifted
   off, dabs of several paints, tapered curves, reverse glass, strokes
   running off the canvas, stippling, spatter, drying and a small painting),
@@ -349,7 +357,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `SPECTRUM_TO_RGB`, `LUMINANCE`, ...) are read-only, and so are
   `Canvas.top_k`, `top_s`, `top_v` and the same of `und`: views of the wet
   paint, which can be written through but not replaced.
-  `from oilpaint.brush import *` gives the names `oilpaint.brush.__all__`
+  `from murex.huile.brush import *` gives the names `oilpaint.brush.__all__`
   lists: no longer the standard-library and typing names the module imports
   (`math`, `hashlib`, `dataclass`, `Any`, ...), `annotations`, or
   `value_noise_1d` (import it from `oilpaint.noise`). The painted result is
@@ -390,7 +398,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pressed hard through thick wet paint pushed it up into a narrow wall that
   read as a dark line along the lit stroke. A white 120 px hog flat pressed
   at 0.9 down 5 units of wet blue now leaves ridges 12 px wide at half
-  height, from 9 (the set-up of `tests/test_ridges.py`, three seeds; 11
+  height, from 9 (the set-up of `tests/huile/test_ridges.py`, three seeds; 11
   px in the set-up of the entry above, which measures each row and takes
   the median; see that entry too for how much paint a wide brush pushes
   out at all). A brush whose limit stays under 7 px (a hog flat up to

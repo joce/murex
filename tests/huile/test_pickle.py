@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from oilpaint import Canvas, surfaces
+from murex.huile import Canvas, surfaces
 
 
 def test_canvas_survives_pickling():
@@ -53,7 +53,7 @@ def test_old_canvas_pickles_without_paint_body_still_render():
 
 
 def test_a_canvas_pickles_its_relief_maps_as_attributes_of_their_own():
-    # (the layout every version has pickled: no class private to oilpaint in
+    # (the layout every version has pickled: no class private to huile in
     # the pickle, and other versions load it)
     import pickle
 

@@ -1,7 +1,7 @@
 [project]
 name = "murex"
 dynamic = ["version"]
-description = "Simulations of artists' media and what they share: pigments that mix like the real thing (spectral Kubelka-Munk), stroke paths, textures and reference images; dry media (pencils, charcoal, pastel, crayon) on a paper with tooth."
+description = "Simulations of artists' media and what they share: pigments that mix like the real thing (spectral Kubelka-Munk), stroke paths, textures and reference images; dry media (pencils, charcoal, pastel, crayon) on a paper with tooth; oil paint laid by brushes and knives."
 readme = "README.md"
 authors = [{ name = "Jocelyn Legault", email = "jocelynlegault@gmail.com" }]
 license = "MIT"
@@ -15,6 +15,10 @@ keywords = [
     "spectral",
     "spline",
     "noise",
+    "painting",
+    "oil-paint",
+    "brush",
+    "impasto",
     "drawing",
     "pencil",
     "charcoal",
@@ -109,8 +113,9 @@ addopts = ["--import-mode=importlib"]
 branch = true
 source = ["murex"]
 # Compiled by numba: coverage.py cannot see inside it, so it would read as
-# untested though the tests run it.
-omit = ["murex/fusain/_engine.py"]
+# untested though the tests run it. (With NUMBA_DISABLE_JIT=1 huile's runs as
+# plain Python and can be measured, but its tests then take over 50 minutes.)
+omit = ["murex/fusain/_engine.py", "murex/huile/_engine.py"]
 
 [tool.coverage.report]
 show_missing = true
@@ -182,7 +187,15 @@ ignore = [
 preview = true
 
 [tool.ruff.lint.mccabe]
+# The most branches any function outside the compiled kernels has: a function
+# that grows past it is split.
 max-complexity = 13
+
+[tool.ruff.lint.per-file-ignores]
+# huile's rendering kernels keep their loops in one function (numba compiles
+# each call), and its example paintings are long scripts of marks.
+"murex/huile/_render.py" = ["complex-structure"]
+"examples/huile/*" = ["complex-structure"]
 
 [build-system]
 requires = ["hatchling>=1.29,<2.0", "hatch-vcs>=0.4,<1.0"]

@@ -57,7 +57,7 @@ class Canvas:
     seed:
         Random seed for the surface and stroke textures.
     surface:
-        A :class:`oilpaint.Surface`, e.g. ``surfaces.LINEN_FINE`` or
+        A :class:`huile.Surface`, e.g. ``surfaces.LINEN_FINE`` or
         ``surfaces.GESSO_PANEL``: texture, tooth, absorbency, slickness and
         priming. Default: a generic primed canvas.
     reverse:
@@ -191,7 +191,7 @@ class Canvas:
         """What pickle keeps of a canvas: a copy of its attributes, with the
         maps of the relief as attributes of their own (``_floor``,
         ``_tooth``, ...), as every version has pickled them, so that a pickle
-        holds no class private to oilpaint and loads in other versions."""
+        holds no class private to huile and loads in other versions."""
         state = self.__dict__.copy()
         for name in _CACHED:  # (made again when needed: never stale)
             state.pop(name, None)
@@ -242,12 +242,12 @@ class Canvas:
         brush=None,
         **options,
     ) -> Brush:
-        """Paint one stroke. See :class:`oilpaint.Stroke` for all parameters.
+        """Paint one stroke. See :class:`huile.Stroke` for all parameters.
 
         ``path`` is a list of (x, y) points (a smooth spline is passed through
-        them) or a :mod:`oilpaint.spline` path. ``brush`` is a
-        :class:`oilpaint.BrushType` (e.g. ``brushes.FLAT_HOG``) or a
-        :class:`oilpaint.Brush` carrying paint between strokes; ``width``
+        them) or a :mod:`huile.spline` path. ``brush`` is a
+        :class:`huile.BrushType` (e.g. ``brushes.FLAT_HOG``) or a
+        :class:`huile.Brush` carrying paint between strokes; ``width``
         defaults to the brush's own size. Returns the :class:`Brush`
         afterwards, which you can keep painting with.
         """
@@ -457,7 +457,7 @@ class Canvas:
         self._update_relief()
 
     # ------------------------------------------------------------------
-    # What a stroke works with (see oilpaint.stroke and its _Canvas, which
+    # What a stroke works with (see huile.stroke and its _Canvas, which
     # lists all of it): the public arrays of the paint (top, und, top_a,
     # und_a, top_id, dry_height), its size and surface, and these three.
     # ------------------------------------------------------------------
@@ -480,7 +480,7 @@ class Canvas:
 
     def _update_relief(self) -> None:
         """Work out the maps of the surface under the wet paint (a
-        :class:`oilpaint.stroke._Relief`) from the weave and the dried paint:
+        :class:`huile.stroke._Relief`) from the weave and the dried paint:
         on a new canvas, and whenever paint dries."""
         # What a nearly-dry brush catches on: the weave, plus ridges of dry paint.
         relief = self.dry_height - _box_blur(self.dry_height, 6)

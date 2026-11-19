@@ -1,7 +1,7 @@
 """A study after Georges Seurat's *Gray Weather, Grande Jatte* (about 1886-88).
 
 Painted from a photograph of the painting (The Metropolitan Museum of Art,
-New York; public domain; ``examples/reference``, without his painted border)
+New York; public domain; ``examples/huile/reference``, without his painted border)
 the way Seurat built his pointillist pictures: a thin lay-in of the main
 colours, then, once it is dry, thousands of small touches of nearly pure
 colour set side by side, so that they mix in the eye rather than on the
@@ -10,7 +10,7 @@ own dots, at this size), made a little purer and nudged towards whatever the
 canvas still lacks there; now and then one is its complement. The dots are
 tapped on with `canvas.stipple`, bigger ones first, smaller ones over them.
 
-    python examples/seurat_grande_jatte.py [output.png]
+    python examples/huile/seurat_grande_jatte.py [output.png]
 """
 
 import os
@@ -22,9 +22,9 @@ import numpy as np
 from _studies import Study, box_mean
 from PIL import Image
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import Canvas, Paint, Reference, brushes, surfaces
+from murex.huile import Canvas, Paint, Reference, brushes, surfaces
 
 HERE = os.path.dirname(__file__)
 REF = os.path.join(HERE, "reference", "seurat_gray_weather_grande_jatte.jpg")

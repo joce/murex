@@ -5,8 +5,7 @@ charcoal, pastel, crayon, ballpoint pen and the like, laid down on a paper with
 tooth. It is the part of [murex](../../README.md) that draws: murex holds the
 colour science and the stroke paths it shares with the other media. Wet media
 (ink, felt-tip markers, watercolour) and oil paint are not its business: for
-oil paint, see [oilpaint](https://github.com/joce/oilpaint), which is moving
-into murex as `murex.huile`.
+oil paint, see [`murex.huile`](../huile/README.md).
 
 Early days. So far there are papers, graphite and coloured pencils, charcoal,
 soft, hard and oil pastels, wax crayons, ballpoint pens, stumps, erasers and

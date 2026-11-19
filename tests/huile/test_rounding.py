@@ -8,8 +8,8 @@ import copy
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, brushes
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, brushes
+from murex.huile import palette as P
 
 
 def _wet_canvas():

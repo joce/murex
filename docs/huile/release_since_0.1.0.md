@@ -1,4 +1,8 @@
-# Unreleased
+# oilpaint since its release 0.1.0
+
+*The notes drafted for the release of oilpaint that would have followed
+0.1.0. oilpaint moved into murex as `murex.huile` before it was made: this is
+what murex's first release with `murex.huile` adds to oilpaint 0.1.0.*
 
 ## Overview
 

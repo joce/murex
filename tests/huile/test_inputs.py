@@ -22,15 +22,15 @@ from typing import Any
 import numpy as np
 import pytest
 
-import oilpaint
-from oilpaint import Brush, BrushType, Canvas, brushes, spline, surfaces
-from oilpaint import _engine as eng
-from oilpaint import brush as bm
-from oilpaint import palette as P
-from oilpaint import spectral as sp
-from oilpaint.paint import Paint, as_paint
-from oilpaint.reference import Reference
-from oilpaint.surface import Surface
+from murex import huile
+from murex.huile import Brush, BrushType, Canvas, brushes, spline, surfaces
+from murex.huile import _engine as eng
+from murex.huile import brush as bm
+from murex.huile import palette as P
+from murex.huile import spectral as sp
+from murex.huile.paint import Paint, as_paint
+from murex.huile.reference import Reference
+from murex.huile.surface import Surface
 
 # --------------------------------------------------------------------------
 # spectral
@@ -479,7 +479,7 @@ def test_fast_layer_over_white_matches_km_layer_exactly():
     reason="needs make and git",
 )
 def test_make_spell_changed_sees_committed_and_non_ascii_files(tmp_path):
-    makefile = os.path.join(os.path.dirname(__file__), "..", "Makefile")
+    makefile = os.path.join(os.path.dirname(__file__), "..", "..", "Makefile")
     repo, bin_dir = tmp_path / "repo", tmp_path / "bin"
     repo.mkdir()
     bin_dir.mkdir()
@@ -587,11 +587,12 @@ def test_swapping_paint_between_layers_exchanges_at_most_all_of_it():
 # The band count is compiled into the cached kernels as a constant, and numba
 # remakes a cached kernel only when it sees the kernel's own file change: these
 # tests work on a copy of the package with a cache of its own, and change its
-# band count from 24 to 16.
+# band count from 24 to 16. (The copy is imported on its own, as ``huile``:
+# it has all it needs, its own spectral.py included.)
 def _package_copy(tmp_path):
-    package = tmp_path / "oilpaint"
+    package = tmp_path / "huile"
     shutil.copytree(
-        os.path.dirname(oilpaint.__file__),
+        os.path.dirname(huile.__file__),
         package,
         ignore=shutil.ignore_patterns("__pycache__"),
     )
@@ -632,7 +633,7 @@ def _to_16_bands(package, *files):
         path.write_bytes(text)
 
 
-_BOTH = "import oilpaint._engine as e, oilpaint._render as r; print(e.N, r.N)"
+_BOTH = "import huile._engine as e, huile._render as r; print(e.N, r.N)"
 
 # One cached engine kernel and one cached render kernel, on arrays with room
 # for 24 bands: what each touched shows the band count compiled into it (19 or
@@ -640,7 +641,7 @@ _BOTH = "import oilpaint._engine as e, oilpaint._render as r; print(e.N, r.N)"
 # cache.
 _KERNELS = """
 import numpy as np
-from oilpaint import _engine as e, _render as r
+from huile import _engine as e, _render as r
 top = np.ones((1, 1, 27), np.float32)
 und = np.zeros((1, 1, 27), np.float32)
 a, b = np.zeros((1, 1), np.float32), np.zeros((1, 1), np.float32)
@@ -661,7 +662,7 @@ def test_a_band_count_written_differently_in_a_kernel_file_is_refused(tmp_path):
         refused = _python(env, _BOTH)
         assert refused.returncode == 1
         assert (
-            f"{os.path.join('oilpaint', name)} has N = 24 spectral bands, "
+            f"{os.path.join('huile', name)} has N = 24 spectral bands, "
             "spectral.py has 16: set N = 16 in _engine.py and _render.py."
         ) in refused.stderr
         _to_16_bands(package, name)
@@ -768,7 +769,7 @@ def test_a_process_still_running_for_24_bands_leaves_none_of_its_kernels(tmp_pat
     # It compiles its kernels after the change, and caches them: neither it nor
     # a process started after it may take the other's.
     package, env = _package_copy(tmp_path)
-    old_code = "import oilpaint; print('ready', flush=True); input()\n" + _KERNELS
+    old_code = "import huile; print('ready', flush=True); input()\n" + _KERNELS
     with (
         open(tmp_path / "old.err", "w+") as err,
         subprocess.Popen(
@@ -803,23 +804,23 @@ def _names(code):
     return names
 
 
-def test_no_kernel_reads_a_name_from_another_oilpaint_module():
+def test_no_kernel_reads_a_name_from_another_module_of_huile():
     # numba compiles it into the cached kernel as a constant, and would not
     # see it change: the band count, for one, is written out in each file.
-    from oilpaint import _dab, _render
+    from murex.huile import _dab, _render
 
     for module in (eng, _render, _dab):
         imported = set()
         for node in ast.walk(ast.parse(inspect.getsource(module))):
             if isinstance(node, ast.ImportFrom) and (
-                node.level or (node.module or "").startswith("oilpaint")
+                node.level or (node.module or "").startswith("murex")
             ):
                 imported |= {alias.asname or alias.name for alias in node.names}
             elif isinstance(node, ast.Import):
                 imported |= {
                     alias.asname or alias.name
                     for alias in node.names
-                    if alias.name.startswith("oilpaint")
+                    if alias.name.startswith("murex")
                 }
         checked = 0
         for name, value in vars(module).items():
@@ -854,7 +855,7 @@ def test_footprint_tables_reach_the_outermost_points_of_the_outline():
     # its point only to rounding, and it used to cross nothing there about
     # one table in ten (centre 0, length 0, not the point: up to 0.94
     # half-widths off).
-    from oilpaint import _geometry as geo
+    from murex.huile import _geometry as geo
 
     shapes = {(t.shape, round(float(t.aspect), 3)) for t in brushes.ALL.values()}
     for shape, aspect in sorted(s for s in shapes if s[0] != "round"):
@@ -879,7 +880,7 @@ def test_a_footprint_table_reaches_a_point_short_of_its_last_line_only_by_roundi
     # the outline short of it by rounding (crossings of a short segment come
     # out up to 7e-10 of it past its end) is on it, one short of it by a
     # millionth of the width is not.
-    from oilpaint import _geometry as geo
+    from murex.huile import _geometry as geo
 
     u = np.array([-1.0, 0.0, 1.0 - short, 0.0])
     v = np.array([0.0, -0.5, 0.3, 0.5])

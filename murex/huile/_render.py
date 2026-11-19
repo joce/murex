@@ -1,6 +1,6 @@
 """The compiled core of rendering (numba): colour and light, one pixel at a time.
 
-:mod:`oilpaint.canvas` holds the rendering model and its constants and calls
+:mod:`huile.canvas` holds the rendering model and its constants and calls
 these kernels; the reasoning is described there. Everything here works on
 plain arrays: the wet layers ``top``/``und`` (H, W, PACKED) float32, their
 coverage (H, W), the ground reflectance (H, W, N_BANDS) and float32 height
@@ -679,7 +679,7 @@ def shade(
     with the lamp in direction (lx3, ly3, lz3) (a unit vector, y down the
     image, lz3 > 0), into ``out`` (linear RGB, H x W x 3). See Canvas._light
     for the model and the parameters (the constants of the same names in
-    oilpaint.canvas; ``gloss_wet`` and ``gloss_dry`` already scaled by the
+    huile.canvas; ``gloss_wet`` and ``gloss_dry`` already scaled by the
     ``gloss`` of render).
 
     ``vis`` is how much of the lamp each pixel sees (see shadows); ``aos``

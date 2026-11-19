@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from oilpaint import Canvas, Surface, brushes, surfaces
+from murex.huile import Canvas, Surface, brushes, surfaces
 
 
 def _scene_on(surface=None, **kw):

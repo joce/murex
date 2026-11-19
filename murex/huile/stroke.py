@@ -8,7 +8,7 @@ is therefore smeared forward and fades out over a short distance, while some
 of it works its way into the belly (a dirty brush). A knife holds its paint on
 the blade: it lays it as a slab, at a height set by pressure, and drags the
 wet paint under it along as a thin film rather than picking it up (see
-:mod:`oilpaint._knife`).
+:mod:`huile._knife`).
 
 On the canvas, each pixel has the dry paint (or the ground) plus two wet
 sublayers: ``und`` (older wet paint) and ``top`` (the paint of the most recent
@@ -16,7 +16,7 @@ strokes). Brush pressure stirs the two together; that is the difference
 between laying color *over* wet paint and churning it *into* wet paint.
 
 This module prepares each step of a stroke; the work on the pixels under the
-tool is compiled (numba), in :mod:`oilpaint._engine`.
+tool is compiled (numba), in :mod:`huile._engine`.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ class Stroke:
     path:
         The stroke's spine. A list of (x, y) points (interpolated with a smooth
         Catmull-Rom spline that passes through them) or any
-        :class:`oilpaint.spline.Path` (``CatmullRom``, ``Bezier``,
+        :class:`huile.spline.Path` (``CatmullRom``, ``Bezier``,
         ``Polyline``). Pixel coordinates, origin top-left. A single point
         makes a dab.
     paint:
@@ -328,12 +328,12 @@ class _Relief(NamedTuple):
 
 
 class _Canvas(Protocol):
-    """What a stroke paints on (a :class:`oilpaint.Canvas`), and all a
+    """What a stroke paints on (a :class:`huile.Canvas`), and all a
     stroke uses of it. It reads the size, the surface and the dried paint's
     height (``dry_height``), and the volume of the wet paint (``top_v``,
     ``und_v``); it changes the wet paint in place (``top``, ``und``, their
     coverage ``top_a``, ``und_a`` and the stroke ids ``top_id``; see
-    :mod:`oilpaint._engine`). The canvas hands it its random numbers, its id
+    :mod:`huile._engine`). The canvas hands it its random numbers, its id
     and the relief under the paint (maps it only reads, the same until the
     paint dries)."""
 

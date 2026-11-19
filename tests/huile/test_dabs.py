@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, brushes
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, brushes
+from murex.huile import palette as P
 
 
 def _dab_coverage(brush, pressure, paint="#2f5a2a", r=None):

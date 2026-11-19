@@ -15,10 +15,10 @@ TEXTURES = ("canvas", "linen", "cotton", "twill", "paper", "wood", "smooth")
 
 @dataclass(frozen=True)
 class Surface:
-    """A support with its priming. Presets live in :mod:`oilpaint.surfaces`;
+    """A support with its priming. Presets live in :mod:`huile.surfaces`;
     tweak them with :meth:`with_` or build your own::
 
-        from oilpaint import Canvas, Surface, surfaces
+        from murex.huile import Canvas, Surface, surfaces
         canvas = Canvas(1200, 800, surface=surfaces.GESSO_PANEL)
         toned = surfaces.LINEN_FINE.with_(toning="#b98a5a", relief=1.4)
         mine = Surface(texture="twill", scale=5, absorbency=0.3, ground="#f2eee4")

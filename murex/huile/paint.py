@@ -61,7 +61,7 @@ class Paint:
         ``"#rrggbb"``, a float triple in 0..1, or an int triple in 0..255 (a
         triple with a component of 2 or more is on the 0..255 scale; one
         whose largest is between 1 and 2 is refused: see
-        :func:`oilpaint.spectral.parse_color`).
+        :func:`huile.spectral.parse_color`).
     opacity:
         0..1. How strongly it hides what is underneath. 1 = opaque body
         color (cadmiums, titanium white), ~0.3 = glazing color (alizarin,
@@ -85,7 +85,7 @@ class Paint:
     as strong), and ``opacity`` re-derives it from its colour with the new
     opacity, keeping its strength. A paint mixed on the palette or built from
     optics has no colour to re-derive from, so it refuses ``opacity``: mix
-    it with :data:`~oilpaint.palette.MEDIUM` to make it more transparent.
+    it with :data:`~huile.palette.MEDIUM` to make it more transparent.
 
     Internally a paint is a Kubelka-Munk pigment: an absorption spectrum
     ``K`` and a scattering coefficient ``S`` per unit volume. Mixing paints
@@ -173,7 +173,7 @@ class Paint:
         cls, K, S, name: str | None = None, body: float | None = None
     ) -> Paint:
         """Build a paint directly from absorption spectrum K (per band, sampled
-        at :data:`oilpaint.spectral.WAVELENGTHS`) and scattering S (scalar),
+        at :data:`huile.spectral.WAVELENGTHS`) and scattering S (scalar),
         both per unit volume. Handy for measured pigment data."""
         p = cls.__new__(cls)
         p.K = np.asarray(K, dtype=np.float64).copy()
@@ -292,7 +292,7 @@ def as_paint(p: ColorLike) -> Paint:
     seen before means fitting a spectrum, about a millisecond: when painting
     many slightly different colours (sampled from a reference, say), make a
     :class:`Paint` per step of colour you care about and reuse it, as
-    ``examples/_studies.py`` does.
+    ``examples/huile/_studies.py`` does.
     """
     if isinstance(p, Paint):
         return p

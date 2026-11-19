@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from oilpaint import spectral as sp
+from murex.huile import spectral as sp
 
 
 def test_rgb_reflectance_roundtrip():

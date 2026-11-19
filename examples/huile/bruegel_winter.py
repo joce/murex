@@ -3,12 +3,12 @@
 An original composition: a high viewpoint from a snowy hillside of bare
 trees, woodgatherers hauling a sledge of faggots, a valley with a frozen
 river and mill pond full of skaters, a village with its inn, mill and church,
-and Alpine crags in a green-grey sky. Painted entirely with the oilpaint API:
+and Alpine crags in a green-grey sky. Painted entirely with the huile API:
 every mark is a `canvas.stroke(...)` with paints mixed from
-`oilpaint.palette` via `Paint.mix`; numpy only computes where the strokes go.
+`huile.palette` via `Paint.mix`; numpy only computes where the strokes go.
 The picture is built up like a panel, back to front, letting layers dry.
 
-    python examples/bruegel_winter.py [output.png]
+    python examples/huile/bruegel_winter.py [output.png]
 """
 
 import itertools
@@ -19,10 +19,10 @@ import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import Brush, Canvas, Paint, brushes, surfaces
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, Paint, brushes, surfaces
+from murex.huile import palette as P
 
 W, H = 1500, 1060
 rng = np.random.default_rng(1565)

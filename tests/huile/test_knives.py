@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, Paint, brushes
-from oilpaint import _engine as eng
-from oilpaint import palette as P
-from oilpaint._engine import PACKED
-from oilpaint.brush import _VOLUME_PER_AMOUNT, _pack
+from murex.huile import Brush, Canvas, Paint, brushes
+from murex.huile import _engine as eng
+from murex.huile import palette as P
+from murex.huile._engine import PACKED
+from murex.huile.brush import _VOLUME_PER_AMOUNT, _pack
 
 
 def _knife_slab(pressure, **kw):

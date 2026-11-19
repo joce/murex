@@ -1,8 +1,8 @@
-"""oilpaint: a small oil-painting simulator with physically based color mixing.
+"""huile: a small oil-painting simulator with physically based color mixing.
 
 Quick start::
 
-    from oilpaint import Canvas, Paint
+    from murex.huile import Canvas, Paint
 
     canvas = Canvas(800, 600)
     blue = Paint("#1d3f9a")
@@ -13,7 +13,6 @@ Quick start::
 """
 
 from . import brushes, palette, reference, spectral, surfaces
-from ._about import __version__
 from .brush import Brush, BrushType
 from .canvas import Canvas
 from .paint import Paint, mix_colors
@@ -33,7 +32,6 @@ __all__ = [
     "Reference",
     "Stroke",
     "Surface",
-    "__version__",
     "brushes",
     "mix_colors",
     "palette",

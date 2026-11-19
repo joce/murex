@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from oilpaint import Canvas, Paint, surfaces
-from oilpaint import palette as P
-from oilpaint import spectral as sp
+from murex.huile import Canvas, Paint, surfaces
+from murex.huile import palette as P
+from murex.huile import spectral as sp
 
 
 def _on_glass(first, second, reverse, ground=None):
@@ -49,7 +49,7 @@ def test_reverse_glass_shows_its_backing_and_looks_the_same_once_dry():
 
 
 def test_partly_covered_films_on_reverse_glass_never_reflect_more_than_comes_in():
-    from oilpaint.canvas import _film
+    from murex.huile.canvas import _film
 
     rng = np.random.default_rng(1)
     n, N = 5000, sp.N_BANDS

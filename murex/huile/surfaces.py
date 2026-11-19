@@ -2,7 +2,7 @@
 
 ::
 
-    from oilpaint import Canvas, surfaces
+    from murex.huile import Canvas, surfaces
     canvas = Canvas(1200, 800, surface=surfaces.LINEN_FINE)
     toned = surfaces.COTTON_DUCK.with_(toning="#a9805a")        # raw-sienna imprimatura
     behind = Canvas(800, 600, surface=surfaces.GLASS, reverse=True)  # reverse glass

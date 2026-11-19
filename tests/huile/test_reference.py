@@ -4,7 +4,7 @@ import numpy as np
 
 
 def test_reference_samples_colour_direction_and_detail():
-    from oilpaint.reference import Reference
+    from murex.huile.reference import Reference
 
     H, W = 120, 160
     _, xx = np.mgrid[0:H, 0:W]
@@ -22,7 +22,7 @@ def test_reference_samples_colour_direction_and_detail():
 
 
 def test_an_integer_image_is_on_the_0_255_scale_whatever_its_values():
-    from oilpaint.reference import Reference
+    from murex.huile.reference import Reference
 
     # a nearly black image of whole numbers stays nearly black: not read as
     # 0..1 because no value is above 1

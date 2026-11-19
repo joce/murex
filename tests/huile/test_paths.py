@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from oilpaint import Bezier, CatmullRom, Polyline
+from murex.huile import Bezier, CatmullRom, Polyline
 
 
 def test_catmull_rom_passes_through_points():

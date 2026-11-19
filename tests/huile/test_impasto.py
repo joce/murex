@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, Paint, brushes
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, Paint, brushes
+from murex.huile import palette as P
 
 
 def test_paint_body_mixes_by_volume():

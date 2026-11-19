@@ -7,11 +7,11 @@ around it."""
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, brushes, stroke
-from oilpaint import _engine as eng
-from oilpaint import _knife as knives
-from oilpaint import palette as P
-from oilpaint._engine import IV, PACKED, N
+from murex.huile import Brush, Canvas, brushes, stroke
+from murex.huile import _engine as eng
+from murex.huile import _knife as knives
+from murex.huile import palette as P
+from murex.huile._engine import IV, PACKED, N
 
 # What is on the canvas and on the brush after a whole mark, channel by
 # channel, may differ from what was there by this share of what the brush

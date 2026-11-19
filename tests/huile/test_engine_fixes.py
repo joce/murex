@@ -5,9 +5,9 @@ not hang on the sign of a speck of paint."""
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, brushes
-from oilpaint import palette as P
-from oilpaint._engine import IV, MIN_FILM
+from murex.huile import Brush, Canvas, brushes
+from murex.huile import palette as P
+from murex.huile._engine import IV, MIN_FILM
 
 # ----------------------------------------------------------------------------
 # a stroke cut by the edge of the canvas
@@ -322,7 +322,7 @@ def test_sharing_paint_by_reach_moves_it_with_what_is_in_it():
     """share_by_reach gives each column the volume asked of it and keeps
     every pigment; where all columns hold the same paint it scales each
     column, as it always did."""
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     u = np.linspace(-1, 1, 15)[None, :].repeat(9, axis=0)
     taps = eng.bristle_taps(u, 0.2, 2, True, 0.3)
@@ -555,7 +555,7 @@ def test_on_a_round_paint_moves_between_bristles_the_short_way_round():
     """A round's columns go round its bundle: the last is next to the first.
     Paint asked of the first column, held over by the last, moves straight
     across that seam; the columns in between keep their own paint."""
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     n = eng.COLUMNS
     # one pixel per column, under that column alone, asking for what it
@@ -585,7 +585,7 @@ def test_a_knife_lifted_off_pulls_up_only_its_own_paint():
     """Lifting a knife off pulls its own paint up into crests; the paint of
     earlier strokes under it stays as it lies (scaling it as well made and
     destroyed pigment of colours the knife never carried)."""
-    from oilpaint._knife import _lift_off
+    from murex.huile._knife import _lift_off
 
     c = Canvas(140, 100, seed=3)
     c.stroke(
@@ -617,7 +617,7 @@ def test_a_knife_lifted_off_pulls_up_only_its_own_paint():
 def test_on_a_round_the_paint_shared_by_reach_meets_every_column_s_share():
     """Random rings of bristles, some empty, some full: every column ends with
     the volume asked of it, and every pigment is kept."""
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     n = eng.COLUMNS
     rng = np.random.default_rng(7)
@@ -649,7 +649,7 @@ def _pushed_case():
     """Paint arrays for fix_coverage: a film 4 thick, fully covered, ending in
     an anti-aliased row at 0.3 with a band of thick paint pushed past it (2.0,
     no coverage), and a faint covered film with a thick speck beside it."""
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     h, w = 30, 60
     top = np.zeros((h, w, eng.PACKED), np.float32)
@@ -671,7 +671,7 @@ def _pushed_case():
 def test_coverage_of_pushed_paint_does_not_depend_on_the_order_it_is_taken_in():
     """fix_coverage on paint and on its mirror image (either way) gives the
     mirrored coverage, exactly."""
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     top, und, top_a, und_a = _pushed_case()
     eng.fix_coverage(top, und, top_a, und_a, 0, top.shape[0], 0, top.shape[1])
@@ -688,7 +688,7 @@ def test_thick_paint_pushed_well_past_an_edge_is_covered_by_its_own_volume():
     ramp right beside it, and beyond that covers its pixels as its volume
     does, all along (a band of it took the edge row's 0.3 all along); a
     thick speck beside a faint film keeps its coverage."""
-    from oilpaint import _engine as eng
+    from murex.huile import _engine as eng
 
     top, und, top_a, und_a = _pushed_case()
     eng.fix_coverage(top, und, top_a, und_a, 0, top.shape[0], 0, top.shape[1])
@@ -699,8 +699,8 @@ def test_thick_paint_pushed_well_past_an_edge_is_covered_by_its_own_volume():
 def _kernel_signatures() -> int:
     """How many signatures the compiled kernels have between them (each new
     one is compiled, or loaded from numba's cache, on its first call)."""
-    from oilpaint import _dab, _render, spectral
-    from oilpaint import _engine as eng
+    from murex.huile import _dab, _render, spectral
+    from murex.huile import _engine as eng
 
     return sum(
         len(getattr(f, "signatures", ()))
@@ -764,7 +764,7 @@ def test_a_long_knife_stroke_off_the_canvas_keeps_little_memory():
 def test_counts_from_ratios_take_a_hair_off_a_whole_number_as_that_number(
     x, floor, ceil
 ):
-    from oilpaint._engine import whole_ceil, whole_floor
+    from murex.huile._engine import whole_ceil, whole_floor
 
     assert whole_floor(float(x)) == floor
     assert whole_ceil(float(x)) == ceil
@@ -783,7 +783,7 @@ def test_counts_from_ratios_take_a_hair_off_a_whole_number_as_that_number(
     ],
 )
 def test_a_pixel_centred_on_the_axis_sends_half_its_paint_each_way(lat, share):
-    from oilpaint._engine import right_share
+    from murex.huile._engine import right_share
 
     assert right_share(lat) == share
 
@@ -801,8 +801,8 @@ def test_a_pixel_centred_on_the_axis_sends_half_its_paint_each_way(lat, share):
 def test_a_brush_turned_by_a_quarter_turn_to_rounding_keeps_its_sides(turn, side):
     import math
 
-    from oilpaint import _geometry as geo
-    from oilpaint.stroke import _sides
+    from murex.huile import _geometry as geo
+    from murex.huile.stroke import _sides
 
     assert _sides(math.pi / 2 + turn)[0] == side
     # half a turn on, its sides are swapped (at -90 degrees, as at 270)

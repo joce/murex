@@ -9,9 +9,9 @@ from itertools import pairwise
 import numpy as np
 import pytest
 
-from oilpaint import Brush, Canvas, brushes, surfaces
-from oilpaint import _engine as eng
-from oilpaint import palette as P
+from murex.huile import Brush, Canvas, brushes, surfaces
+from murex.huile import _engine as eng
+from murex.huile import palette as P
 
 W, H = 260, 90
 HOG = brushes.FLAT_HOG.sized(30)

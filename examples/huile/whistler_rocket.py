@@ -2,7 +2,7 @@
 Falling Rocket* (1875).
 
 Painted from a photograph of the painting (Detroit Institute of Arts; public
-domain; ``examples/reference``) the way Whistler made his nocturnes: very
+domain; ``examples/huile/reference``) the way Whistler made his nocturnes: very
 thin, fluid paint (his "sauce") swept on in broad washes with a soft mop
 over a dark ground, wet into wet, the smoke and the lights brushed softly
 into it, and the sparks of the falling rocket flicked on: spattered from a
@@ -11,7 +11,7 @@ said flung "a pot of paint in the public's face", and the libel suit
 Whistler brought over it. Each layer looks at the canvas so far and paints
 only where it still differs from the photograph (see ``_studies``).
 
-    python examples/whistler_rocket.py [output.png]
+    python examples/huile/whistler_rocket.py [output.png]
 """
 
 import os
@@ -22,10 +22,10 @@ import numpy as np
 from _studies import Study, box_mean
 from PIL import Image
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from oilpaint import Canvas, Paint, Reference, brushes, surfaces
-from oilpaint import palette as P
+from murex.huile import Canvas, Paint, Reference, brushes, surfaces
+from murex.huile import palette as P
 
 HERE = os.path.dirname(__file__)
 REF = os.path.join(HERE, "reference", "whistler_falling_rocket.jpg")
