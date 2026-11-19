@@ -86,6 +86,10 @@ include = [
     "murex",
     "tests",
     "tools",
+    # tests/fusain/test_macaw.py imports these two: the tests of an unpacked
+    # source distribution must find them
+    "examples/fusain/macaw.py",
+    "examples/fusain/macaw_model.py",
     "CHANGELOG.md",
     "LICENSE",
     "README.md",
