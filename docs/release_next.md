@@ -21,6 +21,16 @@ structure of oil paint, new lighting, stippling and spatter, reverse glass
 painting, strokes off the edge, clear errors, speed). `pip install oilpaint`
 still gives 0.1.0, which is not updated any more.
 
+## Breaking, in fusain's drawings: a path's points no longer hang on a last bit
+
+How many points a path is cut into, and how many numbers a noise draws, were
+worked out from ratios that rounding leaves a hair either side of a whole
+number: a line 1500 px long sampled every 2.5 px could come out as 601 points
+or as 602. A ratio within 1e-6 of a whole number now counts as that number
+(oilpaint's fix, now shared). Oil paintings are unchanged. Drawings change
+where a stroke's length was a whole number of steps: of fusain's 16 example
+images, 4 change, by less than half a percent of their pixels.
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and

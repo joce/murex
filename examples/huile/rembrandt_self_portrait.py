@@ -332,7 +332,7 @@ _TOE_MAP = []
 
 def toe_map():
     if not _TOE_MAP:
-        from murex.huile.reference import _blur
+        from murex.reference import _blur
 
         head = _blur(mask(FACE, COLLAR).astype(np.float32), 8 * S)
         _TOE_MAP.append(TOE - 5.0 * head)
@@ -352,7 +352,7 @@ def target_map(scale, color_fn=None):
 
 def box_mean(a, r):
     """Mean over a (2r+1)-pixel square around each pixel."""
-    from murex.huile.reference import _blur
+    from murex.reference import _blur
 
     return _blur(a.astype(np.float32), max(r / 2.0, 0.5))
 
