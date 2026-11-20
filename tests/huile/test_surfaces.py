@@ -135,3 +135,19 @@ def test_surface_validation_and_customisation():
     for bad in bad_surfaces:
         with pytest.raises(ValueError):
             Surface(**bad)
+
+
+def test_a_pigment_tones_a_surface_as_the_paint_of_it_does():
+    # a pigment that is no paint is a material too: used as it is, not laid
+    # as the thin wash a bare colour is
+    from murex import Pigment
+    from murex.huile import Canvas, Paint, Surface
+
+    def ground(toning):
+        return Canvas(40, 30, surface=Surface(toning=toning), seed=2).ground
+
+    mixed = Pigment.mix("#ffffff", "#884422")  # (has no colour to derive from)
+    np.testing.assert_array_equal(ground(mixed), ground(Paint(mixed)))
+    glaze = Pigment("#884422", opacity=0.6)
+    np.testing.assert_array_equal(ground(glaze), ground(Paint(glaze)))
+    assert not np.array_equal(ground(glaze), ground("#884422"))
