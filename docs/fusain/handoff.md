@@ -2,8 +2,8 @@
 
 *Written in the fusain repository, the day before it moved into murex as
 `murex.fusain`: "here" is that repository, and its pull request numbers are
-joce/fusain's. Its two open issues are still in that repository's tracker
-until `murex-9r5.4` brings them over.*
+joce/fusain's. Its two open issues are now in murex's tracker: `fusain-586`
+is `murex-1gp` and `fusain-fdh` is `murex-6wh`.*
 
 Where the issues stand after the passes of 15 to 18 November (pull requests
 #49 to #82 here, #7 to #10 in murex), and what can be picked up next. The
