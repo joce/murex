@@ -14,8 +14,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from murex import spectral as sp
 from murex.huile import Brush, Paint
-from murex.huile import spectral as sp
 
 
 def box_mean(img, r):

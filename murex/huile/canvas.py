@@ -8,10 +8,12 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from .. import spectral as sp
+from ..filters import box_blur, smooth121, smoothstep
+from ..png import write_png
+from ..spline import Profile
 from . import _engine as eng
 from . import _render, brushes
-from . import spectral as sp
-from ._filters import _box_blur, _smooth121, _smoothstep
 from .brush import (
     IB,
     IS,
@@ -28,8 +30,6 @@ from .brush import (
     load_paint,
 )
 from .paint import DEFAULT_BODY, ColorLike, as_paint
-from .png import write_png
-from .spline import Profile
 from .stroke import Stroke, _Relief, apply_stroke
 from .surface import DEFAULT_SURFACE, Surface
 
@@ -245,7 +245,7 @@ class Canvas:
         """Paint one stroke. See :class:`huile.Stroke` for all parameters.
 
         ``path`` is a list of (x, y) points (a smooth spline is passed through
-        them) or a :mod:`huile.spline` path. ``brush`` is a
+        them) or a :mod:`murex.spline` path. ``brush`` is a
         :class:`huile.BrushType` (e.g. ``brushes.FLAT_HOG``) or a
         :class:`huile.Brush` carrying paint between strokes; ``width``
         defaults to the brush's own size. Returns the :class:`Brush`
@@ -483,9 +483,9 @@ class Canvas:
         :class:`huile.stroke._Relief`) from the weave and the dried paint:
         on a new canvas, and whenever paint dries."""
         # What a nearly-dry brush catches on: the weave, plus ridges of dry paint.
-        relief = self.dry_height - _box_blur(self.dry_height, 6)
+        relief = self.dry_height - box_blur(self.dry_height, 6)
         tooth = self.texture * self.grain + 1.5 * relief
-        tooth = tooth - _box_blur(tooth, 12) + 0.5 * self.texture
+        tooth = tooth - box_blur(tooth, 12) + 0.5 * self.texture
         lo, hi = np.percentile(tooth, [1, 99])
         tooth = np.clip((tooth - lo) / max(hi - lo, 1e-6), 0, 1).astype(np.float32)
         # The solid surface under the wet paint, in units of paint thickness:
@@ -503,8 +503,8 @@ class Canvas:
             floor=floor,
             tooth=tooth,
             hollows=hollows,
-            peaks_fine=_box_blur(eng.max_filter(floor, r_fine), 1),
-            peaks_wide=_box_blur(eng.max_filter(floor, 3 * r_fine + 3), 2),
+            peaks_fine=box_blur(eng.max_filter(floor, r_fine), 1),
+            peaks_wide=box_blur(eng.max_filter(floor, 3 * r_fine + 3), 2),
         )
         self.__dict__.pop("_beyond_weave_at", None)  # (see _beyond_weave)
 
@@ -512,7 +512,7 @@ class Canvas:
         """How far each point of the surface ``floor`` lies below the local
         average around it (over about a thread of the weave)."""
         r_mean = max(2, int(round(self.surface.scale)))
-        return (_box_blur(floor, r_mean) - floor).astype(np.float32)
+        return (box_blur(floor, r_mean) - floor).astype(np.float32)
 
     def _weave_hollows(self) -> np.ndarray:
         """How far each point of the weave alone lies below the weave around
@@ -707,8 +707,8 @@ class Canvas:
         # relief); impasto keeps every ridge, groove and sharp edge, and bare
         # canvas its weave.
         broad = _blur(_blur(surface, 2), 2)
-        fine = _smooth121(surface)
-        detail = DETAIL_MIN + (1.0 - DETAIL_MIN) * _smoothstep(
+        fine = smooth121(surface)
+        detail = DETAIL_MIN + (1.0 - DETAIL_MIN) * smoothstep(
             DETAIL_VAR[0], DETAIL_VAR[1], _blur(np.abs(fine - broad), 2)
         )
         detail = np.maximum(detail, np.exp(-paint / WEAVE_FILM))
@@ -1031,7 +1031,7 @@ def _check_light(light) -> np.ndarray:
 
 
 def _blur(a: np.ndarray, r: int) -> np.ndarray:
-    """Box blur of a float32 map (compiled ``_box_blur``)."""
+    """Box blur of a float32 map (compiled ``box_blur``)."""
     a = np.ascontiguousarray(a, dtype=np.float32)
     out = np.empty_like(a)
     _render.box_blur(a, r, out)

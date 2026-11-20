@@ -303,14 +303,14 @@ def _blade_rest_ref(run, s, at=None):
 
 
 def _blade_level_ref(run, s, gap, film, at=None):
-    from murex.huile._filters import _smoothstep
+    from murex.filters import smoothstep
     from murex.huile._knife import _KNIFE_FILM, _KNIFE_SKIM
 
     st, wsl = s.st, s.wsl
     rest = _blade_rest_ref(run, s, at)
     hair = s.hair[wsl]
     ride = np.minimum(gap, _KNIFE_FILM * film) if run.bt.clumps == 0 else gap
-    chat = 0.25 * (1.0 - float(_smoothstep(_KNIFE_SKIM, 0.05, st.hold.p)))
+    chat = 0.25 * (1.0 - float(smoothstep(_KNIFE_SKIM, 0.05, st.hold.p)))
     level = rest + ride * (
         1.0
         + chat * run.chatter[st.motion.i]

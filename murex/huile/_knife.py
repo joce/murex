@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
+from ..filters import smoothstep
+from ..noise import aniso_noise, value_noise_2d
 from . import _engine as eng
 from ._engine import COLUMNS, IB, IV, PACKED
-from ._filters import _smoothstep
 from ._geometry import _Step
 from ._hair import _NO_TEX2
-from .noise import aniso_noise, value_noise_2d
 
 if TYPE_CHECKING:
     from .stroke import _Run
@@ -386,8 +386,8 @@ def _push_aside(run: _Run, s: _Step, level):
         else:
             fresh = (
                 s.between
-                * _smoothstep(-st.motion.ds - 1.0, 0.0, s.along - s.c)
-                * _smoothstep(1.0, -1.0, s.along - s.c - s.h)
+                * smoothstep(-st.motion.ds - 1.0, 0.0, s.along - s.c)
+                * smoothstep(1.0, -1.0, s.along - s.c - s.h)
             )[wsl]
             eng.spread(
                 cv=run.cv,
@@ -705,7 +705,7 @@ def _slab(run: _Run, s: _Step, level, area: float, surf_add=None, film=None):
         # blade's nicks and on the thread tops, the fewer the lighter the touch
         grain = 0.55 * hair + 0.45 * run.relief.tooth[_nearest(run, st.win)]
         thr = _KNIFE_TOUCH - 2.2 * p
-        touch = touch * _smoothstep(thr - 0.1, thr + 0.1, grain)
+        touch = touch * smoothstep(thr - 0.1, thr + 0.1, grain)
         # the bead leaves paint wherever it passes, in proportion to how
         # much of a pass this step is (for the same reason)
         pass_bead = n * (1.0 - np.exp(-4.0 / n))
@@ -730,7 +730,7 @@ def _lift_blade(run: _Run, s: _Step, body: float) -> None:
     st, wsl = s.st, s.wsl
     under = (s.aa * np.clip((s.h - np.abs(s.rel)) / 1.5, 0.0, 1.0))[wsl]
     # most along the trailing edge, the last of the blade to leave the paint
-    under = under * (0.3 + 0.7 * _smoothstep(0.3, -0.5, (s.rel / s.h)[wsl]))
+    under = under * (0.3 + 0.7 * smoothstep(0.3, -0.5, (s.rel / s.h)[wsl]))
     _lift_off(
         run.canvas,
         s.sl,
@@ -820,7 +820,7 @@ def _press_out(run: _Run, st, taps, lat, along_px, d_end) -> None:
             sx0=x0,
             w=w,
             pk=pk,
-            cover=_smoothstep(0.1, 0.6, w),
+            cover=smoothstep(0.1, 0.6, w),
             stroke_id=run.stroke_id,
             by_film=False,
         )

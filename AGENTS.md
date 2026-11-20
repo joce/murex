@@ -3,7 +3,7 @@
 `murex` simulates artists' media. It holds what the media share (pigments and Kubelka-Munk mixing, stroke paths, noise, reference images and PNG output) and the media themselves, each family a subpackage named in French after one of its own:
 
 - `murex.fusain` draws with dry and semi-dry media (graphite and coloured pencils, charcoal, pastel, crayon, ballpoint pen) on a paper with tooth.
-- `murex.huile` paints in oils: brushes and knives lay, drag, mix and lift paint on a canvas, and a renderer lights the result. It was `oilpaint`, and for now still carries its own copies of the shared modules (`murex-9r5.3` merges them).
+- `murex.huile` paints in oils: brushes and knives lay, drag, mix and lift paint on a canvas, and a renderer lights the result. It was `oilpaint`.
 - `murex.aquarelle` will be the wet media (ink, watercolour, felt-tip markers).
 
 The epic `murex-9r5` says why it is one package and in what order the rest arrives.
@@ -48,7 +48,7 @@ The first run of huile's tests compiles its kernels (about a minute).
 What every medium shares is at the top of the package:
 
 - `spectral.py`, `_spectral_tables.py`, `pigment.py`: colour. Pigments and Kubelka-Munk mixing over 24 spectral bands.
-- `spline.py`, `noise.py`, `filters.py`, `reference.py`, `png.py`: stroke paths, textures, small image filters, reference images and output.
+- `spline.py`, `noise.py`, `filters.py`, `reference.py`, `png.py`: stroke paths, textures, small image filters, reference images and output. `_rounding.py`: counts worked out from lengths (`whole_floor`, `whole_ceil`), which must not hang on a last bit.
 
 A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `examples/` (scripts, and the images they write to `output/`) and `docs/` (its README, its design, its changelog from before it moved here).
 
@@ -65,19 +65,20 @@ A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `e
 
 `murex/huile/`:
 
-- `paint.py`, `palette.py`: a paint (a pigment with a body) and the ready-made ones.
+- `paint.py`, `palette.py`: a paint (`Paint`, a `murex.Pigment` with a body) and the ready-made ones. `_bands.py`: the check that the kernels were compiled for the band count of `murex.spectral`.
 - `canvas.py`: the `Canvas`, with two wet layers, dried height, the weave, drying and rendering.
 - `brush.py`, `brushes.py`, `stroke.py`, `_knife.py`, `_geometry.py`, `_hair.py`, `_dab.py`: the tools and how a stroke is sampled and run.
 - `_engine.py`: the numba kernels that move paint at each step of a stroke. `_render.py`: the kernels that light the picture.
 - `surface.py`, `surfaces.py`: grounds and supports.
-- `spectral.py`, `spline.py`, `noise.py`, `reference.py`, `png.py`, `_filters.py`: its own copies of the shared modules, as oilpaint had them, until `murex-9r5.3` merges them with murex's. Do not mend one copy without looking at the other.
 - `examples/huile/`: the example paintings and their rendered images. `tools/huile/bench.py`: the benchmark scenes.
 
 ## Conventions
 
 For all of murex:
 
-- Imports point one way. Colour (`spectral`, `pigment`) imports nothing else of murex. The other shared modules import colour and each other, never a medium. A medium imports the shared modules (relatively: `from .. import spectral`), never another medium: media meet through what they share. Importing `murex` does not import a medium, so nobody compiles an engine they do not use.
+- Imports point one way. Colour (`spectral`, `pigment`) imports nothing else of murex. The other shared modules import colour and each other, never a medium. A medium imports the shared modules (relatively: `from .. import spectral`), never another medium: media meet through what they share. Importing `murex` does not import a medium, so nobody compiles an engine they do not use. `tests/test_layers.py` checks all of this.
+- A compiled kernel reads no constant from another file: numba remakes a cached kernel only when the kernel's own file changes. A constant two files need is written out in each, and a test checks that they agree (`WHOLE_SLACK` in `_rounding.py`, `spline.py` and huile's `_engine.py`; the band count in `spectral.py` and huile's kernel files).
+- A count worked out from a ratio of lengths uses `whole_floor`/`whole_ceil` (`_rounding.py`), so that it does not hang on the last bit of an input. `tests/test_rounding.py` nudges inputs by an ulp.
 - What two media need goes in the shared modules, not in one of them.
 - The pictures depend on the numbers computed in the shared modules, and are checked to the bit. A change that alters a result of `spectral`, `spline`, `noise` or `filters` is a breaking change: say so in the changelog, and check every medium (fusain's fingerprints, huile's benchmark scenes).
 - Kernels are `@njit(cache=True, error_model="numpy")`, without `fastmath` and without `parallel` (in huile: without `parallel` in the stroke path), so that results repeat exactly.
@@ -99,4 +100,5 @@ For `murex.huile`:
 - A change meant to alter the picture is judged by measurements and amplified difference images, not by looking at two renders side by side.
 - Such a change also regenerates every image its README uses, with the final code: all of `examples/huile/output/` (`examples/huile/demo.py`, `examples/huile/quickstart.py` and each painting script), not only the images expected to differ.
 - Paint must be conserved: what leaves the brush lands on the canvas or is accounted for off its edge. Tests check this.
-- A decision must not hang on the last bit of a computed value: counts worked out from ratios use `whole_floor`/`whole_ceil`, and comparisons use a tolerance placed away from where values cluster (`ROUND_PX`, `EMPTY`). `tests/huile/test_rounding.py` nudges inputs by an ulp.
+- A decision must not hang on the last bit of a computed value: counts worked out from ratios use `whole_floor`/`whole_ceil` (its kernels, the ones of `_engine.py`), and comparisons use a tolerance placed away from where values cluster (`ROUND_PX`, `EMPTY`). `tests/huile/test_rounding.py` nudges inputs by an ulp.
+- Changing the band count is three edits: `WAVELENGTHS` in `murex/spectral.py` (which then derives its tables instead of reading the stored ones) and `N` in `_engine.py` and `_render.py`; `_bands.py` refuses anything else.

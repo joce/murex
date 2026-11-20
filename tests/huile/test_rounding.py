@@ -150,3 +150,14 @@ def test_a_mark_nudged_by_an_ulp_paints_the_same_to_rounding(name):
         nudged = _paint(name, np.random.default_rng(seed))
         assert np.array_equal(plain.top_id, nudged.top_id), seed
         assert _scaled_difference(plain, nudged) < 1e-3, seed
+
+
+def test_the_engine_is_compiled_with_the_slack_the_shared_modules_use():
+    # (written out in _engine.py: its kernels compile it in)
+    from murex import _rounding
+    from murex.huile import _engine as eng
+
+    assert eng.WHOLE_SLACK == _rounding.WHOLE_SLACK
+    for x in (7.5, 8.0, 8 - 6e-6, 8 + 6e-6, 600.0000000000001):
+        assert eng.whole_floor(x) == _rounding.whole_floor(x)
+        assert eng.whole_ceil(x) == _rounding.whole_ceil(x)

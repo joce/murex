@@ -12,9 +12,9 @@ from typing import NamedTuple
 
 import numpy as np
 
-from . import spectral as sp
+from .. import spectral as sp
+from ..spectral import N_BANDS
 from .paint import ColorLike, Paint, as_paint
-from .spectral import N_BANDS
 
 TITANIUM_WHITE = Paint("#f6f5f0", opacity=1.0, strength=1.3, name="Titanium White")
 ZINC_WHITE = Paint("#f3f3ef", opacity=0.55, strength=0.6, name="Zinc White")

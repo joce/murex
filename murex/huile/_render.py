@@ -12,7 +12,7 @@ import math
 import numpy as np
 from numba import njit
 
-from .spectral import _check_bands
+from ._bands import check_bands
 
 # The band count, written out for the reason given in _engine.py.
 N = 24
@@ -23,7 +23,7 @@ def _compiled_bands():
     return N
 
 
-_check_bands(__file__, N, _compiled_bands)
+check_bands(__file__, N, _compiled_bands)
 
 IS, IV = N, N + 1  # packed indices of scattering and volume (as in _engine)
 
@@ -100,7 +100,7 @@ def paint_rgb(top, und, top_a, und_a, ground, to_rgb, min_film, out):
 @njit(cache=True, error_model="numpy", nogil=True)
 def box_blur(a, r, out):
     """Separable box blur of radius ``r`` (edges clamped) of the float32 map
-    ``a`` into ``out`` (not ``a``): ``_filters._box_blur`` to float32 rounding."""
+    ``a`` into ``out`` (not ``a``): ``murex.filters.box_blur`` to float32 rounding."""
     H, W = a.shape
     if r <= 0:
         out[:] = a

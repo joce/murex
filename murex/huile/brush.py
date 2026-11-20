@@ -36,14 +36,14 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import numpy as np
 
+from .. import spectral as sp
+from ..filters import smoothstep
+from ..noise import value_noise_1d
 from . import _engine as eng
-from . import spectral as sp
 from ._engine import COLUMNS, IB, IS, IV, PACKED
-from ._filters import _smoothstep
 from ._geometry import _chord_table as _chord_table
 from ._geometry import _chord_table_at as _chord_table_at
 from ._hair import _hair_field as _hair_field
-from .noise import value_noise_1d
 from .paint import ColorLike, Paint, as_paint
 
 if TYPE_CHECKING:  # (at run time, see __getattr__ at the end)
@@ -420,7 +420,7 @@ def _across_weights(across: Any, ring: bool = False) -> np.ndarray:
     soft = 0.06
 
     def band(a, b):
-        return _smoothstep(a - soft, a + soft, x) * _smoothstep(b + soft, b - soft, x)
+        return smoothstep(a - soft, a + soft, x) * smoothstep(b + soft, b - soft, x)
 
     if across is None or (isinstance(across, str) and across == "all"):
         w = np.ones(COLUMNS)
