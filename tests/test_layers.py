@@ -40,12 +40,23 @@ def _imports(path: Path, package: tuple[str, ...]) -> set[tuple[str, ...]]:
     return found
 
 
+#: What murex holds, by its exact name: its modules and its subpackages.
+MODULES = {p.stem for p in ROOT.glob("*.py")} | MEDIA
+
+
 def _is_module(name: str) -> bool:
-    return (ROOT / f"{name}.py").is_file() or (ROOT / name).is_dir()
+    # (by name, not by asking for the file: where file names ignore case,
+    # ``Pigment`` would be taken for the module ``pigment``)
+    return name in MODULES
 
 
 def _top(found: set[tuple[str, ...]]) -> set[str]:
     return {parts[0] for parts in found if parts}
+
+
+def test_a_name_murex_exports_is_not_taken_for_the_module_named_like_it():
+    assert _is_module("pigment") and not _is_module("Pigment")
+    assert _is_module("fusain") and not _is_module("Fusain")
 
 
 def test_the_names_this_test_goes_by_are_the_modules_there_are():
