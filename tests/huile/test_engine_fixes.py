@@ -699,7 +699,8 @@ def test_thick_paint_pushed_well_past_an_edge_is_covered_by_its_own_volume():
 def _kernel_signatures() -> int:
     """How many signatures the compiled kernels have between them (each new
     one is compiled, or loaded from numba's cache, on its first call)."""
-    from murex.huile import _dab, _render, spectral
+    from murex import spectral
+    from murex.huile import _dab, _render
     from murex.huile import _engine as eng
 
     return sum(

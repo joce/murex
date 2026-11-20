@@ -4,15 +4,15 @@ import numpy as np
 
 
 def test_compiled_max_filter_is_the_max_filter():
+    from murex.filters import max_filter
     from murex.huile import _engine as eng
-    from murex.huile._filters import _max_filter
 
     rng = np.random.default_rng(3)
     for k in range(40):
         h, w = (int(v) for v in rng.integers(1, 40, 2))
         a = rng.normal(size=(h, w)).astype((np.float32, np.float64)[k % 2])
         r = int(rng.integers(0, 10))
-        want, got = _max_filter(a, r), eng.max_filter(a, r)
+        want, got = max_filter(a, r), eng.max_filter(a, r)
         assert got.dtype == want.dtype == np.float32
         assert np.array_equal(got, want)
 

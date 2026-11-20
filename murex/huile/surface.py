@@ -6,8 +6,8 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from . import noise as nz
-from . import spectral as sp
+from .. import noise as nz
+from .. import spectral as sp
 from .paint import ColorLike, Paint
 
 TEXTURES = ("canvas", "linen", "cotton", "twill", "paper", "wood", "smooth")

@@ -22,15 +22,16 @@ from typing import Any
 import numpy as np
 import pytest
 
-from murex import huile
-from murex.huile import Brush, BrushType, Canvas, brushes, spline, surfaces
+from murex import huile, spline
+from murex import spectral as sp
+from murex.huile import Brush, BrushType, Canvas, brushes, surfaces
 from murex.huile import _engine as eng
 from murex.huile import brush as bm
 from murex.huile import palette as P
-from murex.huile import spectral as sp
+from murex.huile._bands import check_bands
 from murex.huile.paint import Paint, as_paint
-from murex.huile.reference import Reference
 from murex.huile.surface import Surface
+from murex.reference import Reference
 
 # --------------------------------------------------------------------------
 # spectral
@@ -586,16 +587,19 @@ def test_swapping_paint_between_layers_exchanges_at_most_all_of_it():
 
 # The band count is compiled into the cached kernels as a constant, and numba
 # remakes a cached kernel only when it sees the kernel's own file change: these
-# tests work on a copy of the package with a cache of its own, and change its
-# band count from 24 to 16. (The copy is imported on its own, as ``huile``:
-# it has all it needs, its own spectral.py included.)
+# tests work on a copy of murex with a cache of its own, and change its band
+# count from 24 to 16: in murex/spectral.py, which then derives its tables
+# instead of reading the stored ones, and in huile's kernel files.
 def _package_copy(tmp_path):
-    package = tmp_path / "huile"
+    """A copy of murex in ``tmp_path``, imported before the installed one
+    by a Python run there: the folder of its ``huile``, and the environment
+    to run it in."""
     shutil.copytree(
-        os.path.dirname(huile.__file__),
-        package,
+        os.path.dirname(os.path.dirname(huile.__file__)),
+        tmp_path / "murex",
         ignore=shutil.ignore_patterns("__pycache__"),
     )
+    package = tmp_path / "murex" / "huile"
     env = {k: v for k, v in os.environ.items() if not k.startswith("NUMBA_")}
     env.update(
         NUMBA_CACHE_DIR=str(tmp_path / "cache"),
@@ -619,7 +623,7 @@ def _to_16_bands(package, *files):
     """Give spectral.py 16 bands (if it has not yet), and set N = 16 in each
     of ``files``. Bytes in, bytes out: the files keep their line endings, and
     so their size, on every platform."""
-    spectral = package / "spectral.py"
+    spectral = package.parent / "spectral.py"
     spectral.write_bytes(
         spectral.read_bytes().replace(
             b"np.linspace(400.0, 700.0, 24)", b"np.linspace(400.0, 700.0, 16)"
@@ -633,7 +637,7 @@ def _to_16_bands(package, *files):
         path.write_bytes(text)
 
 
-_BOTH = "import huile._engine as e, huile._render as r; print(e.N, r.N)"
+_BOTH = "import murex.huile._engine as e, murex.huile._render as r; print(e.N, r.N)"
 
 # One cached engine kernel and one cached render kernel, on arrays with room
 # for 24 bands: what each touched shows the band count compiled into it (19 or
@@ -641,7 +645,7 @@ _BOTH = "import huile._engine as e, huile._render as r; print(e.N, r.N)"
 # cache.
 _KERNELS = """
 import numpy as np
-from huile import _engine as e, _render as r
+from murex.huile import _engine as e, _render as r
 top = np.ones((1, 1, 27), np.float32)
 und = np.zeros((1, 1, 27), np.float32)
 a, b = np.zeros((1, 1), np.float32), np.zeros((1, 1), np.float32)
@@ -681,7 +685,7 @@ def test_a_band_count_above_or_below_spectral_s_is_refused():
             return self.n
 
     n = sp.N_BANDS
-    sp._check_bands("k.py", n, Compiled(n))
+    check_bands("k.py", n, Compiled(n))
     for other in (n - 8, n + 8):
         with pytest.raises(
             RuntimeError,
@@ -690,7 +694,7 @@ def test_a_band_count_above_or_below_spectral_s_is_refused():
                 f"set N = {n} in _engine.py and _render.py."
             ),
         ):
-            sp._check_bands("k.py", other, Compiled(other))
+            check_bands("k.py", other, Compiled(other))
         with pytest.raises(
             RuntimeError,
             match=re.escape(
@@ -699,7 +703,7 @@ def test_a_band_count_above_or_below_spectral_s_is_refused():
             )
             + ".* /the/cache and import again",
         ):
-            sp._check_bands("k.py", n, Compiled(other))
+            check_bands("k.py", n, Compiled(other))
 
 
 @pytest.mark.skipif(
@@ -720,7 +724,11 @@ def test_kernels_cached_by_bytecode_older_than_its_file_are_refused(
     env["PYTHONPYCACHEPREFIX"] = str(tmp_path / "pyc")
     first = _python(env, _BOTH)
     assert first.returncode == 0 and first.stdout.split() == ["24", "24"], first
-    files = [package / name for name in ("spectral.py", "_engine.py", "_render.py")]
+    files = [
+        package.parent / "spectral.py",
+        package / "_engine.py",
+        package / "_render.py",
+    ]
     was = [os.stat(path) for path in files]
     _to_16_bands(package, "_engine.py", "_render.py")
     for path, st in zip(files, was, strict=True):
@@ -769,7 +777,7 @@ def test_a_process_still_running_for_24_bands_leaves_none_of_its_kernels(tmp_pat
     # It compiles its kernels after the change, and caches them: neither it nor
     # a process started after it may take the other's.
     package, env = _package_copy(tmp_path)
-    old_code = "import huile; print('ready', flush=True); input()\n" + _KERNELS
+    old_code = "import murex.huile; print('ready', flush=True); input()\n" + _KERNELS
     with (
         open(tmp_path / "old.err", "w+") as err,
         subprocess.Popen(

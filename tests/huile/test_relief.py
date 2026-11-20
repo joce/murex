@@ -537,7 +537,7 @@ def test_rounding_off_pressing_out_and_pulling_up_keep_the_paint():
 def test_a_dry_brush_tail_keeps_its_length():
     # the green stroke of the strokes demo sheet: a round dragged on until it
     # runs dry and breaks up (its tail ended at x = 424 before the relief work)
-    from murex.huile.spline import Bezier
+    from murex.spline import Bezier
 
     c = Canvas(900, 520, seed=2)
     c.stroke(

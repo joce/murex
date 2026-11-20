@@ -1,27 +1,30 @@
-"""Paints: absorption + scattering spectra per unit volume."""
+"""Paints: a pigment (absorption and scattering spectra per unit volume) with
+a body, which says how the paint behaves under the tool."""
 
 from __future__ import annotations
 
 import functools
-import math
-from collections.abc import Iterable, Sequence
 
 import numpy as np
 
-from . import spectral as sp
+from .. import spectral as sp
+from ..pigment import (
+    SCATTER_MAX,
+    ColorLike,
+    Pigment,
+    _check_strength,
+    _split_part,
+    mix_colors,
+)
 
-#: Scattering per unit thickness of a fully opaque white paint. A unit-thick
-#: layer of it over black reflects ~92%: a normal stroke covers well but a thin
-#: scumble lets the underlayer show through.
-SCATTER_MAX = 12.0
-
-
-def _scatter_factor(luminance: float) -> float:
-    # Light pigments (titanium white, cadmium yellow) scatter strongly, dark
-    # ones (phthalo, black) mostly absorb. Without this, white is far too weak
-    # in tints compared with real paint.
-    return 0.1 + 0.9 * luminance
-
+__all__ = [
+    "DEFAULT_BODY",
+    "SCATTER_MAX",
+    "ColorLike",
+    "Paint",
+    "as_paint",
+    "mix_colors",
+]
 
 #: Body (stiffness) of paint straight from the tube.
 DEFAULT_BODY = 0.7
@@ -34,24 +37,7 @@ def _check_body(body) -> float:
     return body
 
 
-def _check_strength(strength) -> float:
-    strength = float(strength)
-    if not (math.isfinite(strength) and strength > 0.0):
-        raise ValueError(
-            f"strength must be a positive number (1 = normal), got {strength!r}"
-        )
-    return strength
-
-
-def _check_opacity(opacity) -> float:
-    opacity = float(opacity)
-    if not math.isfinite(opacity):
-        raise ValueError(f"opacity must be a number in 0..1, got {opacity!r}")
-    # values outside 0..1 have always been clipped rather than refused
-    return min(max(opacity, 0.0), 1.0)
-
-
-class Paint:
+class Paint(Pigment):
     """A paint, described by how it looks and how it behaves.
 
     Parameters
@@ -61,11 +47,11 @@ class Paint:
         ``"#rrggbb"``, a float triple in 0..1, or an int triple in 0..255 (a
         triple with a component of 2 or more is on the 0..255 scale; one
         whose largest is between 1 and 2 is refused: see
-        :func:`huile.spectral.parse_color`).
+        :func:`murex.spectral.parse_color`).
     opacity:
-        0..1. How strongly it hides what is underneath. 1 = opaque body
+        0..1: how well it hides what is underneath. 1 = fully opaque body
         color (cadmiums, titanium white), ~0.3 = glazing color (alizarin,
-        phthalo), 0 = pure dye. Default 1.
+        phthalo), 0 = pure dye. Values outside 0..1 are clipped. Default 1.
     strength:
         Tinting strength, > 0. 2 means half as much of this paint gives the
         same shift in a mixture (phthalo blue is a famously strong tinter).
@@ -85,14 +71,16 @@ class Paint:
     as strong), and ``opacity`` re-derives it from its colour with the new
     opacity, keeping its strength. A paint mixed on the palette or built from
     optics has no colour to re-derive from, so it refuses ``opacity``: mix
-    it with :data:`~huile.palette.MEDIUM` to make it more transparent.
+    it with :data:`~huile.palette.MEDIUM` to make it more transparent. A
+    :class:`murex.Pigment` that is no paint is taken the same way, with the
+    body of paint from the tube unless ``body`` is given.
 
-    Internally a paint is a Kubelka-Munk pigment: an absorption spectrum
-    ``K`` and a scattering coefficient ``S`` per unit volume. Mixing paints
-    adds those, weighted by volume.
+    A paint is a :class:`murex.Pigment`: an absorption spectrum ``K`` and a
+    scattering coefficient ``S`` per unit volume. Mixing paints adds those,
+    which is why the mixtures look like real paint mixtures.
     """
 
-    __slots__ = ("K", "S", "_color", "_strength", "body", "name")
+    __slots__ = ("body",)
 
     def __setstate__(self, state) -> None:
         # Paints pickled before ``_strength`` existed lack it: they are read as
@@ -111,61 +99,25 @@ class Paint:
         name: str | None = None,
         body: float | None = None,
     ):
-        if isinstance(color, Paint):
-            self._derive(color, opacity, strength, name, body)
-            return
-        self.body = DEFAULT_BODY if body is None else _check_body(body)
-        self.name = name
-        self._from_color(
-            color,
-            1.0 if opacity is None else _check_opacity(opacity),
-            1.0 if strength is None else _check_strength(strength),
-        )
+        own = color.body if isinstance(color, Paint) else DEFAULT_BODY
+        self.body = own if body is None else _check_body(body)
+        if isinstance(color, Pigment):
+            self._refuse_opacity(color, opacity, strength)
+        super().__init__(color, opacity, strength, name)
 
-    def _from_color(self, color: ColorLike, opacity: float, strength: float) -> None:
-        srgb = sp.parse_color(color)
-        srgb.flags.writeable = False
-        target = sp.linear_rgb_to_reflectance(sp.srgb_to_linear(srgb))
-        lum = float(sp.LUMINANCE @ sp.srgb_to_linear(srgb))
-        S = SCATTER_MAX * _scatter_factor(lum) * opacity**2
-        K = sp.solve_absorption(target, S)
-        self.K = K * strength
-        self.S = S * strength
-        self._color = srgb
-        # kept so that Paint(this, opacity=...) can derive it again
-        self._strength: float | None = strength
-
-    def _derive(self, paint: Paint, opacity, strength, name, body) -> None:
-        """``Paint(paint, ...)``: a copy of ``paint``, changed as asked."""
-        self.name = name or paint.name
-        self.body = paint.body if body is None else _check_body(body)
-        factor = 1.0 if strength is None else _check_strength(strength)
-        if opacity is not None:
-            if paint._strength is None or paint._color is None:
-                raise ValueError(
-                    "opacity can only be changed on a paint made from a colour; "
-                    f"{paint!r} was mixed, built from optics or unpickled from "
-                    "an older version (mix it with palette.MEDIUM to make it "
-                    "more transparent)"
-                )
-            self._from_color(
-                paint._color, _check_opacity(opacity), paint._strength * factor
-            )
-            return
-        self.K, self.S = paint.K.copy(), paint.S
-        self._color, self._strength = paint._color, paint._strength
+    @staticmethod
+    def _refuse_opacity(paint: Pigment, opacity, strength) -> None:
+        """What :class:`murex.Pigment` refuses too, said as a painter is told
+        it (a bad ``strength`` is still what is refused first)."""
         if strength is not None:
-            # as in Paint(color, strength=...): absorption and scattering
-            # scale together
-            self.K, self.S = self.K * factor, self.S * factor
-            if self._strength is not None:
-                # made from a colour: that colour stays its colour, as for
-                # Paint(color, strength=...)
-                self._strength *= factor
-            else:
-                # its colour is how it looks, which the strength changes:
-                # worked out again when asked for
-                self._color = None
+            _check_strength(strength)
+        if opacity is not None and (paint._strength is None or paint._color is None):
+            raise ValueError(
+                "opacity can only be changed on a paint made from a colour; "
+                f"{paint!r} was mixed, built from optics or unpickled from "
+                "an older version (mix it with palette.MEDIUM to make it "
+                "more transparent)"
+            )
 
     # ------------------------------------------------------------------
     @classmethod
@@ -173,14 +125,10 @@ class Paint:
         cls, K, S, name: str | None = None, body: float | None = None
     ) -> Paint:
         """Build a paint directly from absorption spectrum K (per band, sampled
-        at :data:`huile.spectral.WAVELENGTHS`) and scattering S (scalar),
+        at :data:`murex.spectral.WAVELENGTHS`) and scattering S (scalar),
         both per unit volume. Handy for measured pigment data."""
-        p = cls.__new__(cls)
-        p.K = np.asarray(K, dtype=np.float64).copy()
-        p.S = float(S)
-        p.name = name
-        p._color = None
-        p._strength = None
+        p = super().from_optics(K, S, name)
+        assert isinstance(p, Paint)
         p.body = DEFAULT_BODY if body is None else _check_body(body)
         return p
 
@@ -205,7 +153,7 @@ class Paint:
         body = 0.0
         total = 0.0
         for part in parts:
-            paint, vol = _split_part(part)
+            paint, vol = _split_part(part, "paint")
             paint = as_paint(paint)
             K += vol * paint.K
             S += vol * paint.S
@@ -215,77 +163,11 @@ class Paint:
             raise ValueError("mix needs a positive total volume")
         return cls.from_optics(K / total, S / total, name=name, body=body / total)
 
-    # ------------------------------------------------------------------
-    def reflectance(
-        self, thickness: float = 1.0, over: ColorLike = "#ffffff"
-    ) -> np.ndarray:
-        """Reflectance spectrum of a layer of this paint over a ground color
-        (any color form, or a reflectance spectrum)."""
-        is_spectrum = isinstance(over, np.ndarray) and over.shape[-1] == sp.N_BANDS
-        ground = over if is_spectrum else sp.srgb_to_reflectance(over)
-        return sp.km_layer(self.K * thickness, self.S * thickness, ground)
-
-    def appearance(
-        self, thickness: float = 1.0, over: ColorLike = "#ffffff"
-    ) -> np.ndarray:
-        """sRGB color (0..1) of a layer of this paint over a ground color."""
-        return sp.reflectance_to_srgb(self.reflectance(thickness, over))
-
-    @property
-    def color(self) -> np.ndarray:
-        """sRGB color at unit thickness on white."""
-        if self._color is None:
-            self._color = self.appearance()
-            self._color.flags.writeable = False
-        # read-only: the paint's optics were derived from it
-        return self._color
-
-    @property
-    def masstone(self) -> np.ndarray:
-        """sRGB color of the paint straight from the tube, infinitely thick."""
-        return sp.reflectance_to_srgb(sp.km_opaque(self.K, self.S))
-
-    @property
-    def hex(self) -> str:
-        return sp.to_hex(self.color)
-
-    def __repr__(self) -> str:
-        label = f"{self.name!r}, " if self.name else ""
-        return f"Paint({label}{self.hex}, S={self.S:.2f})"
-
-
-# (Defined after Paint so that it holds the class itself, not the name
-# "Paint": a name would be looked up in whichever module's hints use the
-# alias, and fail there unless that module imported Paint too.)
-ColorLike = str | Sequence[float] | np.ndarray | Paint
-
-
-def _split_part(part) -> tuple[ColorLike, float]:
-    """A part of a :meth:`Paint.mix`: ``(paint or colour, parts)``, or a bare
-    paint or colour for one part."""
-    is_pair = (
-        isinstance(part, (tuple, list))
-        and len(part) == 2
-        and not isinstance(part[0], (int, float, np.number))
-    )
-    if not is_pair:
-        return part, 1.0
-    paint, vol = part
-    try:
-        vol = float(vol)
-    except (TypeError, ValueError):
-        raise TypeError(
-            f"mix parts are (paint, parts) with parts a number, got {part!r}"
-        ) from None
-    if not (math.isfinite(vol) and vol >= 0.0):
-        raise ValueError(
-            f"mix parts must be a non-negative number of parts, got {vol!r}"
-        )
-    return paint, vol
-
 
 def as_paint(p: ColorLike) -> Paint:
-    """``p`` if it is a paint, else a new opaque paint of exactly that colour.
+    """``p`` if it is a paint, else a new opaque paint of exactly that colour
+    (or, of a :class:`murex.Pigment` that is no paint, a paint of that
+    pigment with the body of paint from the tube).
 
     The last 1024 colours asked for are remembered, so asking again for one
     (a hex string a stroke is given, say) costs microseconds. A colour not
@@ -296,6 +178,8 @@ def as_paint(p: ColorLike) -> Paint:
     """
     if isinstance(p, Paint):
         return p
+    if isinstance(p, Pigment):
+        return Paint(p)
     # The paint is built once per colour (it means fitting a spectrum, about
     # a millisecond, and a stroke given a colour string asks for it every
     # time), then copied, so that changing the paint handed out cannot change
@@ -307,14 +191,3 @@ def as_paint(p: ColorLike) -> Paint:
 @functools.lru_cache(maxsize=1024)
 def _cached_paint(key: str | tuple[float, ...]) -> Paint:
     return Paint(key)
-
-
-def mix_colors(
-    colors: Iterable[ColorLike], weights: Iterable[float] | None = None
-) -> str:
-    """Quick helper: hex color of a palette mix of plain colors / paints."""
-    colors = list(colors)
-    weights = [1.0] * len(colors) if weights is None else list(weights)
-    return Paint.mix(
-        *[(as_paint(c), w) for c, w in zip(colors, weights, strict=True)]
-    ).hex

@@ -4,9 +4,9 @@ the wet paint there."""
 import numpy as np
 import pytest
 
+from murex import spectral as sp
 from murex.huile import Bezier, Brush, Canvas, Paint, Stroke, brushes
 from murex.huile import palette as P
-from murex.huile import spectral as sp
 from murex.huile.brush import _VOLUME_PER_AMOUNT
 
 

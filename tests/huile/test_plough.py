@@ -11,7 +11,8 @@ where they can be: one stroke's hair pattern is chance."""
 import numpy as np
 import pytest
 
-from murex.huile import Brush, Canvas, Stroke, brushes, spline
+from murex import spline
+from murex.huile import Brush, Canvas, Stroke, brushes
 from murex.huile import _engine as eng
 from murex.huile import palette as P
 from murex.huile import stroke as stm

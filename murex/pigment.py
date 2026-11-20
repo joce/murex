@@ -201,16 +201,17 @@ class Pigment:
 
     def __repr__(self) -> str:
         label = f"{self.name!r}, " if self.name else ""
-        return f"Pigment({label}{self.hex}, S={self.S:.2f})"
+        return f"{type(self).__name__}({label}{self.hex}, S={self.S:.2f})"
 
 
 # (Defined after Pigment so that it holds the class itself, not its name.)
 ColorLike = str | Sequence[float] | np.ndarray | Pigment
 
 
-def _split_part(part) -> tuple[ColorLike, float]:
+def _split_part(part, kind: str = "pigment") -> tuple[ColorLike, float]:
     """A part of a :meth:`Pigment.mix`: ``(pigment or colour, parts)``, or a
-    bare pigment or colour for one part."""
+    bare pigment or colour for one part. ``kind`` is what the mixer calls
+    what it mixes, for the error."""
     is_pair = (
         isinstance(part, (tuple, list))
         and len(part) == 2
@@ -223,7 +224,7 @@ def _split_part(part) -> tuple[ColorLike, float]:
         vol = float(vol)
     except (TypeError, ValueError):
         raise TypeError(
-            f"mix parts are (pigment, parts) with parts a number, got {part!r}"
+            f"mix parts are ({kind}, parts) with parts a number, got {part!r}"
         ) from None
     if not (math.isfinite(vol) and vol >= 0.0):
         raise ValueError(

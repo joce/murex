@@ -5,9 +5,9 @@ from typing import Any
 import numpy as np
 import pytest
 
+from murex import spectral as sp
 from murex.huile import Canvas, Paint, brushes, surfaces
 from murex.huile import palette as P
-from murex.huile import spectral as sp
 from murex.huile.canvas import _composite
 
 RAKING = (-0.6, -0.8, 0.7)
@@ -301,14 +301,14 @@ def test_paint_sunk_into_an_absorbent_ground_shines_less():
 
 
 def test_compiled_box_blur_matches_the_filter():
+    from murex.filters import box_blur
     from murex.huile import _render
-    from murex.huile._filters import _box_blur
 
     a = (np.random.default_rng(0).random((37, 53)) * 10).astype(np.float32)
     for r in (0, 1, 3, 20, 60):
         out = np.empty_like(a)
         _render.box_blur(a, r, out)
-        assert np.abs(out - _box_blur(a, r)).max() < 1e-5, r
+        assert np.abs(out - box_blur(a, r)).max() < 1e-5, r
 
 
 def test_a_long_shadow_fades_out_rather_than_stopping():
