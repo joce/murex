@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
 from numba import njit
+
+from ._rounding import whole_ceil, whole_floor
+
+#: ``_rounding.WHOLE_SLACK``, written out here because the kernel below
+#: compiles it in, and numba remakes a cached kernel only when this file
+#: changes. A test checks that the two agree.
+_WHOLE_SLACK = 1e-6
 
 #: A value along a stroke: a number, a sequence, or a function of u in 0..1
 #: (called with the array of all u, or with one u at a time if that fails).
@@ -147,7 +155,7 @@ class Path:
             # (copies: the dense points are the path's own)
             point, at = np.array(pts[:1]), np.array(knot[:1])
             return point, np.array([[1.0, 0.0]]), np.zeros(1), at
-        n = max(2, int(np.ceil(length / max(spacing, 1e-3))) + 1)
+        n = max(2, whole_ceil(length / max(spacing, 1e-3)) + 1)
         si = np.linspace(0.0, length, n)
         x, y = np.interp(si, s, pts[:, 0]), np.interp(si, s, pts[:, 1])
         k = np.interp(si, s, knot)
@@ -255,8 +263,10 @@ class CatmullRom(Path):
             P = np.vstack([2 * P[0] - P[1], P, 2 * P[-1] - P[-2]])
         # all segments at once: segment i runs from P[i + 1] to P[i + 2]
         p0, p1, p2, p3 = P[:-3], P[1:-2], P[2:-1], P[3:]
-        # samples per segment
-        m = np.maximum(8, (np.linalg.norm(p2 - p1, axis=1) / 2).astype(int) + 1)
+        # samples per segment (a segment a whole even number of px long
+        # counts as that, whatever rounding left of it: see _rounding)
+        half = np.linalg.norm(p2 - p1, axis=1) / 2
+        m = np.maximum(8, np.floor(half + _WHOLE_SLACK).astype(int) + 1)
         seg = np.repeat(np.arange(len(m)), m)
         # 0..1 within each
         t = (np.arange(m.sum()) - np.repeat(np.cumsum(m) - m, m)) * (1.0 / m[seg])
@@ -322,12 +332,12 @@ def _catmull_points(P, chord, step):
     segments = P.shape[0] - 3
     total = 0
     for i in range(segments):
-        total += max(8, int(chord[i + 1] / 2.0) + 1)
+        total += max(8, math.floor(chord[i + 1] / 2.0 + _WHOLE_SLACK) + 1)
     pts = np.empty((total + 1, 2))
     knot = np.empty(total + 1)
     at = 0
     for i in range(segments):
-        m = max(8, int(chord[i + 1] / 2.0) + 1)
+        m = max(8, math.floor(chord[i + 1] / 2.0 + _WHOLE_SLACK) + 1)
         t0 = 0.0
         t1 = t0 + step[i]
         t2 = t1 + step[i + 1]
@@ -382,9 +392,10 @@ class Bezier(Path):
                 + np.linalg.norm(p2 - p1)
                 + np.linalg.norm(p3 - p2)
             )
-            t = np.linspace(0.0, 1.0, max(8, int(approx / 2) + 1), endpoint=False)[
-                :, None
-            ]
+            approx = float(approx)
+            t = np.linspace(
+                0.0, 1.0, max(8, whole_floor(approx / 2) + 1), endpoint=False
+            )[:, None]
             mt = 1 - t
             pts.append(
                 mt**3 * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t**3 * p3

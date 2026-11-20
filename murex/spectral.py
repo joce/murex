@@ -166,7 +166,14 @@ def _build_spectrum_to_rgb(wavelengths: np.ndarray) -> np.ndarray:
 #: for byte. ``_build_spectrum_to_rgb`` derives it (to within rounding);
 #: ``tools/derive_spectral_tables.py`` writes the table, and a test checks
 #: that the two agree.
-SPECTRUM_TO_RGB = np.array(SPECTRUM_TO_RGB_TABLE, dtype=np.float64)
+#:
+#: The table is for 24 bands. With another number of them (``WAVELENGTHS``
+#: changed, to try it) there is no table to read, and it is derived.
+SPECTRUM_TO_RGB = (
+    np.array(SPECTRUM_TO_RGB_TABLE, dtype=np.float64)
+    if len(SPECTRUM_TO_RGB_TABLE[0]) == N_BANDS
+    else _build_spectrum_to_rgb(WAVELENGTHS)
+)
 
 #: Rec.709 luminance weights for linear sRGB.
 LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
@@ -344,7 +351,11 @@ def _build_basis(T: np.ndarray) -> np.ndarray:
 
 #: (7, N_BANDS) reflectance spectra of white, cyan, magenta, yellow, red, green,
 #: blue: a stored table, derived by ``_build_basis(SPECTRUM_TO_RGB)``.
-_BASIS = np.array(BASIS_TABLE, dtype=np.float64)
+_BASIS = (
+    np.array(BASIS_TABLE, dtype=np.float64)
+    if len(BASIS_TABLE[0]) == N_BANDS
+    else _build_basis(SPECTRUM_TO_RGB)
+)
 
 # (the tables above are shared by everything that works with colour: read-only)
 for _table in (

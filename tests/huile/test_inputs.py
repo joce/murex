@@ -8,7 +8,6 @@ import ast
 import copy
 import dataclasses
 import inspect
-import math
 import os
 import pickle
 import re
@@ -22,81 +21,16 @@ from typing import Any
 import numpy as np
 import pytest
 
-from murex import huile
-from murex.huile import Brush, BrushType, Canvas, brushes, spline, surfaces
+from murex import huile, spline
+from murex import spectral as sp
+from murex.huile import Brush, BrushType, Canvas, brushes, surfaces
 from murex.huile import _engine as eng
 from murex.huile import brush as bm
 from murex.huile import palette as P
-from murex.huile import spectral as sp
+from murex.huile._bands import check_bands
 from murex.huile.paint import Paint, as_paint
-from murex.huile.reference import Reference
 from murex.huile.surface import Surface
-
-# --------------------------------------------------------------------------
-# spectral
-
-
-def test_spectrum_to_rgb_can_be_rebuilt():
-    # The illuminant spectrum and the XYZ white point used to share a name, so
-    # the matrix could only be built once, at import.
-    np.testing.assert_allclose(
-        sp._build_spectrum_to_rgb(sp.WAVELENGTHS), sp.SPECTRUM_TO_RGB, rtol=0, atol=0
-    )
-    other = sp._build_spectrum_to_rgb(np.linspace(400.0, 700.0, 16))
-    assert other.shape == (3, 16)
-    np.testing.assert_allclose(other.sum(axis=1), 1.0)
-
-
-@pytest.mark.parametrize(
-    "color, expected",
-    [
-        ("#ff8000", (1.0, 128 / 255, 0.0)),
-        ((1, 1, 1), (1.0, 1.0, 1.0)),  # all at most 1: the 0..1 scale
-        ((0, 0, 1), (0.0, 0.0, 1.0)),
-        ((255, 128, 0), (1.0, 128 / 255, 0.0)),
-        (np.array([255, 128, 0], np.uint8), (1.0, 128 / 255, 0.0)),
-        ((255.0, 128.0, 0.0), (1.0, 128 / 255, 0.0)),  # whole floats: 0..255
-        ((0.5, 0.25, 1.0), (0.5, 0.25, 1.0)),
-        ((1.0 + 1e-9, 0.5, 0.5), (1.0, 0.5, 0.5)),  # rounding overshoot
-        ((-0.1, 0.5, 1.0), (0.0, 0.5, 1.0)),  # out of range: clipped
-        ((-5, 100, 300), (0.0, 100 / 255, 1.0)),
-        # floats on the 0..255 scale, as before
-        ((123.4, 56.7, 89.1), (123.4 / 255, 56.7 / 255, 89.1 / 255)),
-        ((255, 128.0, 0.5), (1.0, 128 / 255, 0.5 / 255)),
-        ((2.0, 0.5, 0.0), (2 / 255, 0.5 / 255, 0.0)),
-        # numpy uint8 (an image's pixel) is always 0..255; other ints are not
-        (np.array([1, 1, 1], np.uint8), (1 / 255, 1 / 255, 1 / 255)),
-        ((np.uint8(1), np.uint8(0), np.uint8(1)), (1 / 255, 0.0, 1 / 255)),
-        (np.array([1, 1, 1], np.int64), (1.0, 1.0, 1.0)),
-        (np.array([1, 0, 1], np.uint16), (1.0, 0.0, 1.0)),
-    ],
-)
-def test_parse_color_scales(color, expected):
-    np.testing.assert_allclose(sp.parse_color(color), expected, rtol=0, atol=1e-12)
-
-
-@pytest.mark.parametrize(
-    "color", [(1.02, 0.5, 0.5), (1.0000011, 0.5, 0.2), (1.99, 0.0, 0.0)]
-)
-def test_parse_color_refuses_an_ambiguous_scale(color):
-    # (1.02, 0.5, 0.5) used to be read on the 0..255 scale: almost black.
-    with pytest.raises(ValueError, match=r"0\.\.1 .* 0\.\.255"):
-        sp.parse_color(color)
-
-
-@pytest.mark.parametrize(
-    "color, error, message",
-    [
-        ((np.nan, 0.5, 0.5), ValueError, "finite"),
-        ((0.1, 0.2), ValueError, "3 color components"),
-        ("red", ValueError, "#rrggbb"),
-        (("a", "b", "c"), TypeError, "#rrggbb"),
-    ],
-)
-def test_parse_color_errors(color, error, message):
-    with pytest.raises(error, match=message):
-        sp.parse_color(color)
-
+from murex.reference import Reference
 
 # --------------------------------------------------------------------------
 # paint
@@ -198,26 +132,6 @@ def test_paint_color_is_read_only():
 # paths and profiles
 
 
-@pytest.mark.parametrize("make", [spline.as_path, spline.Polyline, spline.Bezier])
-def test_path_needs_points(make):
-    with pytest.raises(ValueError, match="at least one point"):
-        make([])
-
-
-@pytest.mark.parametrize("make", [spline.as_path, spline.Polyline])
-@pytest.mark.parametrize("bad", [np.nan, np.inf])
-def test_path_points_must_be_finite(make, bad):
-    with pytest.raises(ValueError, match=r"finite numbers; point 1 is"):
-        make([(0, 0), (bad, 3), (10, 10)])
-
-
-def test_path_points_must_be_pairs():
-    with pytest.raises(ValueError, match="pairs, got 3 numbers"):
-        spline.as_path([1, 2, 3])
-    with pytest.raises(TypeError, match="pairs of numbers"):
-        spline.as_path([("a", 1)])
-
-
 def test_stroke_reports_a_bad_path_and_takes_a_scalar_width():
     canvas = Canvas(50, 40, seed=1)
     with pytest.raises(ValueError, match="at least one point"):
@@ -241,47 +155,6 @@ def test_single_point_path_is_still_a_dab():
 def _samples():
     _, _, u, knot = spline.as_path([(0, 0), (100, 0)]).sample(2.0)
     return u, knot
-
-
-def test_profile_callables_may_take_one_number():
-    u, knot = _samples()
-    w = spline.evaluate_profile(lambda u: 30 if u < 0.5 else 10, u, knot, 2)
-    np.testing.assert_array_equal(w, np.where(u < 0.5, 30.0, 10.0))
-    w = spline.evaluate_profile(lambda u: 10 + 5 * math.sin(u), u, knot, 2)
-    np.testing.assert_allclose(w, 10 + 5 * np.sin(u), rtol=1e-15)
-
-
-def test_vectorised_profile_callables_are_called_once():
-    u, knot = _samples()
-    calls = []
-
-    def width(v):
-        calls.append(v)
-        return 10 + 5 * np.sin(v)
-
-    np.testing.assert_array_equal(
-        spline.evaluate_profile(width, u, knot, 2), 10 + 5 * np.sin(u)
-    )
-    assert len(calls) == 1 and calls[0] is u
-
-
-def test_profile_callable_errors_are_not_hidden():
-    u, knot = _samples()
-    missing: dict = {}
-
-    def broken(v):  # a genuine error: raised as it is, after one call
-        return missing["width"]
-
-    with pytest.raises(KeyError):
-        spline.evaluate_profile(broken, u, knot, 2)
-
-    def broken_scalar(v):  # fails on the array, then on each number
-        return 30 if v < 0.5 else 1 / 0
-
-    with pytest.raises(ZeroDivisionError) as info:
-        spline.evaluate_profile(broken_scalar, u, knot, 2)
-    assert "with the array of all u" in str(info.value.__notes__)
-    assert isinstance(info.value.__cause__, ValueError)
 
 
 # --------------------------------------------------------------------------
@@ -326,26 +199,6 @@ def test_integer_ground_images_are_0_to_255(dtype):
 
 # --------------------------------------------------------------------------
 # reference
-
-
-def test_reference_keeps_a_bounded_number_of_maps():
-    rng = np.random.default_rng(2)
-    ref = Reference(rng.random((30, 40, 3)), 40, 30)
-    xs, ys = rng.random(50) * 39, rng.random(50) * 29
-    # 1.936 and 1.9399 share a map (both round to 1.94), but blurred at each
-    # they differ: the box radius changes in between
-    first = [ref.color(xs, ys, s) for s in (1.936, 3.0)]
-    for k in range(60):
-        ref.value(xs, ys, 1.0 + 0.1 * k)
-        ref.direction(xs, ys, 1.0 + 0.1 * k)
-    assert len(ref._cache) == Reference.max_maps
-    # made again after being dropped: the same map, at the scale first used
-    again = [ref.color(xs, ys, s) for s in (1.9399, 3.0)]
-    for a, b in zip(first, again, strict=True):
-        np.testing.assert_array_equal(a, b)
-    ref.max_maps = 2
-    ref.detail(xs, ys, 5.0)
-    assert len(ref._cache) == 2
 
 
 def _toned(toning):
@@ -423,51 +276,6 @@ def test_stronger_mix_has_its_own_colour():
     assert Paint(seen, strength=3).hex == Paint(mixed(), strength=3).hex
     # a paint made from a colour keeps that colour, as Paint(color, strength=)
     assert Paint(P.CADMIUM_RED, strength=2).hex == P.CADMIUM_RED.hex
-
-
-def test_profile_function_results_are_checked():
-    u, knot = _samples()
-    n = len(u)
-    # a number, one per u, or something that spreads to one per u: as before
-    for f in (lambda v: 3, lambda v: np.array([3.0]), lambda v: np.full(n, 3.0)):
-        np.testing.assert_array_equal(
-            spline.evaluate_profile(f, u, knot, 2), np.full(n, 3.0)
-        )
-
-    def mixed_types(v) -> Any:  # a numpy int or a float, by u
-        return np.int8(2) if v < 0.5 else 1.0
-
-    np.testing.assert_array_equal(
-        spline.evaluate_profile(mixed_types, u, knot, 2),
-        np.where(u < 0.5, 2.0, 1.0),
-    )
-    for f in (
-        lambda v: np.atleast_1d(30 if v < 0.5 else 10),  # one array per u
-        lambda v: v[:, None] * 10,
-        lambda v: np.zeros(n + 1),
-    ):
-        with pytest.raises(ValueError, match="one number per u"):
-            spline.evaluate_profile(f, u, knot, 2)
-    not_numbers: list[Any] = [
-        lambda v: None,
-        lambda v: None if v < 0.5 else 1,
-        lambda v: "wide",
-    ]
-    for f in not_numbers:
-        with pytest.raises(TypeError, match="must return numbers"):
-            spline.evaluate_profile(f, u, knot, 2)
-
-
-def test_fast_layer_over_white_matches_km_layer_exactly():
-    # solve_absorption's inner loop must give K bit for bit as before
-    rng = np.random.default_rng(3)
-    for _ in range(200):
-        kappa = np.exp(rng.uniform(-14.0, 12.0, sp.N_BANDS))
-        kappa[:3] = [0.0, 1e-9, 5e-5]  # the small-B branch
-        sigma = float(rng.choice([0.0, 1e-7, rng.uniform(0.0, 15.0)]))
-        np.testing.assert_array_equal(
-            sp._layer_over_white(kappa, sigma), sp.km_layer(kappa, sigma, 1.0)
-        )
 
 
 # --------------------------------------------------------------------------
@@ -586,16 +394,19 @@ def test_swapping_paint_between_layers_exchanges_at_most_all_of_it():
 
 # The band count is compiled into the cached kernels as a constant, and numba
 # remakes a cached kernel only when it sees the kernel's own file change: these
-# tests work on a copy of the package with a cache of its own, and change its
-# band count from 24 to 16. (The copy is imported on its own, as ``huile``:
-# it has all it needs, its own spectral.py included.)
+# tests work on a copy of murex with a cache of its own, and change its band
+# count from 24 to 16: in murex/spectral.py, which then derives its tables
+# instead of reading the stored ones, and in huile's kernel files.
 def _package_copy(tmp_path):
-    package = tmp_path / "huile"
+    """A copy of murex in ``tmp_path``, imported before the installed one
+    by a Python run there: the folder of its ``huile``, and the environment
+    to run it in."""
     shutil.copytree(
-        os.path.dirname(huile.__file__),
-        package,
+        os.path.dirname(os.path.dirname(huile.__file__)),
+        tmp_path / "murex",
         ignore=shutil.ignore_patterns("__pycache__"),
     )
+    package = tmp_path / "murex" / "huile"
     env = {k: v for k, v in os.environ.items() if not k.startswith("NUMBA_")}
     env.update(
         NUMBA_CACHE_DIR=str(tmp_path / "cache"),
@@ -619,7 +430,7 @@ def _to_16_bands(package, *files):
     """Give spectral.py 16 bands (if it has not yet), and set N = 16 in each
     of ``files``. Bytes in, bytes out: the files keep their line endings, and
     so their size, on every platform."""
-    spectral = package / "spectral.py"
+    spectral = package.parent / "spectral.py"
     spectral.write_bytes(
         spectral.read_bytes().replace(
             b"np.linspace(400.0, 700.0, 24)", b"np.linspace(400.0, 700.0, 16)"
@@ -633,7 +444,7 @@ def _to_16_bands(package, *files):
         path.write_bytes(text)
 
 
-_BOTH = "import huile._engine as e, huile._render as r; print(e.N, r.N)"
+_BOTH = "import murex.huile._engine as e, murex.huile._render as r; print(e.N, r.N)"
 
 # One cached engine kernel and one cached render kernel, on arrays with room
 # for 24 bands: what each touched shows the band count compiled into it (19 or
@@ -641,7 +452,7 @@ _BOTH = "import huile._engine as e, huile._render as r; print(e.N, r.N)"
 # cache.
 _KERNELS = """
 import numpy as np
-from huile import _engine as e, _render as r
+from murex.huile import _engine as e, _render as r
 top = np.ones((1, 1, 27), np.float32)
 und = np.zeros((1, 1, 27), np.float32)
 a, b = np.zeros((1, 1), np.float32), np.zeros((1, 1), np.float32)
@@ -681,7 +492,7 @@ def test_a_band_count_above_or_below_spectral_s_is_refused():
             return self.n
 
     n = sp.N_BANDS
-    sp._check_bands("k.py", n, Compiled(n))
+    check_bands("k.py", n, Compiled(n))
     for other in (n - 8, n + 8):
         with pytest.raises(
             RuntimeError,
@@ -690,7 +501,7 @@ def test_a_band_count_above_or_below_spectral_s_is_refused():
                 f"set N = {n} in _engine.py and _render.py."
             ),
         ):
-            sp._check_bands("k.py", other, Compiled(other))
+            check_bands("k.py", other, Compiled(other))
         with pytest.raises(
             RuntimeError,
             match=re.escape(
@@ -699,7 +510,7 @@ def test_a_band_count_above_or_below_spectral_s_is_refused():
             )
             + ".* /the/cache and import again",
         ):
-            sp._check_bands("k.py", n, Compiled(other))
+            check_bands("k.py", n, Compiled(other))
 
 
 @pytest.mark.skipif(
@@ -720,7 +531,11 @@ def test_kernels_cached_by_bytecode_older_than_its_file_are_refused(
     env["PYTHONPYCACHEPREFIX"] = str(tmp_path / "pyc")
     first = _python(env, _BOTH)
     assert first.returncode == 0 and first.stdout.split() == ["24", "24"], first
-    files = [package / name for name in ("spectral.py", "_engine.py", "_render.py")]
+    files = [
+        package.parent / "spectral.py",
+        package / "_engine.py",
+        package / "_render.py",
+    ]
     was = [os.stat(path) for path in files]
     _to_16_bands(package, "_engine.py", "_render.py")
     for path, st in zip(files, was, strict=True):
@@ -769,7 +584,7 @@ def test_a_process_still_running_for_24_bands_leaves_none_of_its_kernels(tmp_pat
     # It compiles its kernels after the change, and caches them: neither it nor
     # a process started after it may take the other's.
     package, env = _package_copy(tmp_path)
-    old_code = "import huile; print('ready', flush=True); input()\n" + _KERNELS
+    old_code = "import murex.huile; print('ready', flush=True); input()\n" + _KERNELS
     with (
         open(tmp_path / "old.err", "w+") as err,
         subprocess.Popen(

@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
+from murex import spectral as sp
 from murex.huile import Canvas, Paint, surfaces
 from murex.huile import palette as P
-from murex.huile import spectral as sp
 
 
 def _on_glass(first, second, reverse, ground=None):

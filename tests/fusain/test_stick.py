@@ -23,8 +23,12 @@ LEVEL = Paper(depth=0)  # the width of a line shows exactly
 
 
 def _rows(sheet, x) -> int:
-    """How many rows the line marks around column ``x``: its width there."""
-    return int(np.count_nonzero(sheet.pigment()[:, x : x + 30].sum(axis=1)))
+    """How many rows the line marks around column ``x``: its width there.
+    (A row holding less than a millionth of what the fullest holds is not
+    marked: a tip whose edge falls on the line between two rows leaves
+    1e-24 of its pigment past it, which is rounding.)"""
+    rows = sheet.pigment()[:, x : x + 30].sum(axis=1)
+    return int(np.count_nonzero(rows > 1e-6 * rows.max()))
 
 
 def _line(medium, length=1500, pressure=0.6, **kw) -> tuple[Sheet, Stick]:

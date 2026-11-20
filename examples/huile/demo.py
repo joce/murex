@@ -11,6 +11,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from murex import spectral as sp
 from murex.huile import (
     Bezier,
     Brush,
@@ -23,11 +24,10 @@ from murex.huile import (
 from murex.huile import (
     palette as P,
 )
-from murex.huile import spectral as sp
 from murex.huile import (
     surfaces as S,
 )
-from murex.huile.png import write_png
+from murex.png import write_png
 
 OUT = (
     sys.argv[1]

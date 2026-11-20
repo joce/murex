@@ -126,7 +126,9 @@ def test_all_lists_every_preset_of_its_module(module, kind):
 )
 def test_shared_tables_are_read_only(table):
     module, name = table.split(".")
-    value = getattr(importlib.import_module("murex.huile." + module), name)
+    # (spectral is murex's own, shared by every medium)
+    package = "murex." if module == "spectral" else "murex.huile."
+    value = getattr(importlib.import_module(package + module), name)
     for a in value if isinstance(value, tuple) else (value,):
         with pytest.raises(ValueError, match="read-only"):
             a[0] = 0.5

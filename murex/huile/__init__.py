@@ -12,12 +12,14 @@ Quick start::
     canvas.save("painting.png")
 """
 
-from . import brushes, palette, reference, spectral, surfaces
+from .. import reference, spectral
+from ..pigment import mix_colors
+from ..reference import Reference
+from ..spline import Bezier, CatmullRom, Polyline
+from . import brushes, palette, surfaces
 from .brush import Brush, BrushType
 from .canvas import Canvas
-from .paint import Paint, mix_colors
-from .reference import Reference
-from .spline import Bezier, CatmullRom, Polyline
+from .paint import Paint
 from .stroke import Stroke
 from .surface import Surface
 

@@ -6,8 +6,9 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from . import noise as nz
-from . import spectral as sp
+from .. import noise as nz
+from .. import spectral as sp
+from ..pigment import Pigment
 from .paint import ColorLike, Paint
 
 TEXTURES = ("canvas", "linen", "cotton", "twill", "paper", "wood", "smooth")
@@ -145,10 +146,12 @@ class Surface:
                 np.float32
             )
         if self.toning is not None and self.toning_strength > 0:
-            # a bare colour is laid as a thin, transparent wash; a paint is
-            # used as it is
+            # a bare colour is laid as a thin, transparent wash; a paint (or
+            # any pigment) is used as it is
             toning = self.toning
-            wash = toning if isinstance(toning, Paint) else Paint(toning, opacity=0.25)
+            wash = (
+                toning if isinstance(toning, Pigment) else Paint(toning, opacity=0.25)
+            )
             # brushed on loosely: broad, soft variations rather than fine streaks
             sweep = nz.aniso_noise(
                 h, w, 90, 28, self.priming_angle + 30, rng, octaves=2

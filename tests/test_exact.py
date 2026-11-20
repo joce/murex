@@ -2,8 +2,11 @@
 batch of layers, and a path that keeps its dense points and works them out
 in compiled code, give to the last bit what numpy gave in murex 0.1.1.
 
-The code of murex 0.1.1 is kept here, as it was, to compare with: oilpaint
-and fusain check their pictures byte for byte, so that is the test."""
+The code of murex 0.1.1 is kept here to compare with, as it was but for one
+thing: fusain and huile check their pictures byte for byte, so that is the
+test. The one thing is how a path counts its points: since huile's fix came
+into the shared modules, a ratio within ``WHOLE_SLACK`` of a whole number
+counts as that number (see ``murex._rounding``), here as there."""
 
 import copy
 import pickle
@@ -15,11 +18,12 @@ import pytest
 
 from murex import Bezier, CatmullRom, Path, Polyline, spline
 from murex import spectral as sp
+from murex._rounding import WHOLE_SLACK, whole_ceil, whole_floor
 
 N = sp.N_BANDS
 
 # --------------------------------------------------------------------------
-# murex 0.1.1, as it was
+# murex 0.1.1, as it was (but for the counts of a path's points)
 # --------------------------------------------------------------------------
 
 
@@ -44,7 +48,7 @@ def sample_011(path, spacing):
     if length < 1e-9:
         p = pts[:1]
         return p, np.array([[1.0, 0.0]]), np.zeros(1), knot[:1]
-    n = max(2, int(np.ceil(length / max(spacing, 1e-3))) + 1)
+    n = max(2, whole_ceil(length / max(spacing, 1e-3)) + 1)
     si = np.linspace(0.0, length, n)
     out = np.stack([np.interp(si, s, pts[:, 0]), np.interp(si, s, pts[:, 1])], -1)
     k = np.interp(si, s, knot)
@@ -78,7 +82,8 @@ def _catmull_dense_011(P, alpha, closed):
     # all segments at once: segment i runs from P[i + 1] to P[i + 2]
     p0, p1, p2, p3 = P[:-3], P[1:-2], P[2:-1], P[3:]
     # samples per segment
-    m = np.maximum(8, (np.linalg.norm(p2 - p1, axis=1) / 2).astype(int) + 1)
+    half = np.linalg.norm(p2 - p1, axis=1) / 2
+    m = np.maximum(8, np.floor(half + WHOLE_SLACK).astype(int) + 1)
     seg = np.repeat(np.arange(len(m)), m)
     # 0..1 within each
     t = (np.arange(m.sum()) - np.repeat(np.cumsum(m) - m, m)) * (1.0 / m[seg])
@@ -111,7 +116,8 @@ def _bezier_dense_011(P, n_knots):
         approx = (
             np.linalg.norm(p1 - p0) + np.linalg.norm(p2 - p1) + np.linalg.norm(p3 - p2)
         )
-        t = np.linspace(0.0, 1.0, max(8, int(approx / 2) + 1), endpoint=False)[:, None]
+        count = max(8, whole_floor(float(approx) / 2) + 1)
+        t = np.linspace(0.0, 1.0, count, endpoint=False)[:, None]
         mt = 1 - t
         pts.append(mt**3 * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t**3 * p3)
         knots.append(i + t[:, 0])

@@ -28,10 +28,12 @@ from typing import NamedTuple, Protocol
 
 import numpy as np
 
+from ..filters import smoothstep
+from ..noise import value_noise_1d
+from ..spline import Path, Profile, as_path, evaluate_profile
 from . import _engine as eng
 from ._dab import dab_pattern
 from ._engine import COLUMNS, IB, IV, PACKED
-from ._filters import _smoothstep
 from ._geometry import (
     _NO_TABLES,
     _chord_table,
@@ -59,8 +61,6 @@ from .brush import (
     _physics,
     load_paint,
 )
-from .noise import value_noise_1d
-from .spline import Path, Profile, as_path, evaluate_profile
 from .surface import Surface
 
 # --- lifting a brush off (see _Run._lift) ------------------------------------------
@@ -126,7 +126,7 @@ class Stroke:
     path:
         The stroke's spine. A list of (x, y) points (interpolated with a smooth
         Catmull-Rom spline that passes through them) or any
-        :class:`huile.spline.Path` (``CatmullRom``, ``Bezier``,
+        :class:`murex.spline.Path` (``CatmullRom``, ``Bezier``,
         ``Polyline``). Pixel coordinates, origin top-left. A single point
         makes a dab.
     paint:
@@ -486,9 +486,9 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         pts, _, u, knot = path.sample(spacing)
         widths = evaluate_profile(eff["width"], u, knot, path.n_knots)
         if t0 > 0:
-            widths = widths * (0.25 + 0.75 * _smoothstep(0.0, t0, u))
+            widths = widths * (0.25 + 0.75 * smoothstep(0.0, t0, u))
         if t1 > 0:
-            widths = widths * (0.25 + 0.75 * _smoothstep(1.0, 1.0 - t1, u))
+            widths = widths * (0.25 + 0.75 * smoothstep(1.0, 1.0 - t1, u))
         widths = np.maximum(widths, 1.0)
         pressure = np.clip(
             evaluate_profile(stroke.pressure, u, knot, path.n_knots), 0.0, 1.0

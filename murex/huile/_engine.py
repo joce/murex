@@ -31,7 +31,7 @@ from collections import namedtuple
 import numpy as np
 from numba import njit
 
-from .spectral import _check_bands
+from ._bands import check_bands
 
 # Compiling: the helpers that split a kernel into named steps, shared ones
 # included (bury_top, hair_at, radius_at, demand_with, ...), are compiled
@@ -46,7 +46,7 @@ from .spectral import _check_bands
 # compiles it into the cached kernels as a constant, so a change of band count
 # must be an edit here, which numba sees as a change of this file. The check
 # refuses a count that differs from spectral.py's, and a cache that kept its
-# stamp all the same (see spectral._check_bands).
+# stamp all the same (see _bands.check_bands).
 N = 24
 
 
@@ -55,7 +55,7 @@ def _compiled_bands():
     return N
 
 
-_check_bands(__file__, N, _compiled_bands)
+check_bands(__file__, N, _compiled_bands)
 
 # packed indices of scattering, volume and body (stiffness x volume)
 IS, IV, IB = N, N + 1, N + 2
@@ -1453,7 +1453,7 @@ def wandering_bands(F, wy0, wx0, ch, cw, s0, period, bands, wander):
     pixel's place across the blade, moved by the colour bands on the blade,
     which wander by up to ``wander`` half-lengths along the stroke (``bands``:
     8 rows to ``period`` px along it, from ``s0`` px at the step's end; 64
-    columns across). Bilinear in ``bands``, as _filters._bilinear."""
+    columns across). Bilinear in ``bands``, as murex.filters.bilinear."""
     out = np.empty((ch, cw))
     n0, n1 = bands.shape
     for y in range(ch):
@@ -5264,7 +5264,7 @@ def _edge_film(layer, reliable, ry0, rx0, y, x, H, W):
 @njit(cache=True, error_model="numpy")
 def max_filter(a, r):
     """Maximum over the (2r+1)-square around each pixel, edges clamped, in
-    single precision: what ``_filters._max_filter`` gives."""
+    single precision: what ``murex.filters.max_filter`` gives."""
     h, w = a.shape
     tmp = np.empty((h, w), np.float32)
     for y in range(h):
