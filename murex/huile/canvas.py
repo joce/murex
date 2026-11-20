@@ -245,7 +245,7 @@ class Canvas:
         """Paint one stroke. See :class:`huile.Stroke` for all parameters.
 
         ``path`` is a list of (x, y) points (a smooth spline is passed through
-        them) or a :mod:`huile.spline` path. ``brush`` is a
+        them) or a :mod:`murex.spline` path. ``brush`` is a
         :class:`huile.BrushType` (e.g. ``brushes.FLAT_HOG``) or a
         :class:`huile.Brush` carrying paint between strokes; ``width``
         defaults to the brush's own size. Returns the :class:`Brush`

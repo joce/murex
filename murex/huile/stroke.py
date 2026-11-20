@@ -126,7 +126,7 @@ class Stroke:
     path:
         The stroke's spine. A list of (x, y) points (interpolated with a smooth
         Catmull-Rom spline that passes through them) or any
-        :class:`huile.spline.Path` (``CatmullRom``, ``Bezier``,
+        :class:`murex.spline.Path` (``CatmullRom``, ``Bezier``,
         ``Polyline``). Pixel coordinates, origin top-left. A single point
         makes a dab.
     paint:
