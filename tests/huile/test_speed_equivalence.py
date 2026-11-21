@@ -153,10 +153,23 @@ def test_blade_slab_ends_excess_and_folds_match_numpy():
         want = gap_px * (t * t * (3.0 - 2.0 * t)) * fill
         got, s = eng.blade_slab(
             top, und, floor, -6, -4, level, np.zeros((0, 0)) if add is None else add,
-            film, fill,
+            film, fill, np.zeros((0, 0, 2)),
         )  # fmt: skip
         assert got.tobytes() == want.tobytes()
         assert s.tobytes() == np.asarray(surf, np.float64).tobytes()
+        # where the blade met the gap as it dragged the paint under it along
+        # (see _engine.flow_under_blade), it fills that one, and the surface
+        # is the one its bead met; elsewhere (below 0), as above
+        gaps = rng.uniform(0.0, 2.0, (30, 34, 2))
+        gaps[rng.random((30, 34)) < 0.4, 0] = -1.0
+        met = gaps[..., 0] >= 0
+        got_met, s_met = eng.blade_slab(
+            top, und, floor, -6, -4, level, np.zeros((0, 0)) if add is None else add,
+            film, fill, gaps,
+        )  # fmt: skip
+        assert met.any() and not met.all()
+        assert got_met.tobytes() == np.where(met, gaps[..., 0] * fill, want).tobytes()
+        assert s_met.tobytes() == np.where(met, gaps[..., 1], s).tobytes()
     ride = rng.uniform(0.0, 3.0, (30, 34))
 
     def ss(e0, e1, x):

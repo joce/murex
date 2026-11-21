@@ -31,6 +31,15 @@ or as 602. A ratio within 1e-6 of a whole number now counts as that number
 where a stroke's length was a whole number of steps: of fusain's 16 example
 images, 4 change, by less than half a percent of their pixels.
 
+## Breaking, in oil paintings: a knife's stroke no longer shows its steps
+
+A knife dragged across thick wet paint left a fine rib at every step of its
+stroke (every 8 px for a wide blade), both in the paint it dragged and in the
+film it laid over it. It no longer does: the wet paint under the blade moves
+the same whichever of its two layers holds it, and the blade lays its paint
+in the gap it meets as it goes, not in the one left when a step ends. Knife
+work over wet paint changes; everything else is painted as before.
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and

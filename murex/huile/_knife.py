@@ -171,18 +171,20 @@ def _knife_step(run: _Run, s: _Step) -> None:
     )
     gap, hold = _blade_gap(run, st.hold.p)  # 2)
     if whole is None:
-        level, ride, hang = _blade_level(run, s, gap, _film(run, s, area))  # 3)
+        film = _film(run, s, area)
+        level, ride, hang = _blade_level(run, s, gap, film)  # 3)
     else:
-        level_w, ride_w, hang_w = _blade_level(
-            run, whole.s, gap, _film(run, whole.s, area)
-        )
+        film_w = _film(run, whole.s, area)
+        level_w, ride_w, hang_w = _blade_level(run, whole.s, gap, film_w)
         level = np.ascontiguousarray(level_w[s.wsl])
         ride = np.ascontiguousarray(ride_w[s.wsl])
         hang = np.ascontiguousarray(hang_w[s.wsl])
+        film = np.ascontiguousarray(film_w[s.wsl])
         whole = whole._replace(level=level_w, ride=ride_w, hang=hang_w)
     ridges = _push_aside(run, s, level)  # 4)
+    gaps = None  # (the gaps under the blade as it met them: see _drag_film)
     if run.bt.clumps == 0:
-        _drag_film(run, s, level)  # 5)
+        gaps = _drag_film(run, s, level, hang, film)  # 5)
     eng.squeeze_out(run.br, run.K, st, col_vol, col_load, hold, ridges, run.col_u)
     grid, c_tab, h_tab = s.tables
     eng.lay_ridges_off(
@@ -198,7 +200,7 @@ def _knife_step(run: _Run, s: _Step) -> None:
         hair=_NO_TEX2,
         lose_off=True,
     )
-    _fill_under_blade(run, s, level, ride, hang, area, whole)  # 6)
+    _fill_under_blade(run, s, level, ride, hang, area, whole, gaps)  # 6)
     # A knife lifted off thick paint pulls it up into little peaks and torn ridges.
     if run.eff["lift"] > 0 and st.motion.i == len(run.pts) - 1:
         _lift_blade(run, s, body)
@@ -429,18 +431,26 @@ def _push_aside(run: _Run, s: _Step, level):
     return ridges
 
 
-def _drag_film(run: _Run, s: _Step, level) -> None:
+def _drag_film(run: _Run, s: _Step, level, hang, film):
     """5) The blade drags the wet paint it touches, as a thin-film flow:
     between the moving blade and the still canvas the paint shears, so paint
     near the blade travels almost with it and paint at the canvas hardly
     moves; what stands above the blade is bulldozed ahead of it. Each wet
     layer moves at its own speed, so their order is kept (white dragged over
-    purple stays on top). The blade glides on its own fresh paint."""
+    purple stays on top). The blade glides on its own fresh paint.
+
+    The paint it drags travels under it, so the gap left under the blade for
+    its own paint changes as it goes. Returns, for :func:`_slab`, what the
+    blade met over each pixel as it went (see _engine.flow_under_blade): the
+    gap its ``film``, the one it rides on (3), could fill under its
+    ``level``, and the surface as the bead hanging from ``hang`` found it,
+    as far down as the bead reaches; None if it dragged nothing, and the gap
+    and the surface are those the canvas shows."""
     st, wsl = s.st, s.wsl
     hair = s.hair[wsl]
     # (planes passed as arrays of their own: one compiled kernel, whether
     # the step's window is all on the canvas or not)
-    eng.flow_under_blade(
+    gaps = eng.flow_under_blade(
         run.cv,
         st.win.cy0,
         st.win.cx0,
@@ -456,11 +466,15 @@ def _drag_film(run: _Run, s: _Step, level) -> None:
         st.motion.ty,
         np.clip((0.5 + 0.45 * st.hold.p) * (0.6 + 0.8 * hair), 0.0, 1.0),
         _VISCOUS,
+        film,
+        hang,
+        np.minimum(film, _KNIFE_BEAD_HEIGHT),  # (the bead: see _slab)
     )
+    return gaps if gaps.size else None
 
 
 def _fill_under_blade(
-    run: _Run, s: _Step, level, ride, hang, area: float, whole
+    run: _Run, s: _Step, level, ride, hang, area: float, whole, gaps=None
 ) -> None:
     """6) The blade fills the space under it, up to its ``level``, from the
     film of paint it carries (its bead hanging from ``hang`` if it skims: see
@@ -469,15 +483,23 @@ def _fill_under_blade(
     two most alike merge (white laid on white-over-purple joins the white; a
     new colour stays on top of the others). With ``whole`` (see
     :func:`_whole_window`), the blade also fills under its part past the edge
-    of the canvas, from the paint on it, which is gone."""
+    of the canvas, from the paint on it, which is gone. ``gaps``: the space
+    under it over its part of the canvas as it met it, where it dragged the
+    wet paint there along (see :func:`_drag_film`)."""
     if not (run.brush.tip[:, IV].sum() > 0 and run.bt.deposits):
         return
     st, wsl = s.st, s.wsl
     if whole is None:
-        d, skim = _slab(run, s, level, hang, area)
+        d, skim = _slab(run, s, level, hang, area, gaps=gaps)
         extra = np.empty(0)
     else:
-        d_w, skim = _slab(run, whole.s, whole.level, whole.hang, area, whole.surf_add)
+        if gaps is not None:  # (past the edge of the canvas it dragged nothing)
+            gaps_w = np.full((*whole.level.shape, 2), -1.0)
+            gaps_w[wsl] = gaps
+            gaps = gaps_w
+        d_w, skim = _slab(
+            run, whole.s, whole.level, whole.hang, area, whole.surf_add, gaps=gaps
+        )
         d = np.ascontiguousarray(d_w[wsl])
         d_off = d_w.copy()
         d_off[wsl] = 0.0  # (on the canvas: d)
@@ -676,7 +698,9 @@ def _knife_step_off(run: _Run, s: _Step, area: float) -> None:
     )
 
 
-def _slab(run: _Run, s: _Step, level, hang, area: float, surf_add=None, film=None):
+def _slab(
+    run: _Run, s: _Step, level, hang, area: float, surf_add=None, film=None, gaps=None
+):
     """How much paint the blade lays under it over each pixel this step (see
     :func:`_fill_under_blade`): with plenty of paint, a smooth slab; running
     low, it only reaches the high points (broken colour). Barely touching,
@@ -714,7 +738,9 @@ def _slab(run: _Run, s: _Step, level, hang, area: float, surf_add=None, film=Non
     # The gap between the blade and the surface (past the edge of the canvas,
     # plus surf_add: see _whole_window), as far as its film reaches, filled
     # by the share k_fill gives over this step's share of a pass (see
-    # _engine.blade_slab).
+    # _engine.blade_slab). Where the blade dragged the wet paint under it
+    # along in this step, the gap, and the surface, as it met them (gaps:
+    # see _drag_film).
     d, surf = eng.blade_slab(
         canvas.top,
         canvas.und,
@@ -725,6 +751,7 @@ def _slab(run: _Run, s: _Step, level, hang, area: float, surf_add=None, film=Non
         np.zeros((0, 0)) if surf_add is None else surf_add,
         film,
         1.0 - np.exp(-k_fill * expo_c),
+        np.zeros((0, 0, 2)) if gaps is None else gaps,
     )
     if skim > 0 and run.bt.clumps == 0:
         bead = np.minimum(film, _KNIFE_BEAD_HEIGHT)
