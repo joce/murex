@@ -49,12 +49,16 @@ _KNIFE_END_OUT = 2.5
 _KNIFE_BEAD = 1.5
 _KNIFE_TOUCH = 0.7
 _KNIFE_BEAD_HEIGHT = 1.2
-# The stretch of a skimming blade's length along the stroke (px) that its
-# film and its bead are reckoned by: over a pass, the bead leaves more paint
-# and the film fills more of the gap the longer the blade is along the
-# stroke, in these (see _slab). (A length of the blade's, not of the
-# stroke's steps: it was the stroke's nominal step, 8 px for a blade 32 px
-# or longer, and a stroke cut into shorter steps laid more: murex-86z.)
+# How fast a skimming blade lays as it slides over a pixel, as a length of
+# blade along the stroke (px): over each such length the bead leaves
+# 1 - e^(-4/n) of its height there, and the film fills (1 - skim) of what a
+# blade spreading it fills, n being how many such lengths the blade is
+# along the stroke (n = 0.4 + 2h over this, h its half-length along the
+# stroke; see _slab). So the longer the blade along the stroke, the more it
+# lays, leveling off at 4 times the bead's height. A rate per px of blade,
+# not per step: it was the stroke's nominal step, 8 px (what it is for a
+# knife 32 px or longer), and a stroke cut into shorter steps laid more
+# (murex-86z).
 _KNIFE_SKIM_PX = 8.0
 # A knife rides no higher than this times the paint film under its blade.
 _KNIFE_FILM = 0.5

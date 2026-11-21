@@ -45,11 +45,15 @@ work over wet paint changes; everything else is painted as before.
 A knife skimming the canvas (pressure under 0.3) lays paint from the bead on
 its blade's edge. How much it laid depended on how its stroke was cut into
 steps: in steps of 2 px rather than 8, up to 1.7 times as much. It no longer
-does (within 1% over the bare canvas, 3.4% over thick wet paint): the bead's
-reach is measured in a length of the blade's own, and it touches the surface
-under the paint it has just laid, not that paint. A heavily loaded knife at
-the lightest touch now lays a fifth to a third less than it did; at pressure
-0.15 and above, what a knife lays is as it was.
+does over the bare canvas and thin wet paint (within 1%): the bead's reach is
+measured in a length of the blade's own, and it touches the surface under the
+paint it has just laid, not that paint. Over thicker wet paint a light pull
+still leaves up to a tenth less in short steps (in review, up to a fifth
+over wet white): where the blade rests on wet paint is still read once per
+step, to be fixed on its own. A heavily loaded knife at
+the lightest touch now lays a fifth to a third less than it did, and knives
+shorter than 32 px a little less again; at pressure 0.15 and above, what a
+knife lays is as it was.
 
 ## Breaking: NumPy 2 is required
 

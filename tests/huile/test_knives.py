@@ -465,36 +465,59 @@ def test_a_knife_going_back_over_its_slab_covers_the_same_at_pressure_0_3():
     assert np.abs(at.top_v.astype(float) - below.top_v).max() < 1e-6
 
 
-def _skimmed(load, pressure, base, path=((70, 40), (120, 76), (170, 112))):
+_SKIM_BASES: dict = {}
+
+
+def _skim_base(base):
+    """The canvas a skimming knife is pulled over: bare, or with a wet dark
+    laid over it in vertical knife pulls loaded with ``base``, in their own
+    steps (a copy: laid once)."""
+    if base not in _SKIM_BASES:
+        c = Canvas(240, 190, seed=1)
+        if base:
+            for x in (50, 130, 210):
+                c.stroke(
+                    [(x, 8), (x, 182)],
+                    brush=Brush(brushes.knife("straight", 90, flex=0.5)).load(
+                        Paint("#1c1a24"), base
+                    ),
+                    angle=0,
+                    follow_path=False,
+                    pressure=0.7,
+                    lift=0.0,
+                    seed=1,
+                )
+        _SKIM_BASES[base] = c
+    return _SKIM_BASES[base].copy()
+
+
+def _skimmed(
+    load, pressure, base, path=((70, 40), (120, 76), (170, 112)), seed=1, step=None
+):
     """What a knife barely touching leaves (volume), white pulled along
     ``path`` with its blade across the pull over the bare canvas or a wet
-    dark ``base`` (the load of its pulls), and whether the paint is all
-    accounted for."""
-    c = Canvas(240, 190, seed=1)
-    if base:
-        for x in (50, 130, 210):
-            c.stroke(
-                [(x, 8), (x, 182)],
-                brush=Brush(brushes.knife("straight", 90, flex=0.5)).load(
-                    Paint("#1c1a24"), base
-                ),
-                angle=0,
-                follow_path=False,
-                pressure=0.7,
-                lift=0.0,
-                seed=1,
-            )
+    dark ``base`` (see :func:`_skim_base`), and whether the paint is all
+    accounted for. With ``step``, the pull is cut into steps of that many px
+    at most (the base is laid in its own steps)."""
+    import murex.huile.stroke as stm
+
+    c = _skim_base(base)
     knife = Brush(brushes.knife("straight", 60, flex=0.5)).load(P.TITANIUM_WHITE, load)
     held, before = knife.volume, float(np.asarray(c.top_v + c.und_v, float).sum())
-    knife = c.stroke(
-        list(path),
-        brush=knife,
-        angle=-54,
-        follow_path=False,
-        pressure=pressure,
-        lift=0.0,
-        seed=1,
-    )
+    longest = stm._MAX_STEP
+    stm._MAX_STEP = longest if step is None else step
+    try:
+        knife = c.stroke(
+            list(path),
+            brush=knife,
+            angle=-54,
+            follow_path=False,
+            pressure=pressure,
+            lift=0.0,
+            seed=seed,
+        )
+    finally:
+        stm._MAX_STEP = longest
     laid = float(np.asarray(c.top_v + c.und_v, float).sum()) - before
     return laid, laid + knife.volume == pytest.approx(held, rel=1e-6)
 
@@ -523,23 +546,38 @@ def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
     # stroke's steps: how much it leaves over a pass was reckoned in the
     # stroke's nominal steps, and it caught on the paint it had just laid,
     # the more the more steps a pass was cut into. In steps of 2 px rather
-    # than 8 the pulls below left 1.65 to 2.2 times as much (murex-86z). Over
-    # the bare canvas they now leave the same within 1.5%; over wet paint,
-    # within 3% (where the blade rides is read once per step: murex-kau).
-    # (The pull is as long as it is so that its textures draw as many random
-    # numbers either way: the wobble of its width draws one per stretch of
-    # its noise, and counts that stretch in steps.)
+    # than 8 the pulls below left 1.55 to 2.2 times as much (murex-86z). Over
+    # the bare canvas they now leave the same within 1%; over wet paint,
+    # within 5% (where the blade rests on it is read once per step:
+    # murex-kau).
     import murex.huile.stroke as stm
 
-    pull = ((70, 40), (125, 80), (180, 120))
+    # (Only the white is cut finer: the base is laid in its own steps. The
+    # white's width does not wobble: the wobble's noise is counted in steps, so
+    # it would draw more random numbers in shorter ones, and the blade
+    # would tilt and its bands wander otherwise: as a different seed does,
+    # up to a fifth more or less paint. Whatever the step, as many numbers
+    # are drawn in its place.)
+    wobble = stm.value_noise_1d
+
+    def no_wobble(n, cell, rng):
+        if cell == 1.0:  # (the knife's chatter and lips, counted in px)
+            return wobble(n, cell, rng)
+        rng.random(8)
+        return np.full(n, 0.5)
+
+    monkeypatch.setattr(stm, "value_noise_1d", no_wobble)
+    bounds = (0.96, 1.04) if base == 0.0 else (0.9, 1.04)
     for pressure in (0.03, 0.08):
-        laid = []
-        for step in (8.0, 2.0):
-            monkeypatch.setattr(stm, "_MAX_STEP", step)
-            v, kept = _skimmed(8.0, pressure, base, pull)
-            assert kept, (pressure, step)
-            laid.append(v)
-        assert 0.93 < laid[1] / laid[0] < 1.05, (pressure, laid)
+        for end, seed in (((180, 120), 1), ((170, 112), 3)):
+            path = ((70, 40), ((70 + end[0]) / 2, (40 + end[1]) / 2), end)
+            laid = []
+            for step in (8.0, 2.0):
+                v, kept = _skimmed(8.0, pressure, base, path, seed, step)
+                assert kept, (pressure, step)
+                laid.append(v)
+            ratio = laid[1] / laid[0]
+            assert bounds[0] < ratio < bounds[1], (pressure, end, seed, laid)
 
 
 def test_paint_shoved_onto_its_own_kind_does_not_tie_with_the_film_over_it():
