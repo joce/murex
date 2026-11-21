@@ -56,8 +56,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   sums in its own order (with fused multiply-add or not). They are now
   murex's own: `murex/_libm.py` computes `exp`, `expm1`, `tanh`, `power` and
   `cbrt` with IEEE addition, subtraction, multiplication and division only
-  (fdlibm's algorithms), within one unit in the last place of the C library
-  (three for `tanh`), and the products are sums in a fixed order. This holds
+  (fdlibm's algorithms), within one unit in the last place of the exact value
+  (two for `tanh`), and the products are sums in a fixed order. This holds
   for `srgb_to_linear`, `linear_to_srgb`, `srgb_to_lab`,
   `linear_rgb_to_reflectance`, `reflectance_to_linear_rgb`, `km_layer`,
   `km_film`, `solve_absorption` and so for every `Pigment`. Results move in

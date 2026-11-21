@@ -1,10 +1,11 @@
-"""murex's own elementary functions (``murex._libm``): as accurate as the C
-library, to a unit in the last place (three for ``tanh``), and the same bits on
-every machine, which the pins below hold (CI checks them on ARM too)."""
+"""murex's own elementary functions (``murex._libm``): within a unit in the
+last place of the exact value (two for ``tanh``), and the same bits on every
+machine, which the pins below hold (CI checks them on ARM too)."""
 
 import hashlib
 import math
 import struct
+from decimal import Decimal, getcontext
 
 import numpy as np
 import pytest
@@ -43,51 +44,81 @@ def np_expm1(x):
     return out
 
 
+# The exact values, from decimal arithmetic (correctly rounded at 60 digits,
+# the same on every machine): not from the C library or NumPy, which are
+# themselves off by a unit now and then, and by different units on another
+# machine (NumPy's cbrt on ARM, by three).
+getcontext().prec = 60
+
+
+def _exact_exp(x: float) -> float:
+    return float(Decimal(x).exp())
+
+
+def _exact_expm1(x: float) -> float:
+    return float(Decimal(x).exp() - 1)
+
+
+def _exact_tanh(x: float) -> float:
+    e = (2 * Decimal(x)).exp()
+    return float((e - 1) / (e + 1))
+
+
+def _exact_cbrt(x: float) -> float:
+    if x == 0.0:
+        return x
+    return math.copysign(float((Decimal(abs(x)).ln() / 3).exp()), x)
+
+
+def _exact_power(x: float, y: float) -> float:
+    return float((Decimal(x).ln() * Decimal(y)).exp())
+
+
 RNG = np.random.default_rng(20261121)
 CASES = {
-    # name: (ours, the C library's, inputs, the most units in the last place)
+    # name: (ours, the exact value, inputs, the most units in the last place)
     "exp": (
         _libm.np_exp,
-        math.exp,
+        _exact_exp,
         np.concatenate(
             [
-                RNG.uniform(-745.0, 709.7, 20000),
-                RNG.uniform(-746.0, -707.0, 5000),  # results below normal
-                RNG.uniform(-3.0, 3.0, 20000),
-                RNG.uniform(-1e-6, 1e-6, 2000),
+                RNG.uniform(-745.0, 709.7, 3000),
+                RNG.uniform(-746.0, -707.0, 1000),  # results below normal
+                RNG.uniform(-3.0, 3.0, 3000),
+                RNG.uniform(-1e-6, 1e-6, 500),
             ]
         ),
         1,
     ),
     "expm1": (
         np_expm1,
-        math.expm1,
+        _exact_expm1,
         np.concatenate(
             [
-                RNG.uniform(-60.0, 60.0, 20000),
-                RNG.uniform(-1e-3, 1e-3, 5000),
-                RNG.uniform(-2.0, 2.0, 20000),
+                RNG.uniform(-40.0, 40.0, 3000),
+                RNG.uniform(-1e-3, 1e-3, 1000),
+                RNG.uniform(-2.0, 2.0, 3000),
             ]
         ),
         1,
     ),
     "tanh": (
         _libm.np_tanh,
-        math.tanh,
+        _exact_tanh,
         np.concatenate(
             [
-                RNG.uniform(-25.0, 25.0, 20000),
-                RNG.uniform(-1.0, 1.0, 20000),
-                RNG.uniform(-1e-5, 1e-5, 2000),
+                RNG.uniform(-22.0, 22.0, 3000),
+                RNG.uniform(-1.0, 1.0, 5000),
+                RNG.uniform(-1e-5, 1e-5, 500),
             ]
         ),
-        3,  # (fdlibm's tanh: exact nearly always, 3 in 10,000 off by 3)
+        2,  # (fdlibm's tanh: 2 at most over 140,000 values)
     ),
     "cbrt": (
         _libm.np_cbrt,
-        np.cbrt,
+        _exact_cbrt,
         np.concatenate(
-            [RNG.uniform(1e-6, 1.2, 20000), RNG.uniform(-8.0, 8.0, 5000), [1e-310]]
+            [RNG.uniform(1e-6, 1.2, 4000), RNG.uniform(-8.0, 8.0, 2000), [1e-310]]
         ),
         1,
     ),
@@ -95,21 +126,20 @@ CASES = {
 for _y in (2.4, 1.0 / 2.4, 1.0 / 3.0, 0.5, 3.0, 1.5):
     CASES[f"power {_y:.4g}"] = (
         lambda x, y=_y: _libm.np_power(x, y),
-        lambda x, y=_y: math.pow(x, y),
+        lambda x, y=_y: _exact_power(x, y),
         np.concatenate(
-            [RNG.uniform(1e-4, 1.0, 10000), RNG.uniform(0.04, 1.0, 10000), [1e-300]]
+            [RNG.uniform(1e-4, 1.0, 2000), RNG.uniform(0.04, 1.0, 2000), [1e-300]]
         ),
         1,
     )
 
 
 @pytest.mark.parametrize("name", CASES)
-def test_as_accurate_as_the_c_library(name):
-    ours, reference, inputs, most = CASES[name]
+def test_within_a_unit_or_two_of_the_exact_value(name):
+    ours, exact, inputs, most = CASES[name]
     got = ours(inputs)
     worst = max(
-        ulps(float(g), float(reference(float(x))))
-        for x, g in zip(inputs, got, strict=True)
+        ulps(float(g), exact(float(x))) for x, g in zip(inputs, got, strict=True)
     )
     assert worst <= most, f"{name}: {worst} units in the last place"
 

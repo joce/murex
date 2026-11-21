@@ -11,9 +11,10 @@ rounds alike, and integer work on the bits of a double; compiled without
 
 The algorithms are those of fdlibm (Sun Microsystems' freely distributable
 libm, by way of its descendants in the BSD and musl C libraries), restricted
-to what the colour science needs. Their error is at most one unit in the last
-place, three for ``tanh``; ``tests/test_libm.py`` checks it against the C
-library over the ranges they are used on, and pins some values to the bit.
+to what the colour science needs. Their results are within one unit in the
+last place of the exact value (two for ``tanh``); ``tests/test_libm.py``
+checks it against decimal arithmetic over the ranges they are used on, and
+pins some values to the bit.
 
     ====================================================
     Copyright (C) 1993, 2004 by Sun Microsystems, Inc. All rights reserved.
