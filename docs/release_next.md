@@ -30,6 +30,18 @@ last bits (at most 2e-12 relative); no colour changes on the 0..255 scale.
 Drawings come out the same image for image; of the oil paintings, 9 images
 change, in at most 7 pixels each, by 1/255.
 
+## Breaking, in the last bits: every picture is the same on every machine
+
+Not only the colours: the strokes, the noise of papers and canvases, the
+random choices of a shading or a spatter, and the lighting of a painting no
+longer depend on the C library, NumPy or the processor. murex computes its
+sines, logarithms, powers and arc tangents itself, with plain arithmetic,
+and draws its normal numbers by NumPy's own algorithm, so the random
+choices are those NumPy made. Every result moves in its last bits; of the
+39 example images, 34 come out byte for byte as they were, and the other 5
+in specks (at most 0.14% of the pixels of one). CI now checks the pictures
+to the bit on ARM and on Windows.
+
 ## Breaking, in fusain's drawings: a path's points no longer hang on a last bit
 
 How many points a path is cut into, and how many numbers a noise draws, were

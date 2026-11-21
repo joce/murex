@@ -12,7 +12,13 @@ import math
 import numpy as np
 from numba import njit
 
+from .. import _libm
 from ._bands import check_bands
+
+#: The digest of ``murex/_libm.py``, whose functions these kernels compile
+#: into themselves: numba makes a cached kernel again only when its own file
+#: changes, so a change to that one changes this line too (a test checks).
+LIBM = "7e0f8d157943cac3"
 
 # The band count, written out for the reason given in _engine.py.
 N = 24
@@ -35,7 +41,7 @@ _TAU_MAX = 10.0
 _TAU_STEPS = 8000
 _b = np.arange(_TAU_STEPS + 2) * (_TAU_MAX / _TAU_STEPS)
 _b[0] = 1.0
-TAU_TABLE = np.tanh(_b) / _b
+TAU_TABLE = _libm.np_tanh(_b) / _b
 TAU_TABLE[0] = 1.0
 TAU_TABLE.flags.writeable = False
 del _b
@@ -333,14 +339,14 @@ def shadows(h, lx3, ly3, lz3, light_size, max_reach, vis):
     if horiz < 1e-6:
         return  # a lamp straight above casts no shadow
     lx, ly = lx3 / horiz, ly3 / horiz
-    az = math.atan2(ly, lx)
+    az = _libm.atan2(ly, lx)
     rays = np.empty((N_RAYS, 2))
     for i in range(N_RAYS):
         a = az + light_size * (i - (N_RAYS - 1) / 2) / ((N_RAYS - 1) / 2)
-        rays[i, 0], rays[i, 1] = math.cos(a), math.sin(a)
-    elev = math.atan2(lz3, horiz)
-    tan_lo = math.tan(max(elev - light_size, ELEV_MIN))
-    tan_hi = math.tan(min(elev + light_size, ELEV_MAX))
+        rays[i, 0], rays[i, 1] = _libm.cos(a), _libm.sin(a)
+    elev = _libm.atan2(lz3, horiz)
+    tan_lo = _libm.tan(max(elev - light_size, ELEV_MIN))
+    tan_hi = _libm.tan(min(elev + light_size, ELEV_MAX))
     top_all, low_all = -np.inf, np.inf
     for y in range(H):
         for x in range(W):

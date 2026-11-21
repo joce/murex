@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 from numba import njit
 
+from . import _libm
 from ._rounding import whole_ceil, whole_floor
 
 #: ``_rounding.WHOLE_SLACK``, written out here because the kernel below
@@ -157,8 +158,9 @@ class Path:
             return point, np.array([[1.0, 0.0]]), np.zeros(1), at
         n = max(2, whole_ceil(length / max(spacing, 1e-3)) + 1)
         si = np.linspace(0.0, length, n)
-        x, y = np.interp(si, s, pts[:, 0]), np.interp(si, s, pts[:, 1])
-        k = np.interp(si, s, knot)
+        interp = _libm.np_interp if pts.dtype.kind in "biuf" else np.interp
+        x, y = interp(si, s, pts[:, 0]), interp(si, s, pts[:, 1])
+        k = interp(si, s, knot)
         if x.dtype == y.dtype == np.float64:
             out = np.empty((n, 2))
             out[:, 0], out[:, 1] = x, y
@@ -175,9 +177,8 @@ class Path:
 
 
 # The kernels: plain IEEE arithmetic only (no fastmath), which numba neither
-# reorders nor fuses, so each operation matches numpy's to the bit. What
-# numpy may not work out the same way everywhere (a power, an interpolation,
-# a sum in pairs) is left to numpy.
+# reorders nor fuses, so each operation matches numpy's to the bit. Powers
+# and interpolations are murex's own (murex._libm), the same everywhere.
 @njit(cache=True, error_model="numpy")
 def _arc(pts):
     """The length of each segment between the points (n, 2), n > 1, and the
@@ -243,9 +244,9 @@ class CatmullRom(Path):
         if not _is_float64(P, 2) or len(P) == 1:
             return self._dense_general()
         P, chord = _catmull_knots(np.ascontiguousarray(P), bool(self.closed))
-        # (numpy's own power, as in _catmull_segment: it gives the same for
-        # a chord whether it is worked out once or for each dense point)
-        step = np.maximum(chord, 1e-6) ** self.alpha
+        # (the power of _catmull_segment: it gives the same for a chord
+        # whether it is worked out once or for each dense point)
+        step = _power(np.maximum(chord, 1e-6), self.alpha)
         if not _is_float64(step, 0) or step.shape != chord.shape:
             return self._dense_general()  # (an alpha that is no plain number)
         return _catmull_points(P, chord, step)
@@ -276,12 +277,29 @@ class CatmullRom(Path):
         )
 
 
+def _power(x, alpha):
+    """``x`` to the power ``alpha``: by murex's own power (the same on every
+    machine) where ``alpha`` is a plain number, as it is unless replaced."""
+    if isinstance(alpha, (int, float, np.integer, np.floating)):
+        return _libm.np_power(x, float(alpha))
+    return x**alpha
+
+
+def _length(d) -> float:
+    """The length of the vector ``d``: its squares summed in order (not by a
+    dot product, which BLAS sums in its own order)."""
+    total = 0.0
+    for v in np.asarray(d, dtype=np.float64).reshape(-1).tolist():
+        total += v * v
+    return math.sqrt(total)
+
+
 def _catmull_segment(p0, p1, p2, p3, t, alpha):
     """Points at parameter t (0..1) on the Catmull-Rom segments from p1 to p2
     (one row of p0..p3 per value of t)."""
 
     def tj(ti, a, b):
-        return ti + np.maximum(np.linalg.norm(b - a, axis=1), 1e-6) ** alpha
+        return ti + _power(np.maximum(np.linalg.norm(b - a, axis=1), 1e-6), alpha)
 
     t0 = 0.0
     t1 = tj(t0, p0, p1)
@@ -387,18 +405,16 @@ class Bezier(Path):
         P = self.points
         for i in range(self.n_knots - 1):
             p0, p1, p2, p3 = P[3 * i : 3 * i + 4]
-            approx = (
-                np.linalg.norm(p1 - p0)
-                + np.linalg.norm(p2 - p1)
-                + np.linalg.norm(p3 - p2)
-            )
-            approx = float(approx)
+            approx = _length(p1 - p0) + _length(p2 - p1) + _length(p3 - p2)
             t = np.linspace(
                 0.0, 1.0, max(8, whole_floor(approx / 2) + 1), endpoint=False
             )[:, None]
             mt = 1 - t
             pts.append(
-                mt**3 * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t**3 * p3
+                mt * mt * mt * p0
+                + 3 * mt * mt * t * p1
+                + 3 * mt * t * t * p2
+                + t * t * t * p3
             )
             knots.append(i + t[:, 0])
         pts.append(P[-1][None])
@@ -459,8 +475,8 @@ def evaluate_profile(
     if arr.size == 1:
         return np.full_like(u, float(arr[0]))
     if arr.size == n_knots:
-        return np.interp(knot, np.arange(n_knots), arr)
-    return np.interp(u, np.linspace(0, 1, arr.size), arr)
+        return _libm.np_interp(knot, np.arange(n_knots), arr)
+    return _libm.np_interp(u, np.linspace(0, 1, arr.size), arr)
 
 
 def _profile_values(values, u: np.ndarray) -> np.ndarray:

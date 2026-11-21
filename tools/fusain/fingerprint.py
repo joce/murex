@@ -20,10 +20,11 @@ on every paper with several seeds: save its hashes before such a change and
 compare after. Record again only with a change that is meant to alter the
 picture. ``tests/fusain/test_fingerprint.py`` runs the recorded suite.
 
-Hashes are those of the machine they were recorded on: another platform's
-``pow`` or numpy's ``exp`` may round a last bit differently. The file
-therefore also records a hash of what that arithmetic gives
-(:func:`arithmetic`); where it differs, the recorded hashes say nothing.
+The hashes are the same on every machine: what the drawing computes is
+IEEE arithmetic, which every processor rounds alike, and murex's own
+elementary functions (``murex._libm``), not the C library's or NumPy's,
+which round some values differently from one machine to the next. CI checks
+the recorded hashes on x86-64, on ARM and on Windows.
 """
 
 from __future__ import annotations
@@ -39,8 +40,8 @@ from pathlib import Path
 
 import numba
 import numpy as np
-from numba import njit
 
+from murex import _libm
 from murex.fusain import (
     HeldPen,
     Paper,
@@ -126,7 +127,8 @@ class Trace:
 def _wave(y: float, x0: float = 12.0, x1: float = W - 12.0, swing: float = 6.0):
     """A path across the sheet at height ``y`` that swings up and down."""
     xs = np.linspace(x0, x1, 6)
-    return [(x, y + swing * math.sin(1.7 * k)) for k, x in enumerate(xs)]
+    # (murex's own sine: the same on every machine, as the C library's is not)
+    return [(x, y + swing * _libm.sin(1.7 * k)) for k, x in enumerate(xs)]
 
 
 def _zigzag(x0: float, y0: float, x1: float, y1: float, turns: int):
@@ -431,51 +433,6 @@ def fingerprint(thorough: bool = False) -> dict[str, dict[str, str]]:
     }
 
 
-@njit(error_model="numpy")
-def _compiled(x, out):  # pragma: no cover (compiled)
-    """What the kernels take from the platform's maths library."""
-    for i in range(x.shape[0]):
-        out[0, i] = x[i] ** 0.6
-        out[1, i] = x[i] ** 0.3
-        out[2, i] = x[i] ** 5.0
-        out[3, i] = x[i] ** 6.0
-        out[4, i] = x[i] ** 1.5
-        out[5, i] = (x[i] * 300.0) ** (1.0 / 3.0)
-        out[6, i] = math.sqrt(x[i])
-        out[7, i] = math.atan2(x[i], 1.0 - 2.0 * x[i])
-
-
-def arithmetic() -> str:
-    """A hash of what this machine's arithmetic gives for the functions the
-    drawing depends on, at fixed numbers: the compiled kernels' powers,
-    roots and arc tangents, numpy's elementary functions in both precisions,
-    and Python's powers. Two machines that give the same draw the same."""
-    x = np.random.default_rng(0).random(20000)
-    out = np.empty((8, x.size))
-    _compiled(x, out)
-    mark = hashlib.sha256(out.tobytes())
-    for kind in (np.float64, np.float32):
-        v = x.astype(kind)
-        wide = (v * 12 - 6).astype(kind)
-        for value in (
-            np.exp(-wide),
-            np.sin(wide),
-            np.cos(wide),
-            np.tanh(wide),
-            np.sqrt(v),
-            np.cbrt(v),
-            v ** kind(1 / 2.4),
-            v ** kind(2.4),
-            v ** kind(12.0),
-            np.arctan2(v, wide),
-            np.hypot(v, wide),
-        ):
-            mark.update(np.ascontiguousarray(value).tobytes())
-    powers = [float(t) ** (1.0 / 3.0) for t in x[:2000]]
-    mark.update(np.array(powers).tobytes())
-    return mark.hexdigest()[:16]
-
-
 def where() -> str:
     """What the hashes were computed on, for the record."""
     return (
@@ -502,13 +459,13 @@ def differences(
 
 
 def load(path: Path = REFERENCE) -> dict:
-    """A recorded fingerprint: {"arithmetic", "recorded on", "marks"}."""
+    """A recorded fingerprint: {"recorded on", "marks"}."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def save(marks: dict[str, dict[str, str]], path: Path) -> None:
-    """Record a fingerprint, with the arithmetic it was computed with."""
-    record = {"arithmetic": arithmetic(), "recorded on": where(), "marks": marks}
+    """Record a fingerprint, with where it was computed (for the record)."""
+    record = {"recorded on": where(), "marks": marks}
     path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n", "utf-8")
 
 
@@ -540,11 +497,6 @@ def main(arguments: list[str] | None = None) -> int:
     if options.thorough and options.against is None:
         parser.error("give --save FILE or --against FILE with --thorough")
     recorded = load(options.against or REFERENCE)
-    if recorded["arithmetic"] != arithmetic():
-        print(
-            "This machine's arithmetic is not that of the recorded hashes "
-            f"({recorded['recorded on']}): they say nothing here."
-        )
     wanted = recorded["marks"]
     differing = differences(marks, wanted)
     for line in differing:

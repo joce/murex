@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
+from .. import _libm
 from ..filters import smoothstep
 from ..noise import aniso_noise, value_noise_2d
 from . import _engine as eng
@@ -205,7 +206,7 @@ def _blade_gap(run: _Run, p: float) -> tuple[float, float]:
     (all its paint is a film under it; what doesn't fit under it rides along
     on it). Returns the gap and how much paint the blade holds (load units)."""
     bt = run.bt
-    gap = _KNIFE_GAP * (1.0 - p) ** 1.6 * (0.55 + 0.45 * bt.stiffness) + 0.05
+    gap = _KNIFE_GAP * _libm.power(1.0 - p, 1.6) * (0.55 + 0.45 * bt.stiffness) + 0.05
     if bt.clumps > 0:  # the teeth of a comb dig in, down to the threads
         gap *= 0.03
     return gap, gap * run.area_unit / 4.0 + _KNIFE_CARRY
@@ -267,7 +268,11 @@ def _blade_rest(run: _Run, s: _Step):
     # touch skims, a firm one cuts in, pressing hard goes nearly down to the
     # canvas, however thick the paint. Stiff paint resists a little.
     depth = min(
-        max(st.hold.p**_KNIFE_SINK * (1.15 - 0.3 * min(old_body, 1.0)), 0.0), 1.0
+        max(
+            _libm.power(st.hold.p, _KNIFE_SINK) * (1.15 - 0.3 * min(old_body, 1.0)),
+            0.0,
+        ),
+        1.0,
     )
     # narrow teeth concentrate the pressure: they cut right through
     if bt.clumps > 0:
@@ -370,7 +375,7 @@ def _push_aside(run: _Run, s: _Step, level):
         win.cy0,
         win.cx0,
         level,
-        1.0 - np.exp(-4.0 * expo_c * (0.15 + 1.7 * hair**2)),
+        1.0 - _libm.np_exp(-4.0 * expo_c * (0.15 + 1.7 * hair**2)),
         s.F,
         win.wy0,
         win.wx0,
@@ -678,8 +683,8 @@ def _slab(run: _Run, s: _Step, level, area: float, surf_add=None, film=None):
     n = 1.0
     if skim > 0:
         n = np.maximum(0.4 + 2.0 * s.h[wsl] / run.K.spacing, 1.0)
-        per_step = 1.0 - (1.0 - skim) * (1.0 - np.exp(-4.0 / n))
-        k_fill = -n * np.log(np.maximum(per_step, 1e-12))
+        per_step = 1.0 - (1.0 - skim) * (1.0 - _libm.np_exp(-4.0 / n))
+        k_fill = -n * _libm.np_log(np.maximum(per_step, 1e-12))
     else:  # (the same: per_step is e^(-4/n))
         k_fill = 4.0
     # The gap between the blade and the surface (past the edge of the canvas,
@@ -695,7 +700,7 @@ def _slab(run: _Run, s: _Step, level, area: float, surf_add=None, film=None):
         level,
         np.zeros((0, 0)) if surf_add is None else surf_add,
         film,
-        1.0 - np.exp(-k_fill * expo_c),
+        1.0 - _libm.np_exp(-k_fill * expo_c),
     )
     if skim > 0 and run.bt.clumps == 0:
         bead = np.minimum(film, 1.2)
@@ -708,8 +713,8 @@ def _slab(run: _Run, s: _Step, level, area: float, surf_add=None, film=None):
         touch = touch * smoothstep(thr - 0.1, thr + 0.1, grain)
         # the bead leaves paint wherever it passes, in proportion to how
         # much of a pass this step is (for the same reason)
-        pass_bead = n * (1.0 - np.exp(-4.0 / n))
-        d += skim * _KNIFE_BEAD * pass_bead * bead * touch**0.7 * expo_c
+        pass_bead = n * (1.0 - _libm.np_exp(-4.0 / n))
+        d += skim * _KNIFE_BEAD * pass_bead * bead * _libm.np_power(touch, 0.7) * expo_c
     return d, skim
 
 
@@ -737,7 +742,7 @@ def _lift_blade(run: _Run, s: _Step, body: float) -> None:
         under,
         run.eff["lift"] * (0.5 + 0.8 * body),
         max(2.5, 0.08 * st.hold.Wd),
-        np.degrees(np.arctan2(st.motion.ty, st.motion.tx)),
+        np.degrees(_libm.atan2(float(st.motion.ty), float(st.motion.tx))),
         run.rng,
         run.stroke_id,
     )
@@ -751,7 +756,9 @@ def _fold_layers(run: _Run, s: _Step, level, f_mix) -> None:
     win = st.win
     p = st.hold.p
     expo_c = s.expo[wsl]
-    m = 1.0 - np.exp(-run.eff["mixing"] * 3.0 * p * p * expo_c * s.streak[wsl] * f_mix)
+    m = 1.0 - _libm.np_exp(
+        -run.eff["mixing"] * 3.0 * p * p * expo_c * s.streak[wsl] * f_mix
+    )
     # (in streaks along its nicks, as far as it cuts into the layer below:
     # see _engine.blade_folds)
     m = eng.blade_folds(

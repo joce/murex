@@ -28,6 +28,7 @@ from typing import NamedTuple, Protocol
 
 import numpy as np
 
+from .. import _libm, _random
 from ..filters import smoothstep
 from ..noise import value_noise_1d
 from ..spline import Path, Profile, as_path, evaluate_profile
@@ -511,8 +512,9 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         # wedge uncovered at the outside of the turn. Step finely enough that
         # no turn moves the brush's edge by more than about half a pixel.
         seg = np.diff(pts, axis=0)
-        heading = np.arctan2(seg[:, 1], seg[:, 0])
-        turn = np.abs(np.angle(np.exp(1j * np.diff(heading))))
+        heading = _libm.np_atan2(seg[:, 1], seg[:, 0])
+        # (each turn brought within half a turn, by a remainder: exact)
+        turn = np.abs(np.remainder(np.diff(heading) + np.pi, 2.0 * np.pi) - np.pi)
         twist = np.abs(np.diff(angles))[1:] if len(angles) > 2 else 0.0
         reach_px = 0.5 * float(widths.max()) * (1.0 + bt.spread)
         gap = float(np.max(turn + twist)) * reach_px
@@ -558,10 +560,10 @@ def _stroke_textures(rng, bt: BrushType, smp: _Samples, arc) -> _Textures:
     # along a stroke swell and break
     period = max(0.4 * w_typ, 2.0)  # ripples about half a blade width apart
     ripple = value_noise_1d(eng.whole_floor(arc[-1] / period) + 4, 1.0, rng)
-    chatter = np.interp(arc / period, np.arange(len(ripple)), ripple) - 0.5
+    chatter = _libm.np_interp(arc / period, np.arange(len(ripple)), ripple) - 0.5
     swell = value_noise_1d(eng.whole_floor(arc[-1] / (2.0 * period)) + 4, 1.0, rng)
-    lip = np.interp(arc / (2.0 * period), np.arange(len(swell)), swell)
-    blade_tilt = float(np.clip(rng.normal(0.0, 0.08), -0.2, 0.2))
+    lip = _libm.np_interp(arc / (2.0 * period), np.arange(len(swell)), swell)
+    blade_tilt = float(np.clip(_random.normal(rng, 0.0, 0.08), -0.2, 0.2))
     # the bristle tips a dab prints (see _dab)
     # (its layout is kept by the width to the nearest px: one exactly between
     # two goes up, not up or down as rounding left it)
@@ -580,7 +582,7 @@ def _radii(smp: _Samples, wobble, bt: BrushType) -> tuple[np.ndarray, np.ndarray
     if bt.spread > 0:
         radii = radii * (
             (1.0 - bt.spread)
-            + bt.spread * (np.maximum(smp.pressure, 0.02) / 0.5) ** 0.8
+            + bt.spread * _libm.np_power(np.maximum(smp.pressure, 0.02) / 0.5, 0.8)
         )
     return nominal, radii
 
@@ -592,7 +594,10 @@ def _lift_reach(bt: BrushType, eff: dict, smp: _Samples, arc, radii):
     reach = (
         0.0
         if smp.is_dab or bt.rigid or not bt.deposits
-        else _LIFT_LEN * eff["lift"] * 1.5 * (2.0 * float(radii.max()) / 36.0) ** 0.3
+        else _LIFT_LEN
+        * eff["lift"]
+        * 1.5
+        * _libm.power(2.0 * float(radii.max()) / 36.0, 0.3)
     )
     pts = smp.pts
     # (no step further than this from the end can be lifting off)
@@ -679,7 +684,7 @@ def _shape(bt: BrushType) -> _Shape:
     return _Shape(
         circle,
         aspect,
-        1.0 if circle else float(np.hypot(1.0, aspect)),
+        1.0 if circle else _libm.hypot(1.0, float(aspect)),
         _footprint_area("round" if circle else bt.shape, aspect),
     )
 
@@ -1003,7 +1008,7 @@ class _Run:
             self._radii,
         )
         (ax, ay), (cx, cy) = pts[i - 1], pts[i]
-        ds = math.hypot(cx - ax, cy - ay)
+        ds = _libm.hypot(float(cx - ax), float(cy - ay))
         if ds < 1e-9:
             return None
         tx, ty = (cx - ax) / ds, (cy - ay) / ds
@@ -1012,7 +1017,7 @@ class _Run:
         r = 0.5 * (r0 + r1)
         # orientation of the brush's long side relative to the stroke's cross direction
         ang = 0.5 * (angles[i] + angles[i - 1])
-        phi = ang if self.eff["follow_path"] else ang - math.atan2(tx, -ty)
+        phi = ang if self.eff["follow_path"] else ang - _libm.atan2(tx, -ty)
         side, phi = _sides(phi)
         return _Segment(i, ax, ay, cx, cy, tx, ty, ds, p, r0, r1, r, 2.0 * r, phi, side)
 
@@ -1036,7 +1041,7 @@ class _Run:
                 self.bt.shape, self.aspect, seg.phi
             )
             tables = (grid, c_tab, h_tab)
-            sf = _signed_floor(math.cos(seg.phi), self.aspect)
+            sf = _signed_floor(_libm.cos(seg.phi), self.aspect)
             across, uscale = abs(sf), side / sf
         self.lateral = max(self.lateral, r * lmax)
         # On a thin brush one pixel spans several bristle columns: sample across
@@ -1112,7 +1117,12 @@ class _Run:
         brush, bt = self.brush, self.bt
         Wn = max(self._nominal[i - 1] + self._nominal[i], 0.6 * self.K.bundle)
         vol = float(brush.tip[:, IV].sum() + brush.reservoir[:, IV].sum())
-        hold = eng.HOLD * bt.capacity * (1.3 - 0.6 * p) * max(1.0, 20.0 / Wn) ** 1.5
+        hold = (
+            eng.HOLD
+            * bt.capacity
+            * (1.3 - 0.6 * p)
+            * _libm.power(max(1.0, 20.0 / Wn), 1.5)
+        )
         return vol / (Wn * Wn), hold, vol
 
     def _overload(self, i: int, p: float) -> float:
@@ -1153,7 +1163,7 @@ class _Run:
         L = (
             _LIFT_LEN
             * lift
-            * (Wd / 36.0) ** 0.3
+            * _libm.power(Wd / 36.0, 0.3)
             * self.lift_var
             * (1.25 - 0.75 * float(self._pressure[-1]))
             * (0.5 if bt.shape == "round" else 1.0)
@@ -1335,14 +1345,16 @@ def _dab_lift(run: _Run) -> None:
     yy, xx = np.mgrid[y0:y1, x0:x1] + 0.5
     # the way the brush leaves (it is nudged from the first point to the last)
     d = np.array([cx - ax, cy - ay])
-    d = d / max(float(np.hypot(*d)), 1e-9)
+    d = d / max(_libm.hypot(float(d[0]), float(d[1])), 1e-9)
     peak = np.zeros_like(V)
     for k in range(int(rng.integers(1, 4))):
-        off = (0.15 + 0.2 * rng.random()) * r * d + rng.normal(0.0, 0.15 * r, 2)
+        off = (0.15 + 0.2 * rng.random()) * r * d + _random.normal(
+            rng, 0.0, 0.15 * r, 2
+        )
         size = (0.18 + 0.12 * rng.random()) * r
         weight = 1.0 if k == 0 else 0.3 + 0.4 * rng.random()
         dist2 = (xx - cx - off[0]) ** 2 + (yy - cy - off[1]) ** 2
-        peak += weight * np.exp(-dist2 / (2.0 * size * size))
+        peak += weight * _libm.np_exp(-dist2 / (2.0 * size * size))
     peak /= max(float(peak.max()), 1e-9)
     m = (V * peak).sum() / V.sum()
     fac = np.clip(1.0 + 2.0 * amp * (peak - m), 0.05, None)

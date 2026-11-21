@@ -8,8 +8,8 @@ from collections.abc import Iterator, Sequence
 
 import numpy as np
 
+from .. import _libm, spline, write_png
 from .. import spectral as sp
-from .. import spline, write_png
 from ..spline import Profile
 from . import _engine as eng
 from . import hatching
@@ -307,9 +307,15 @@ class Sheet:
         matte = np.maximum(dust - self.under[..., IX] - self.loose[..., IX], 0.0)
         if not self.film.any():
             # (no film: the shine of what the paper holds, as it was)
-            return self.cover * film * np.exp(-matte / cover / np.float32(SHEEN_HIDE))
+            return (
+                self.cover
+                * film
+                * _libm.np_exp(-matte / cover / np.float32(SHEEN_HIDE))
+            )
         matte += self._film_matte()
-        shine = self.cover * film * np.exp(-matte / cover / np.float32(SHEEN_HIDE))
+        shine = (
+            self.cover * film * _libm.np_exp(-matte / cover / np.float32(SHEEN_HIDE))
+        )
         if self.films[..., IX].any():
             shine = np.minimum(shine + self._film_sheen(cover, full), self.cover)
         return shine
@@ -332,7 +338,7 @@ class Sheet:
         below = self.films[..., 0, IX] / cover / full
         above = self.films[..., 1, IX] / cover / full
         over = np.maximum(self.loose[..., IV] - self.loose[..., IX], 0.0)
-        hidden = np.exp(-over / cover / np.float32(SHEEN_HIDE))
+        hidden = _libm.np_exp(-over / cover / np.float32(SHEEN_HIDE))
         # (the two shine as one film does: no more than fully)
         above = np.minimum(above, 1.0)
         return self.cover * (above + np.minimum(below, 1.0 - above) * hidden)
@@ -352,12 +358,12 @@ class Sheet:
             paste, film = self.paste[..., which], self.film[..., which]
             waxy = np.minimum(dry[..., which], 1.0)
             dust = np.maximum(layer[..., IV] - paste, 0.0)
-            seen *= np.exp(-dust / cover / np.float32(SHEEN_HIDE))
+            seen *= _libm.np_exp(-dust / cover / np.float32(SHEEN_HIDE))
             wax = film * waxy + paste
             over = np.minimum(wax / cover / np.float32(eng.COVERS), 1.0)
             seen = over + (1.0 - over) * seen
-            seen *= np.exp(-film * (1.0 - waxy) / cover / np.float32(SHEEN_HIDE))
-        return self.cover * slick * self.polish ** np.float32(WAX_POLISH) * seen
+            seen *= _libm.np_exp(-film * (1.0 - waxy) / cover / np.float32(SHEEN_HIDE))
+        return self.cover * slick * _libm.np_power(self.polish, WAX_POLISH) * seen
 
     def _ink_bronze(self) -> np.ndarray:
         """The bronze of heavy ink; see :meth:`shine`."""
@@ -368,7 +374,7 @@ class Sheet:
         heavy = np.clip((passes - INK_FROM) / (INK_FULL - INK_FROM), 0.0, 1.0)
         # (what the paper carries lies over the ink, on its share of the pixel)
         cover = np.maximum(self.cover, np.float32(1e-6))
-        hidden = self.cover * (1.0 - np.exp(-self.pigment() / cover / SHEEN_HIDE))
+        hidden = self.cover * (1.0 - _libm.np_exp(-self.pigment() / cover / SHEEN_HIDE))
         return (self.inked * heavy * (1.0 - hidden)).astype(np.float32)
 
     def reflectance(self) -> np.ndarray:
@@ -780,7 +786,7 @@ class Sheet:
         polished wax, and the bronze of ink, which has the ink's colour
         (:meth:`_add_bronze`)."""
         halfway = lamp + np.array([0.0, 0.0, 1.0])
-        halfway /= np.linalg.norm(halfway)
+        halfway /= _length(halfway)
         facing = self._facing(halfway, slopes)
         white = None
         lobes = (
@@ -792,7 +798,9 @@ class Sheet:
             filmed = self.film.any() and self.films[..., part].any()
             if not (self.held[..., part].any() or filmed):
                 continue
-            mirrored = self.shine(kind) * facing**shininess * (sheen * gloss)
+            mirrored = (
+                self.shine(kind) * _libm.np_power(facing, shininess) * (sheen * gloss)
+            )
             white = mirrored if white is None else white + mirrored
         if white is not None:
             white = white.astype(np.float32)
@@ -800,7 +808,9 @@ class Sheet:
         if self.ink is not None:
             heavy = self._ink_bronze()
             if heavy.any():
-                bronze = heavy * facing**INK_SHININESS * (INK_SHEEN * gloss)
+                bronze = (
+                    heavy * _libm.np_power(facing, INK_SHININESS) * (INK_SHEEN * gloss)
+                )
                 bronze = bronze.astype(np.float32)
         return white, bronze
 
@@ -1450,4 +1460,13 @@ def _check_light(light) -> np.ndarray:
         raise ValueError(
             f"light must shine from in front of the sheet (z > 0), got {light!r}"
         )
-    return L / np.linalg.norm(L)
+    return L / _length(L)
+
+
+def _length(v: np.ndarray) -> float:
+    """The length of a short vector, its squares summed in order (not by a
+    dot product, which BLAS sums in its own order)."""
+    total = 0.0
+    for x in np.asarray(v, dtype=np.float64).tolist():
+        total += x * x
+    return math.sqrt(total)

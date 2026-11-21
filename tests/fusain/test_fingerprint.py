@@ -1,8 +1,8 @@
 """The fingerprint of what the engine draws (``tools/fusain/fingerprint.py``): the
 drawings of its suite still give the hashes recorded for them, so a change
-that is not meant to alter the picture has not."""
+that is not meant to alter the picture has not; and they give them on every
+machine (CI runs this on x86-64, ARM and Windows)."""
 
-import functools
 import importlib.util
 import json
 import sys
@@ -29,11 +29,6 @@ fp = _tool()
 RECORDED = fp.load()
 
 
-@functools.cache
-def _same_arithmetic() -> bool:
-    return fp.arithmetic() == RECORDED["arithmetic"]
-
-
 def test_the_suite_is_the_recorded_one():
     assert {name for name, *_ in fp.runs()} == set(RECORDED["marks"])
     # (the thorough suite draws the recorded one too, and much more)
@@ -52,11 +47,6 @@ def test_the_suite_is_the_recorded_one():
 def test_a_drawing_gives_the_recorded_hashes(name, scene, paper, seed):
     marks = fp.draw(scene, paper, seed)
     differing = fp.differences({name: marks}, {name: RECORDED["marks"][name]})
-    if differing and not _same_arithmetic():
-        pytest.skip(
-            "this machine's arithmetic is not that of the recorded hashes "
-            f"({RECORDED['recorded on']})"
-        )
     assert not differing, (
         "the picture has changed (if it was meant to, record it again: "
         "python tools/fusain/fingerprint.py --record)"
@@ -135,7 +125,6 @@ def test_differences_name_what_differs():
 def test_the_tool_compares_and_saves(tmp_path, monkeypatch, capsys):
     marks = RECORDED["marks"]
     monkeypatch.setattr(fp, "fingerprint", lambda thorough=False: marks)
-    monkeypatch.setattr(fp, "arithmetic", lambda: RECORDED["arithmetic"])
     assert fp.main([]) == 0
     assert "identical" in capsys.readouterr().out
     saved = tmp_path / "saved.json"
@@ -146,11 +135,10 @@ def test_the_tool_compares_and_saves(tmp_path, monkeypatch, capsys):
     name = next(iter(marks))
     changed = {**marks, name: {**marks[name], "sheet.held": "0" * 16}}
     monkeypatch.setattr(fp, "fingerprint", lambda thorough=False: changed)
-    monkeypatch.setattr(fp, "arithmetic", lambda: "another")
     capsys.readouterr()
     assert fp.main(["--against", str(saved)]) == 1
     out = capsys.readouterr().out
-    assert f"{name}: sheet.held differs" in out and "arithmetic" in out
+    assert f"{name}: sheet.held differs" in out
     with pytest.raises(SystemExit):
         fp.main(["--thorough"])  # (the thorough suite has no recorded hashes)
     with pytest.raises(SystemExit):

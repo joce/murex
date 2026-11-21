@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from murex import _libm
+
 
 def test_compiled_max_filter_is_the_max_filter():
     from murex.filters import max_filter
@@ -61,7 +63,7 @@ def test_dab_patterns_are_laid_out_and_turned_as_before():
             )
         ]
         pts = np.asarray(pts) + rng.uniform(-0.35, 0.35, (len(pts), 2)) * spacing
-        heights = rng.uniform(0.25, 1.0, len(pts)) ** 0.6
+        heights = _libm.np_power(rng.uniform(0.25, 1.0, len(pts)), 0.6)
         radii = 0.62 * spacing * rng.uniform(0.75, 1.25, len(pts))
         out = np.zeros((n, n))
         cell = 2 * _dab.SPAN / n
@@ -72,8 +74,8 @@ def test_dab_patterns_are_laid_out_and_turned_as_before():
             y1 = min(int((py + rad + _dab.SPAN) / cell) + 2, n)
             if x0 >= x1 or y0 >= y1:
                 continue
-            d = np.hypot(X[y0:y1, x0:x1] - px, Y[y0:y1, x0:x1] - py)
-            cone = h * np.clip(1.0 - d / rad, 0.0, 1.0) ** 0.6
+            d = _libm.np_hypot(X[y0:y1, x0:x1] - px, Y[y0:y1, x0:x1] - py)
+            cone = h * _libm.np_power(np.clip(1.0 - d / rad, 0.0, 1.0), 0.6)
             np.maximum(out[y0:y1, x0:x1], cone, out=out[y0:y1, x0:x1])
         return out
 

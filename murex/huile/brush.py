@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import numpy as np
 
+from .. import _libm
 from .. import spectral as sp
 from ..filters import smoothstep
 from ..noise import value_noise_1d
@@ -67,8 +68,14 @@ _COL_X = (np.arange(COLUMNS) + 0.5) / COLUMNS
 # front and back of the bundle overlapping: a bristle at angle a lands at
 # u = -(2/pi) asin(sin a) across the mark (-1 = left edge, +1 = right edge).
 _RING_A = 2.0 * np.pi * (np.arange(COLUMNS) + 0.5) / COLUMNS
-# where across the mark each one lands
-_RING_X = (1.0 - (2.0 / np.pi) * np.arcsin(np.sin(_RING_A))) / 2.0
+# where across the mark each one lands: (2/pi) asin(sin a) is a triangle wave
+# of a, which for f = a / (2 pi) is 4 f, then 2 - 4 f, then 4 f - 4 (worked
+# out so, with no sine: the same on every machine)
+_f = (np.arange(COLUMNS) + 0.5) / COLUMNS
+_RING_X = (
+    1.0 - np.where(_f < 0.25, 4 * _f, np.where(_f < 0.75, 2 - 4 * _f, 4 * _f - 4))
+) / 2.0
+del _f
 for _table in (_COL_X, _RING_A, _RING_X):
     _table.flags.writeable = False
 del _table
@@ -622,15 +629,15 @@ class Brush:
         # less mixed: more, narrower streaks
         cell = COLUMNS / (2.0 + 5.0 * (1.0 - mixing))
         noise = np.stack([value_noise_1d(COLUMNS, cell, rng) for _ in paints])
-        logits = np.log(props)[:, None] + 12.0 * (1.0 - mixing) * (noise - 0.5)
-        w = np.exp(logits - logits.max(axis=0, keepdims=True))
+        logits = _libm.np_log(props)[:, None] + 12.0 * (1.0 - mixing) * (noise - 0.5)
+        w = _libm.np_exp(logits - logits.max(axis=0, keepdims=True))
         w /= w.sum(axis=0, keepdims=True)
         # keep each paint's overall share while keeping the streaks
         for _ in range(20):
             w *= (props * COLUMNS / np.maximum(w.sum(axis=1), 1e-12))[:, None]
             w /= w.sum(axis=0, keepdims=True)
         w = mixing * props[:, None] + (1.0 - mixing) * w
-        volume = max(amount, 0.0) * _VOLUME_PER_AMOUNT * self.width**2
+        volume = max(amount, 0.0) * _VOLUME_PER_AMOUNT * (self.width * self.width)
         col_vol = volume * spread
         for layer, dw in zip(self._layers(), weights, strict=True):
             if dw <= 0:
@@ -657,7 +664,8 @@ class Brush:
         passes, pressure = _number("passes", passes), _number("pressure", pressure)
         blend = self.type.physics()["blending"]
         widths = 3.0 * max(passes, 0.0)
-        k = float(eng.BLEND_RATE * blend * (0.2 + pressure) ** 2 * widths)
+        firm = 0.2 + pressure
+        k = float(eng.BLEND_RATE * blend * firm * firm * widths)
         for layer in self._layers():
             eng.diffuse(layer, k, self.ring)
         for _ in range(eng.whole_ceil(widths)):
@@ -698,7 +706,7 @@ class Brush:
     @property
     def amount(self) -> float:
         """Paint left on the brush, in the units of :attr:`Stroke.amount`."""
-        return self.volume / (_VOLUME_PER_AMOUNT * self.width**2)
+        return self.volume / (_VOLUME_PER_AMOUNT * (self.width * self.width))
 
     @property
     def paint(self) -> Paint | None:

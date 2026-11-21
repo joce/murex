@@ -9,6 +9,7 @@ import math
 
 import numpy as np
 
+from .. import _libm
 from . import _engine as eng
 
 
@@ -29,14 +30,14 @@ _BLADES = {
     # a pear / teardrop: tapering from a narrow heel to a round tip
     "pear": [(-1.0, -0.35)]
     + [
-        (0.3 + 0.7 * np.cos(t), -np.sin(t))
+        (0.3 + 0.7 * _libm.np_cos(t), -_libm.np_sin(t))
         for t in np.linspace(np.pi / 2, -np.pi / 2, 15)
     ][::-1]
     + [(-1.0, 0.35)],
     # a long straight blade with a rounded end
     "straight": [(-1.0, -1.0)]
     + [
-        (0.82 + 0.18 * np.cos(t), np.sin(t))
+        (0.82 + 0.18 * _libm.np_cos(t), _libm.np_sin(t))
         for t in np.linspace(-np.pi / 2, np.pi / 2, 11)
     ]
     + [(-1.0, 1.0)],
@@ -51,23 +52,25 @@ def _outline(shape: str, aspect: float, n: int = 400):
     if shape in _SUPERELLIPSE:
         e = _SUPERELLIPSE[shape]
         th = np.linspace(0, 2 * np.pi, n, endpoint=False)
-        cu, sv = np.cos(th), np.sin(th)
-        return np.sign(cu) * np.abs(cu) ** (2 / e), aspect * np.sign(sv) * np.abs(
+        cu, sv = _libm.np_cos(th), _libm.np_sin(th)
+        return np.sign(cu) * _libm.np_power(np.abs(cu), 2 / e), aspect * np.sign(
             sv
-        ) ** (2 / e)
+        ) * _libm.np_power(np.abs(sv), 2 / e)
     poly = np.asarray(_BLADES[shape], float)
     poly = np.vstack([poly, poly[:1]])
     seg = np.linalg.norm(np.diff(poly * [1.0, aspect], axis=0), axis=1)
     s = np.concatenate([[0.0], np.cumsum(seg)])
     t = np.linspace(0, s[-1], n, endpoint=False)
-    return np.interp(t, s, poly[:, 0]), aspect * np.interp(t, s, poly[:, 1])
+    return _libm.np_interp(t, s, poly[:, 0]), aspect * _libm.np_interp(t, s, poly[:, 1])
 
 
 @functools.lru_cache(maxsize=1024)
 def _footprint_area(shape: str, aspect: float) -> float:
     """Area of the footprint, in units of the half-width squared."""
     u, v = _outline(shape, aspect)
-    return float(0.5 * abs(np.dot(u, np.roll(v, -1)) - np.dot(v, np.roll(u, -1))))
+    # (sums in numpy's pairs, not dot products, which BLAS sums in its own order)
+    twice = np.sum(u * np.roll(v, -1)) - np.sum(v * np.roll(u, -1))
+    return float(0.5 * abs(twice))
 
 
 def _chord_table(shape: str, aspect: float, phi: float):
@@ -90,8 +93,9 @@ def _chord_table(shape: str, aspect: float, phi: float):
 def _chord_table_at(shape: str, aspect: float, phi: float):
     """:func:`_chord_table` for an aspect and angle already rounded."""
     u, v = _outline(shape, aspect)
-    lat = u * np.cos(phi) - v * np.sin(phi)
-    al = u * np.sin(phi) + v * np.cos(phi)
+    cos, sin = _libm.np_cos(phi), _libm.np_sin(phi)
+    lat = u * cos - v * sin
+    al = u * sin + v * cos
     lmax = float(np.abs(lat).max())
     grid = np.linspace(-lmax, lmax, 257)
     l0, l1 = lat[None, :], np.roll(lat, -1)[None, :]
