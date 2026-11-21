@@ -291,6 +291,7 @@ with `murex.aquarelle`, the first medium written for it.
 ## Development
 
 ```bash
+git lfs install                # once per machine, before cloning: the images are in Git LFS
 uv sync --group dev --frozen   # install the package and the development tools
 uv run pytest -n auto          # the tests on every core (the first run compiles the kernels)
 uv run pytest tests/fusain     # one medium's tests only
