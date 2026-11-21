@@ -5,6 +5,7 @@
     python tools/huile/knife_probe.py ribs --save DIR   # also keep the pictures
     python tools/huile/knife_probe.py ribs --finer 2    # in steps half as long
     python tools/huile/knife_probe.py skim --base 1     # over a thinner dark base
+    python tools/huile/knife_probe.py skim --step 2     # white cut into steps of 2 px
 
 ``ribs`` (murex-sdz, murex-bja): white knifed across a thick wet dark at
 pressure 0.25 leaves ribs parallel to the blade. The table gives how thick
@@ -16,7 +17,13 @@ period was the step of the stroke: 8 px for a blade this long (``spacing`` in
 ``murex/huile/stroke.py``). A stroke must not show how it is cut into steps:
 ``--finer K`` cuts the white pull into steps K times shorter, and the table
 should stay much as it is (the ripple left is the base's own, and the slow
-waver of the blade, half a blade apart).
+waver of the blade, half a blade apart). ``--step S`` cuts it instead into
+steps of S px at most, as a stroke would with ``_MAX_STEP`` of
+``murex/huile/stroke.py`` at S rather than 8: unlike ``--finer``, it leaves
+the stroke's random textures as they are, where the wobble of the width
+draws as many random numbers either way (it counts its noise in steps:
+``--finer`` draws more, and the pull's blade tilts and its bands wander
+otherwise, which can change what a light pull leaves by a sixth).
 
 ``skim`` (murex-iaa, murex-dnj): white knifed over a wet dark at a light
 touch, for some pressures and loads. The table gives the volume each stroke
@@ -42,7 +49,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from murex import spline
-from murex.huile import Brush, Canvas, Paint, _knife, brushes
+from murex.huile import Brush, Canvas, Paint, _knife, brushes, stroke
 from murex.huile import palette as P
 
 DARK = "#1c1a24"
@@ -83,21 +90,34 @@ class Finer(spline.Path):
         return self.path.sample(spacing / self.k)
 
 
-def pull(canvas: Canvas, start, load: float, pressure: float, finer: int = 1) -> None:
+def pull(
+    canvas: Canvas,
+    start,
+    load: float,
+    pressure: float,
+    finer: int = 1,
+    step: float | None = None,
+) -> None:
     """One pull of white, 270 px long, the blade across it (cut into steps
-    ``finer`` times shorter than a stroke's)."""
+    ``finer`` times shorter than a stroke's, and of ``step`` px at most)."""
     x, y = start
     knife = Brush(SNOW_KNIFE).load(P.TITANIUM_WHITE, load)
     path = [(x, y), (x + 110, y + 80), (x + 220, y + 160)]
-    canvas.stroke(
-        Finer(path, finer) if finer > 1 else path,
-        None,
-        brush=knife,
-        angle=ACROSS,
-        follow_path=False,
-        pressure=pressure,
-        lift=0.0,
-    )
+    longest = stroke._MAX_STEP
+    if step is not None:
+        stroke._MAX_STEP = step
+    try:
+        canvas.stroke(
+            Finer(path, finer) if finer > 1 else path,
+            None,
+            brush=knife,
+            angle=ACROSS,
+            follow_path=False,
+            pressure=pressure,
+            lift=0.0,
+        )
+    finally:
+        stroke._MAX_STEP = longest
 
 
 def along_the_pull(thickness: np.ndarray, start, band: int = 14) -> np.ndarray:
@@ -134,7 +154,7 @@ def ribs(args: argparse.Namespace) -> None:
                 _knife._drag_film = drag_film if drag else lambda *_a, **_k: None
                 canvas = Canvas(420, 300, seed=1)
                 dark_base(canvas, args.base, body)
-                pull(canvas, (90, 50), 0.3, 0.25, args.finer)
+                pull(canvas, (90, 50), 0.3, 0.25, args.finer, args.step)
                 values = along_the_pull(canvas.wet_thickness, (90, 50))
                 rms, period = ripple(values)
                 print(
@@ -159,7 +179,14 @@ def skim(args: argparse.Namespace) -> None:
         row = []
         for j, load in enumerate(loads):
             before = float(canvas.wet_thickness.sum())
-            pull(canvas, (60 + j * 340, 40 + i * 215), load, pressure, args.finer)
+            pull(
+                canvas,
+                (60 + j * 340, 40 + i * 215),
+                load,
+                pressure,
+                args.finer,
+                args.step,
+            )
             row.append(float(canvas.wet_thickness.sum()) - before)
         print(f"{pressure:8.2f}  " + "  ".join(f"{v:9.1f}" for v in row))
     if args.save:
@@ -181,6 +208,12 @@ def main() -> None:
         default=1,
         metavar="K",
         help="cut each white pull into steps K times shorter",
+    )
+    parser.add_argument(
+        "--step",
+        type=float,
+        metavar="S",
+        help="cut each white pull into steps of S px at most (a stroke's: 8)",
     )
     parser.add_argument("--save", metavar="DIR", help="keep the pictures in DIR")
     args = parser.parse_args()
