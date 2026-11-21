@@ -49,6 +49,17 @@ _KNIFE_END_OUT = 2.5
 _KNIFE_BEAD = 1.5
 _KNIFE_TOUCH = 0.7
 _KNIFE_BEAD_HEIGHT = 1.2
+# How fast a skimming blade lays as it slides over a pixel, as a length of
+# blade along the stroke (px): over each such length the bead leaves
+# 1 - e^(-4/n) of its height there, and the film fills (1 - skim) of what a
+# blade spreading it fills, n being how many such lengths the blade is
+# along the stroke (n = 0.4 + 2h over this, h its half-length along the
+# stroke; see _slab). So the longer the blade along the stroke, the more it
+# lays, leveling off at 4 times the bead's height. A rate per px of blade,
+# not per step: it was the stroke's nominal step, 8 px (what it is for a
+# knife 32 px or longer), and a stroke cut into shorter steps laid more
+# (murex-86z).
+_KNIFE_SKIM_PX = 8.0
 # A knife rides no higher than this times the paint film under its blade.
 _KNIFE_FILM = 0.5
 # Radius (px) over which wet paint dragged by a blade moves together (viscosity).
@@ -467,10 +478,23 @@ def _drag_film(run: _Run, s: _Step, level, hang, film):
         np.clip((0.5 + 0.45 * st.hold.p) * (0.6 + 0.8 * hair), 0.0, 1.0),
         _VISCOUS,
         film,
-        hang,
+        # (the bead finds the surface under the stroke's own paint, see
+        # _slab: hanging from a level raised by that paint, it finds the
+        # paint's surface as far below it as the one under it)
+        hang + _own_paint(run, s),
         np.minimum(film, _KNIFE_BEAD_HEIGHT),  # (the bead: see _slab)
     )
     return gaps if gaps.size else None
+
+
+def _own_paint(run: _Run, s: _Step, surf_add=None):
+    """The stroke's own paint over each pixel of the step's part of the
+    canvas (past its edge, see :func:`_whole_window`, the slab it laid out
+    there: the nearest canvas pixel's, plus ``surf_add``)."""
+    canvas = run.canvas
+    at = _nearest(run, s.st.win)
+    own = np.where(canvas.top_id[at] == run.stroke_id, canvas.top[..., IV][at], 0.0)
+    return own if surf_add is None else own + surf_add
 
 
 def _fill_under_blade(
@@ -724,13 +748,14 @@ def _slab(
     # one passed over in one: a sawtooth along a pointed or rounded blade
     # end, where the blade is shorter along the stroke than a step.) How
     # much a skimming blade fills, and how much its bead leaves, over a
-    # whole pass depends on how long the blade is along the stroke: as
-    # much as its nominal steps would have, the same on a curve or a
-    # pointed end (n: the blade's length along the stroke over a nominal
-    # step, as in _engine.own_lift).
+    # whole pass depends on how long the blade is along the stroke, the
+    # same on a curve or a pointed end (n: that length in _KNIFE_SKIM_PX,
+    # not in the stroke's nominal steps, as it was: then the shorter a
+    # stroke's steps, the more a skimming blade laid, half as much again
+    # in steps of 2 px rather than 8; murex-86z).
     n = 1.0
     if skim > 0:
-        n = np.maximum(0.4 + 2.0 * s.h[wsl] / run.K.spacing, 1.0)
+        n = np.maximum(0.4 + 2.0 * s.h[wsl] / _KNIFE_SKIM_PX, 1.0)
         per_step = 1.0 - (1.0 - skim) * (1.0 - np.exp(-4.0 / n))
         k_fill = -n * np.log(np.maximum(per_step, 1e-12))
     else:  # (the same: per_step is e^(-4/n))
@@ -755,6 +780,13 @@ def _slab(
     )
     if skim > 0 and run.bt.clumps == 0:
         bead = np.minimum(film, _KNIFE_BEAD_HEIGHT)
+        # The bead runs along the blade's edge: it passes over a pixel once
+        # in a pass, and touches what was there before the stroke, as the
+        # blade rests on it (see _blade_rest), not the paint it has just
+        # left there. (Touching that too, it caught the more the more it
+        # had laid, and laid the more the more steps the pass was cut
+        # into: a tenth more in steps of 2 px rather than 8; murex-86z.)
+        surf = surf - _own_paint(run, s, surf_add)
         touch = np.clip((surf - (hang - bead)) / np.maximum(bead, 1e-6), 0.0, 1.0)
         # the bead is uneven and the paint below still follows the threads
         # of the canvas: barely touching, it catches in streaks along the

@@ -49,6 +49,74 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** what a knife barely touching lays no
+  longer depends on how its stroke is cut into steps (murex-86z). Skimming
+  (pressure under 0.3), the bead of paint on the blade's edge laid more the
+  shorter the steps: a straight knife 110 px long pulling white at pressure
+  0.03, loaded with 8, left 18860 units on the bare canvas in a stroke's own
+  steps (8 px at most), 26558 in steps of 4 px and 32506 in steps of 2 px
+  (x1.72; x1.50 loaded with 3, x1.29 at pressure 0.08). Two things made it,
+  both in `_knife._slab`:
+  - How much the bead leaves over a pass, and how much of the gap a
+    skimming blade's film fills, grow with the blade's length along the
+    stroke, which was counted in the stroke's nominal steps: the shorter
+    those, the more paint. It is now counted in a length of the blade's own,
+    8 px (`_KNIFE_SKIM_PX`), what the nominal step was for a blade 32 px or
+    longer. On its own this took the pull above from x1.72 to x1.11.
+  - The bead touched the surface with the paint it had just laid on it in
+    the same pass, so it caught the more the more it had laid, and the more
+    steps a pass was cut into, the more it laid (the x1.11 left). The bead
+    runs along the blade's edge and passes over a pixel once: it now touches
+    the surface under the stroke's own paint, as the blade rests on it.
+
+  Measured with `tools/huile/knife_probe.py skim --step` (new: the white cut
+  into steps of at most 4 and 2 px), pressures 0.03, 0.05, 0.08, 0.15 and
+  0.25, loads 0.3, 1, 2, 3 and 8, a pull at a time: what a pull leaves in
+  steps of 4 and 2 px is within 1.0% of what it leaves in a stroke's own
+  steps over the bare canvas and 0.7% over a thin wet base (it was up to
+  1.74 times as much). Over thicker wet paint it is not, and that is not
+  the bead's doing: where the blade rests on wet paint is read once per
+  step (murex-kau, not changed here). A straight knife 60 px long skimming
+  at pressure 0.03, loaded with 0.3, over a dark base 2 to 3 units thick
+  leaves 0.928 as much in steps of 2 px as in its own (six seeds: 0.915 to
+  0.945), 0.922 in steps of 1 px, 0.950 at pressure 0.05; over a wet white
+  laid on that dark, 0.920 (0.906 to 0.939), and loaded with 8, 0.938 in
+  steps of 2 px and 0.922 in steps of 1 px (0.904 at worst). (In review,
+  over other wet whites: 0.835 in steps of 2 px and 0.775 in steps of 1 px;
+  over the dark, 0.878 at worst.) With the blade resting on the canvas
+  alone, as on bare canvas, all of these are within 1.2%. These comparisons
+  draw the stroke's textures alike: `--finer K`, which cuts the path finer,
+  gives the same as `--step 8/K` once they are; as it is, it draws other
+  random numbers for them (the wobble of the width counts its noise in
+  steps), and a pull's blade tilts otherwise: a light pull leaves up to 17%
+  more or 8% less, as a different seed does.
+
+  In a stroke's own steps a heavily loaded blade at the lightest touch now
+  lays less than it did, since its bead no longer feeds on its own paint:
+  loaded with 3 or 8 at pressure 0.03 to 0.05, 17 to 35% less (12556
+  against 18860 for the pull above; 15441 against 21137 over a thick wet
+  base), loaded with 2, 12 to 27% less; at pressure 0.08 loaded with 8, 14
+  to 19% less; loaded with 0.3 or 1, up to 10% less; at pressure 0.15 up
+  to 2.4% less, at 0.25 within 0.6% of what it did. (Its bead could be
+  made to lay more to make up for it; that is left to murex-dnj, which
+  reworks it.) Knives shorter than 32 px, whose own step was shorter than
+  8 px, lay less in their own steps also because of the length the bead is
+  now reckoned by, on its own: at pressure 0.03, loaded with 8, a trowel 18
+  px long 19% less (912 to 734, three pulls), a straight knife 24 px long
+  14% less, a spoon 26 px long 12% less; with both changes 0.65 to 0.78 of
+  what they laid (649, 829 and 1254 against 912, 1061 and 1916). Within one
+  stroke, a zigzag's return leg over its first now lays about what a
+  second stroke pulled back over it lays (2204 against 2425, a straight
+  knife 60 px long at pressure 0.03 loaded with 8, over the bare canvas);
+  it laid twice as much (5590 against 2863), its bead catching on the
+  paint its first leg had left. What a pull leaves still rises with the
+  load (murex-iaa): 2808, 9124, 11573, 11818 and 12556 for loads 0.3 to 8. Paint is conserved as before. Of the 16 scenes of
+  `tools/huile/bench.py`, three change, where knives skim: `knife` (0.43% of
+  the pixels of the lit picture move by more than 1/255, 18/255 at most),
+  `knife-lift` (0.44%, 215/255 at most) and `painting` (0.33%, 75/255 at
+  most). The others are identical. `murex.huile.stroke._MAX_STEP` names the
+  longest step of a stroke (8 px), so that tests and tools can shorten it.
+
 - **Breaking, in huile's pictures:** a knife dragging wet paint no longer
   shows how its stroke is cut into steps (murex-sdz). A knife pulled across
   thick wet paint left fine ribs parallel to its blade, one per step of the

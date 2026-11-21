@@ -77,6 +77,12 @@ _LIFT_CREST = 4.0
 _LEVEL_PASSES = 12
 _SOFTEN_PASSES = 2
 
+# --- cutting a stroke into steps (see _sample_stroke) ------------------------------
+# The longest step (px): a stroke is cut into steps a quarter of the tool's
+# width long, no longer than this. (Tests and tools/huile/knife_probe.py
+# set it lower, to see whether what a stroke lays depends on its steps.)
+_MAX_STEP = 8.0
+
 
 def _check_profile(name: str, profile, size: bool = False) -> None:
     """A width, pressure, angle or roll: a number, a sequence of numbers or a
@@ -478,7 +484,7 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         path.n_knots,
     )
     w_typ = max(float(np.mean(w_probe)), 1.0)
-    spacing = float(np.clip(0.25 * w_typ, 0.5, 8.0))
+    spacing = float(np.clip(0.25 * w_typ, 0.5, _MAX_STEP))
     taper = eff["taper"]
     t0, t1 = (taper, taper) if isinstance(taper, (int, float, np.number)) else taper
 
