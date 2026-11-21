@@ -303,21 +303,31 @@ def _blade_rest_ref(run, s, at=None):
 
 
 def _blade_level_ref(run, s, gap, film, at=None):
+    """(and, skimming, the level the bead on its edge hangs from: the blade
+    riding on no more paint than the bead, murex-iaa)"""
     from murex.filters import smoothstep
-    from murex.huile._knife import _KNIFE_FILM, _KNIFE_SKIM
+    from murex.huile._knife import _KNIFE_BEAD_HEIGHT, _KNIFE_FILM, _KNIFE_SKIM
 
     st, wsl = s.st, s.wsl
     rest = _blade_rest_ref(run, s, at)
     hair = s.hair[wsl]
-    ride = np.minimum(gap, _KNIFE_FILM * film) if run.bt.clumps == 0 else gap
-    chat = 0.25 * (1.0 - float(smoothstep(_KNIFE_SKIM, 0.05, st.hold.p)))
-    level = rest + ride * (
-        1.0
-        + chat * run.chatter[st.motion.i]
-        + 0.12 * (hair - 0.5)
-        + run.blade_tilt * np.clip(s.F[eng.F_U][wsl], -1.0, 1.0)
-    )
-    return level, ride
+    skim = float(smoothstep(_KNIFE_SKIM, 0.05, st.hold.p))
+    chat = 0.25 * (1.0 - skim)
+
+    def riding_on(paint):
+        ride = np.minimum(gap, _KNIFE_FILM * paint) if run.bt.clumps == 0 else gap
+        level = rest + ride * (
+            1.0
+            + chat * run.chatter[st.motion.i]
+            + 0.12 * (hair - 0.5)
+            + run.blade_tilt * np.clip(s.F[eng.F_U][wsl], -1.0, 1.0)
+        )
+        return level, ride
+
+    level, ride = riding_on(film)
+    if skim > 0 and run.bt.clumps == 0:
+        return level, ride, riding_on(np.minimum(film, _KNIFE_BEAD_HEIGHT))[0]
+    return level, ride, level
 
 
 def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
@@ -334,7 +344,7 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
     from murex.huile import _knife as kn
     from murex.huile import palette as P
 
-    checked = {"on": 0, "whole": 0, "wide": 0}
+    checked = {"on": 0, "whole": 0, "wide": 0, "hang": 0}
     original = kn._knife_step
 
     def same(got, want):
@@ -347,10 +357,11 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
         gap, _ = kn._blade_gap(run, st.hold.p)
         if st.win.ch and st.win.cw:
             film = kn._film(run, s, area)
-            level, ride = kn._blade_level(run, s, gap, film)
-            want_l, want_r = _blade_level_ref(run, s, gap, film)
-            assert same(level, want_l) and same(ride, want_r)
+            level, ride, hang = kn._blade_level(run, s, gap, film)
+            want_l, want_r, want_h = _blade_level_ref(run, s, gap, film)
+            assert same(level, want_l) and same(ride, want_r) and same(hang, want_h)
             checked["on"] += 1
+            checked["hang"] += hang.tobytes() != level.tobytes()
             checked["wide"] += st.win.cw > 128
         if st.win.ch < st.win.hh or st.win.cw < st.win.ww:
             whole = kn._whole_window(run, s)
@@ -360,9 +371,9 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
             xs = np.clip(np.arange(st.win.x0, st.win.x0 + st.win.ww), 0, W - 1)
             at = np.ix_(ys, xs)
             film = kn._film(run, sw, area)
-            level, ride = kn._blade_level(run, sw, gap, film)
-            want_l, want_r = _blade_level_ref(run, sw, gap, film, at)
-            assert same(level, want_l) and same(ride, want_r)
+            level, ride, hang = kn._blade_level(run, sw, gap, film)
+            want_l, want_r, want_h = _blade_level_ref(run, sw, gap, film, at)
+            assert same(level, want_l) and same(ride, want_r) and same(hang, want_h)
             canvas = run.canvas
             own = np.where(
                 canvas.top_id[at] == run.stroke_id, canvas.top[at][..., IV], 0.0
@@ -395,6 +406,7 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
         blade = Brush(brushes.SCRAPER.sized(260)).load(P.TITANIUM_WHITE, 3.0)
         wide.stroke([(200, y - 40), (205, y + 30)], brush=blade, pressure=0.6)
     assert checked["on"] > 100 and checked["whole"] > 50 and checked["wide"] > 3
+    assert checked["hang"] > 10  # (skimming, with more paint than a bead)
 
 
 def test_a_strided_sum_is_not_that_of_its_copy():

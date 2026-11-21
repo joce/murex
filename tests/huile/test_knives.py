@@ -1,5 +1,7 @@
 """Knives: slabs, scraping, dragging wet paint, combs and lifting off."""
 
+from itertools import pairwise
+
 import numpy as np
 import pytest
 
@@ -461,6 +463,55 @@ def test_a_knife_going_back_over_its_slab_covers_the_same_at_pressure_0_3():
     at, below = back(0.3), back(float(np.nextafter(0.3, 0.0)))
     assert np.abs(at.top_a.astype(float) - below.top_a).max() < 1e-6
     assert np.abs(at.top_v.astype(float) - below.top_v).max() < 1e-6
+
+
+def _skimmed(load, pressure, base):
+    """What a knife barely touching leaves (volume), white pulled with its
+    blade across the pull over the bare canvas or a wet dark ``base`` (the
+    load of its pulls), and whether the paint is all accounted for."""
+    c = Canvas(240, 190, seed=1)
+    if base:
+        for x in (50, 130, 210):
+            c.stroke(
+                [(x, 8), (x, 182)],
+                brush=Brush(brushes.knife("straight", 90, flex=0.5)).load(
+                    Paint("#1c1a24"), base
+                ),
+                angle=0,
+                follow_path=False,
+                pressure=0.7,
+                lift=0.0,
+                seed=1,
+            )
+    knife = Brush(brushes.knife("straight", 60, flex=0.5)).load(P.TITANIUM_WHITE, load)
+    held, before = knife.volume, float(np.asarray(c.top_v + c.und_v, float).sum())
+    knife = c.stroke(
+        [(70, 40), (120, 76), (170, 112)],
+        brush=knife,
+        angle=-54,
+        follow_path=False,
+        pressure=pressure,
+        lift=0.0,
+        seed=1,
+    )
+    laid = float(np.asarray(c.top_v + c.und_v, float).sum()) - before
+    return laid, laid + knife.volume == pytest.approx(held, rel=1e-6)
+
+
+@pytest.mark.parametrize("base", [0.0, 4.0])
+def test_a_knife_barely_touching_leaves_more_the_more_it_carries(base):
+    # Skimming, the bead on the blade's edge touches the high points however
+    # much the blade carries. It hung from the level the blade's whole film
+    # held it up at, so more paint lifted it off: at pressure 0.03, loads 1
+    # and 3 left nothing at all (murex-iaa).
+    for pressure in (0.03, 0.08):
+        laid = []
+        for load in (0.3, 1.0, 3.0, 8.0):
+            v, kept = _skimmed(load, pressure, base)
+            assert kept, (pressure, load)
+            laid.append(v)
+        assert all(b >= 0.97 * a for a, b in pairwise(laid)), (pressure, laid)
+        assert laid[-1] > 2.5 * laid[0], (pressure, laid)
 
 
 def test_paint_shoved_onto_its_own_kind_does_not_tie_with_the_film_over_it():
