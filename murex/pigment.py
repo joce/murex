@@ -92,8 +92,9 @@ class Pigment:
         srgb = sp.parse_color(color)
         srgb.flags.writeable = False
         target = sp.linear_rgb_to_reflectance(sp.srgb_to_linear(srgb))
-        lum = float(sp.LUMINANCE @ sp.srgb_to_linear(srgb))
-        S = SCATTER_MAX * _scatter_factor(lum) * opacity**2
+        r, g, b = sp.srgb_to_linear(srgb)
+        lum = float(r * sp.LUMINANCE[0] + g * sp.LUMINANCE[1] + b * sp.LUMINANCE[2])
+        S = SCATTER_MAX * _scatter_factor(lum) * (opacity * opacity)
         K = sp.solve_absorption(target, S)
         self.K = K * strength
         self.S = S * strength

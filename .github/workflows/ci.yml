@@ -61,6 +61,26 @@ jobs:
       - name: Run tox
         run: uvx --with tox-uv tox -e py${{ matrix.python-version }}
 
+  # The tests on an ARM processor: the colour science must give there, to the
+  # bit, the numbers pinned on x86-64 (tests/test_bits.py, tests/test_libm.py).
+  arm:
+    needs: spell-check
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags needed for hatch-vcs version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "latest"
+          python-version: "3.15"
+
+      - name: Run the tests
+        run: uvx --with tox-uv tox -e test
+
   distribution-and-windows:
     needs: spell-check
     runs-on: windows-latest
