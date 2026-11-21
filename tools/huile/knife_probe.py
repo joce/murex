@@ -17,8 +17,12 @@ there and run this again.
 
 ``skim`` (murex-iaa, murex-dnj): white knifed over a wet dark at a light
 touch, for some pressures and loads. The table gives the volume each stroke
-left on the canvas: at the lightest touch, more paint on the blade leaves
-less of a mark.
+left on the canvas: at a given touch it rises with the load. (At the
+lightest touch, more paint on the blade left less of a mark, down to nothing
+at loads 1 and 3: its bead hung from the level the blade's whole film held
+it up at, murex-iaa.) The dark base of the default (``--base 5``) covers the
+canvas; a thin one (``--base 1``) runs out below the first row of pulls,
+which lie over the bare canvas.
 
 Both paint with fixed seeds, so the same code prints the same numbers.
 """

@@ -78,6 +78,23 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
     for 1e-24 of the line's pigment, which the line of the example above now
     leaves past its edge: its count leaves out a row holding less than a
     millionth of the fullest one.
+- **Breaking, in huile's pictures:** a knife barely touching (pressure under
+  0.3, where it skims) lays more the more paint it carries. Its bead hung
+  from the level the blade's whole film held it up at, and reached at most
+  1.2 below that, so a blade carrying more than twice that of paint lifted its
+  bead off the surface: at pressure 0.03 a straight knife 110 px long pulling
+  white over the bare canvas left 2925 units loaded with 0.3, nothing loaded
+  with 1, 2 or 3, and 1194 (only an outline squeezed out at its sides) loaded
+  with 8. The bead now hangs from the blade as it would ride on no more paint
+  than the bead, the same level as before where the blade carries no more than
+  that (murex-iaa). The same pulls now leave 2928, 9693, 16785, 18938 and
+  20724 (loads 0.3, 1, 2, 3, 8), and from pressure 0.03 to 0.25 over the bare
+  canvas, a thin and a thick wet base, what a pull leaves no longer falls as
+  the load rises (`tools/huile/knife_probe.py skim`). Of the 16 scenes of
+  `tools/huile/bench.py`, three change, where knives skim: `knife` (0.27% of
+  the pixels of the lit picture move by more than 1/255, 18/255 at most),
+  `knife-lift` (0.82%, the two strokes laid at pressure 0.2; 215/255 at most)
+  and `painting` (0.54%, 109/255 at most). The others are identical.
 - `spectral` derives `SPECTRUM_TO_RGB` and its basis spectra when
   `WAVELENGTHS` is given another number of bands than the 24 the stored
   tables are for (an experiment: the pictures are checked with 24). huile's
