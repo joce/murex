@@ -57,13 +57,7 @@ import math
 import numpy as np
 from numba import njit
 
-from .. import _libm
 from ..spectral import N_BANDS
-
-#: The digest of ``murex/_libm.py``, whose functions these kernels compile
-#: into themselves: numba makes a cached kernel again only when its own file
-#: changes, so a change to that one changes this line too (a test checks).
-LIBM = "7e0f8d157943cac3"
 
 #: What a kernel calls for every pixel (see above).
 _inlined = njit(cache=True, error_model="numpy", inline="always")
@@ -137,7 +131,7 @@ REACH_POWER = 0.6
 #: lightest bearings, where it bends hardest, and within 2e-6 from 0.05 up.
 REACH_TOP = 2.0
 REACH_STEPS = 2048
-REACH_TABLE = _libm.np_power(np.linspace(0.0, REACH_TOP, REACH_STEPS + 1), REACH_POWER)
+REACH_TABLE = np.linspace(0.0, REACH_TOP, REACH_STEPS + 1) ** REACH_POWER
 #: Share of that reach a paper with no give leaves, and what full give adds.
 GIVE_NONE = 0.6
 GIVE_FULL = 0.8
@@ -1360,7 +1354,7 @@ def reach_curve(bearing):
     out beyond it)."""
     at = bearing * (REACH_STEPS / REACH_TOP)
     if at >= REACH_STEPS:
-        return _libm.power(bearing, REACH_POWER)
+        return bearing**REACH_POWER
     i = int(at)
     return REACH_TABLE[i] + (at - i) * (REACH_TABLE[i + 1] - REACH_TABLE[i])
 
@@ -1623,7 +1617,7 @@ def turning(xs, ys, i):
     going = math.sqrt(ax * ax + ay * ay) + math.sqrt(bx * bx + by * by)
     if going <= 1e-9:
         return 0.0
-    angle = _libm.atan2(ax * by - ay * bx, ax * bx + ay * by)
+    angle = math.atan2(ax * by - ay * bx, ax * bx + ay * by)
     if angle > 0.5 * math.pi:
         angle -= math.pi
     elif angle < -0.5 * math.pi:
@@ -1654,7 +1648,7 @@ def turned(tx, ty, angle, part, parts):
     if parts <= 1:
         return tx, ty
     turn = angle * ((part + 0.5) / parts - 0.5)
-    cos, sin = _libm.cos(turn), _libm.sin(turn)
+    cos, sin = math.cos(turn), math.sin(turn)
     return tx * cos - ty * sin, ty * cos + tx * sin
 
 
@@ -1766,7 +1760,7 @@ def law_of(medium, paper):
     # (a level paper is touched all over: any pressure reaches all of it,
     # short of the bottom of a groove)
     reach = reach / depth if depth > 1e-6 else 1e9 * reach
-    shape = FILL_HARD + (1.0 - FILL_HARD) * _libm.power(softness, 1.5)
+    shape = FILL_HARD + (1.0 - FILL_HARD) * softness**1.5
     full = (
         FILL
         * shape
@@ -1831,7 +1825,7 @@ def band_way(xs, ys, at, leg, end, ax, ay, far):
     # (how far past the cut the paper on the stroke's side of this line can
     # lie, at most: behind the cut, for the end; ahead of it, for the start)
     past = bx * tx + by * ty
-    past = (past if end > 0 else -past) + far * _libm.hypot(tx - ax, ty - ay)
+    past = (past if end > 0 else -past) + far * math.hypot(tx - ax, ty - ay)
     return tx, ty, past > -1e-6
 
 
@@ -1998,7 +1992,7 @@ def lay_stroke(
             continue
         flat = shapes[i, 0]
         if wear > 0.0:  # the flat grows with what the tip has laid
-            flat = min(_libm.cbrt(flat**3 + wear * max(worn + total, 0.0)), lead)
+            flat = min((flat**3 + wear * max(worn + total, 0.0)) ** (1.0 / 3.0), lead)
         tilt, side = shapes[i, 1], shapes[i, 2]
         bound = tip_at(now, tilt, side, flat, reach, i, xs, ys, pressures, even)
         reached = max(reached, bound)
@@ -2133,7 +2127,7 @@ def face_gives(giving, near, rate):
     such units there are to give: none, of a face with nothing on it."""
     each = 1.0
     if rate > 1e-9:
-        each = (1.0 - _libm.exp(-rate)) / rate
+        each = (1.0 - math.exp(-rate)) / rate
     some = False
     for part in range(giving.shape[0]):
         giving[part] = max(near[part], 0.0) * each  # (but for rounding)
@@ -2718,7 +2712,7 @@ def soak(load, deep, room, depth, worked):
     if depth > 0.0 and worked > 0.0:
         gap = there / room - within / depth  # (how much fuller the surface is)
         rate = SOAK_IN if gap > 0.0 else SOAK_OUT
-        closes = 1.0 - _libm.exp(-rate * worked)
+        closes = 1.0 - math.exp(-rate * worked)
         moved = gap * closes * room * depth / (room + depth)  # (into the deep)
         # (as a share of what it comes from, which is never more than all)
         if moved > 0.0:
@@ -3285,7 +3279,7 @@ def blot(
 @_inlined
 def turn_of(tx, ty, wx, wy):
     """The angle, in radians (0 to pi), between two unit headings."""
-    return _libm.atan2(abs(tx * wy - ty * wx), tx * wx + ty * wy)
+    return math.atan2(abs(tx * wy - ty * wx), tx * wx + ty * wy)
 
 
 @njit(cache=True, error_model="numpy")
@@ -3438,7 +3432,7 @@ def roll_stroke(
     # the pen lands with, and the share of that which comes round where it
     # lands (a pen just picked up lands with that much, all of which does)
     most = BALL_BLOB * BALL_INK * flow * blots * bound * bound
-    seldom = _libm.power(unit_noise(0, 2, salt + 3), BALL_SELDOM)
+    seldom = unit_noise(0, 2, salt + 3) ** BALL_SELDOM
     gathered, coming = rim[0], BALL_START * seldom
     if gathered != gathered:
         gathered, coming = most * BALL_START * seldom, 1.0
@@ -3474,7 +3468,7 @@ def roll_stroke(
         else:
             comes, turned = gathered * coming, 0.0
         wx, wy, down = tx, ty, True
-        low = 1.0 - reach * _libm.power(pressure, BALL_POWER)
+        low = 1.0 - reach * pressure**BALL_POWER
         if comes >= least:
             # it leaves as much of it as it bears on the paper, on a dot as
             # much wider than the paper the ball meets as BLOB_WIDE says

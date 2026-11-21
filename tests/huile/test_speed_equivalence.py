@@ -7,7 +7,6 @@ import math
 import numpy as np
 from numba import njit
 
-from murex import _libm
 from murex.huile import _engine as eng
 from murex.huile._engine import IV, PACKED, SAME_LAYER, SAME_PAINT
 
@@ -22,7 +21,7 @@ def _harmless_ref(top, und):
     tot = 0.0
     for c in range(IV):
         tot += abs(
-            _libm.log1p(max(top[c], zero) / va) - _libm.log1p(max(und[c], zero) / vb)
+            math.log1p(max(top[c], zero) / va) - math.log1p(max(und[c], zero) / vb)
         )
         if not tot / IV < SAME_LAYER:
             return False
@@ -289,11 +288,7 @@ def _blade_rest_ref(run, s, at=None):
             / max(float(old_v.sum()), 1e-9)
         )
         depth = float(
-            np.clip(
-                _libm.power(p, _KNIFE_SINK) * (1.15 - 0.3 * min(old_body, 1.0)),
-                0.0,
-                1.0,
-            )
+            np.clip(p**_KNIFE_SINK * (1.15 - 0.3 * min(old_body, 1.0)), 0.0, 1.0)
         )
         if bt.clumps > 0:
             depth = max(depth, 0.9)

@@ -622,9 +622,6 @@ def _names(code):
 def test_no_kernel_reads_a_name_from_another_module_of_huile():
     # numba compiles it into the cached kernel as a constant, and would not
     # see it change: the band count, for one, is written out in each file.
-    # (But for murex._libm, whose functions they compile in: each of these
-    # files names the digest of the one it was compiled with, which
-    # tests/test_libm.py checks.)
     from murex.huile import _dab, _render
 
     for module in (eng, _render, _dab):
@@ -640,8 +637,6 @@ def test_no_kernel_reads_a_name_from_another_module_of_huile():
                     for alias in node.names
                     if alias.name.startswith("murex")
                 }
-        imported.discard("_libm")
-        assert module.LIBM
         checked = 0
         for name, value in vars(module).items():
             func = getattr(value, "py_func", value)

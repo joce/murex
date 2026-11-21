@@ -206,12 +206,12 @@ def match(
 
     def errors(W):
         """Delta E of the mixes with volume parts W (..., m, n_paints): one
-        result per row. The mixes are summed in order, row by row, and the
-        rest is elementwise, so each row gets the same bits as it would on
-        its own, on any machine (_km_layer_batch: as sp.km_layer)."""
+        result per row. Stacked ``@`` makes one BLAS call per (m, n_paints)
+        block and the rest is elementwise, so each block gets the same bits
+        as it would on its own (_km_layer_batch: as sp.km_layer)."""
         tot = W.sum(axis=-1, keepdims=True)
-        K = sp._rows_times(W, Ks) / tot * thickness
-        S = sp._rows_times(W, Ss[:, None])[..., 0] / tot[..., 0] * thickness
+        K = (W @ Ks) / tot * thickness
+        S = (W @ Ss) / tot[..., 0] * thickness
         R = sp._km_layer_batch(K, S, ground)
         lab = sp.srgb_to_lab(sp.reflectance_to_srgb(R))
         return np.linalg.norm(lab - target, axis=-1)

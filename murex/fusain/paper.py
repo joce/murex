@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from .. import ColorLike, _libm
+from .. import ColorLike
 from .. import noise as nz
 from .. import spectral as sp
 from ..filters import box_blur
@@ -156,12 +156,10 @@ def _laid(h, w, grain, rng) -> np.ndarray:
     fibres over both."""
     y, x = np.mgrid[0:h, 0:w].astype(np.float64)
     wander = nz.fractal_noise_2d(h, w, grain * 12, rng, octaves=2) - 0.5
-    lines = 0.5 + 0.5 * _libm.np_cos(2 * np.pi * (y + wander * grain * 0.8) / grain)
+    lines = 0.5 + 0.5 * np.cos(2 * np.pi * (y + wander * grain * 0.8) / grain)
     chain = grain * CHAIN_SPACING
     across = (x + wander * grain) % chain
-    chains = _libm.np_exp(
-        -0.5 * (np.minimum(across, chain - across) / (0.6 * grain)) ** 2
-    )
+    chains = np.exp(-0.5 * (np.minimum(across, chain - across) / (0.6 * grain)) ** 2)
     fibres = nz.paper(h, w, grain * 0.8, rng)
     # (the chain wires leave shallow furrows, which a stick skips: on a
     # drawing they show as pale lines down the sheet)
@@ -220,7 +218,7 @@ def _pits(y, x, cell, rng) -> tuple[np.ndarray, np.ndarray]:
     for dy in range(-reach, reach + 1):
         for dx in range(-reach, reach + 1):
             j, i = row + dy, col + dx
-            d = _libm.np_hypot(y - centre_y[j, i], x - centre_x[j, i])
+            d = np.hypot(y - centre_y[j, i], x - centre_x[j, i])
             nearer = d < nearest
             second = np.where(nearer, nearest, np.minimum(second, d))
             deep = np.where(nearer, depth[j, i], deep)

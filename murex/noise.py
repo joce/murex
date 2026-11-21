@@ -1,11 +1,9 @@
-"""Small procedural noise helpers (numpy, and murex's own sines and powers:
-:mod:`murex._libm`, so that a texture is the same on every machine)."""
+"""Small procedural noise helpers (numpy only)."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from . import _libm
 from ._rounding import whole_floor
 
 
@@ -57,8 +55,8 @@ def canvas_weave(h: int, w: int, period: float, rng: np.random.Generator) -> np.
     ys = y - jitter * period * 0.6
     cell_x = np.floor(xs / period)
     cell_y = np.floor(ys / period)
-    fx = _libm.np_sin(np.pi * xs / period) ** 2
-    fy = _libm.np_sin(np.pi * ys / period) ** 2
+    fx = np.sin(np.pi * xs / period) ** 2
+    fy = np.sin(np.pi * ys / period) ** 2
     over = ((cell_x + cell_y) % 2) == 0
     weave = np.where(over, fx * (0.6 + 0.4 * fy), fy * (0.6 + 0.4 * fx))
     grain = fractal_noise_2d(h, w, period * 1.5, rng, octaves=3)
@@ -91,9 +89,8 @@ def aniso_noise(h, w, along, across, angle_deg, rng, octaves=2) -> np.ndarray:
     ``across`` px wide, oriented ``angle_deg`` from horizontal."""
     y, x = np.mgrid[0:h, 0:w].astype(np.float64)
     a = np.radians(angle_deg)
-    cos, sin = _libm.np_cos(a), _libm.np_sin(a)
-    u = x * cos + y * sin
-    v = -x * sin + y * cos
+    u = x * np.cos(a) + y * np.sin(a)
+    v = -x * np.sin(a) + y * np.cos(a)
     out = np.zeros((h, w))
     amp, total = 1.0, 0.0
     for _ in range(octaves):
@@ -129,9 +126,8 @@ def woven(h, w, period, rng, irregularity=0.3, twill=False) -> np.ndarray:
     weft_t = 1.0 + 0.7 * irregularity * (rng.random(ny) - 0.5) * 2
     tw = warp_t[np.clip(i.astype(int) + 4, 0, nx - 1)]
     tf = weft_t[np.clip(j.astype(int) + 4, 0, ny - 1)]
-    # rounded thread cross-sections
-    sec_x = _libm.np_power(_libm.np_sin(np.pi * fx), 0.9 / tw)
-    sec_y = _libm.np_power(_libm.np_sin(np.pi * fy), 0.9 / tf)
+    sec_x = np.sin(np.pi * fx) ** (0.9 / tw)  # rounded thread cross-sections
+    sec_y = np.sin(np.pi * fy) ** (0.9 / tf)
     over = (((i - j) % 4) < 2) if twill else (((i + j) % 2) == 0)
     cloth = np.where(
         over, sec_x * tw * (0.55 + 0.45 * sec_y), sec_y * tf * (0.55 + 0.45 * sec_x)
@@ -159,10 +155,10 @@ def wood(h, w, scale, angle, rng) -> np.ndarray:
     """Wood grain: wavy growth rings and fine fibres along the grain."""
     y, x = np.mgrid[0:h, 0:w].astype(np.float64)
     a = np.radians(angle)
-    v = -x * _libm.np_sin(a) + y * _libm.np_cos(a)
+    v = -x * np.sin(a) + y * np.cos(a)
     warp = aniso_noise(h, w, scale * 25, scale * 4, angle, rng)
-    rings = 0.5 + 0.5 * _libm.np_sin(2 * np.pi * (v / scale + 2.5 * warp))
-    rings = rings * rings * rings  # narrow dark latewood bands
+    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (v / scale + 2.5 * warp))
+    rings = rings**3  # narrow dark latewood bands
     fibres = aniso_noise(h, w, scale * 4, 1.2, angle, rng, octaves=2)
     return _normalize(0.6 * rings + 0.4 * fibres)
 

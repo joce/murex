@@ -31,13 +31,7 @@ from collections import namedtuple
 import numpy as np
 from numba import njit
 
-from .. import _libm
 from ._bands import check_bands
-
-#: The digest of ``murex/_libm.py``, whose functions these kernels compile
-#: into themselves: numba makes a cached kernel again only when its own file
-#: changes, so a change to that one changes this line too (a test checks).
-LIBM = "7e0f8d157943cac3"
 
 # Compiling: the helpers that split a kernel into named steps, shared ones
 # included (bury_top, hair_at, radius_at, demand_with, ...), are compiled
@@ -599,7 +593,7 @@ def deposit_thickness(load):
     heavily loaded one (impasto), thinning out as the brush runs dry.
     """
     free = max(load - RESIDUAL, 0.0)
-    return free / (free + 0.3) * (1.0 + 0.3 * _libm.log1p(free / 6.0))
+    return free / (free + 0.3) * (1.0 + 0.3 * math.log1p(free / 6.0))
 
 
 @njit(cache=True, error_model="numpy")
@@ -611,7 +605,7 @@ def alike(a, b):
     va, vb = max(a[IV], floor), max(b[IV], floor)
     tot = 0.0
     for c in range(IV):
-        tot += abs(_libm.log1p(a[c] / va) - _libm.log1p(b[c] / vb))
+        tot += abs(math.log1p(a[c] / va) - math.log1p(b[c] / vb))
     return tot / IV
 
 
@@ -692,7 +686,7 @@ def harmless(top, und):
     tot = 0.0
     for c in range(IV):
         tot += abs(
-            _libm.log1p(max(top[c], zero) / va) - _libm.log1p(max(und[c], zero) / vb)
+            math.log1p(max(top[c], zero) / va) - math.log1p(max(und[c], zero) / vb)
         )
         if not tot / IV < SAME_LAYER:  # (the differences only add up)
             return False
@@ -703,7 +697,7 @@ def harmless(top, und):
 def buries(film):
     """How much of the wet top layer a new film of paint this thick buries:
     a covering film all of it, a faint trace hardly any."""
-    return 1.0 - _libm.exp(-film / COVERING_FILM)
+    return 1.0 - math.exp(-film / COVERING_FILM)
 
 
 @njit(cache=True, error_model="numpy")
@@ -1005,7 +999,7 @@ def _blur_across(out, sig):
         return
     ker = np.empty(2 * rad + 1)
     for k in range(-rad, rad + 1):
-        ker[k + rad] = _libm.exp(-0.5 * (k / sig) ** 2)
+        ker[k + rad] = math.exp(-0.5 * (k / sig) ** 2)
     ker /= ker.sum()
     row = np.empty(n_x)
     for i in range(n_s):
@@ -1230,7 +1224,7 @@ def _lateral_profile(K, p, lr, aa, soft_pow):
     at the edges when pressed ``p``)."""
     falloff = aa
     if K.softness > 0 and not K.is_dab:  # a long, feathery falloff
-        falloff *= _libm.power(smoothstep(1.0, 1.0 - K.softness, lr), soft_pow)
+        falloff *= smoothstep(1.0, 1.0 - K.softness, lr) ** soft_pow
     return falloff, falloff * (0.92 + K.ridge * p * smoothstep(0.55, 0.95, lr))
 
 
@@ -1286,7 +1280,7 @@ def _clumps(K, u, hair, falloff):
     ``u`` across the bristles: (the factor on the profile there, how much it
     lies in a gap between them, of ``falloff``); (1, 0) without."""
     if K.clumps > 0:
-        m = 0.5 + 0.5 * _libm.cos(
+        m = 0.5 + 0.5 * math.cos(
             math.pi * K.clumps * (clip(u, -1.0, 1.0) + 1.0) + 2.0 * (hair - 0.5)
         )
         return smoothstep(0.3, 0.7, m), falloff * smoothstep(0.6, 0.2, m)
@@ -1322,7 +1316,7 @@ def _pressed_down(profile, st, K, p, lr, rel_h, hair, soft_pow):
         0.92 + K.ridge * p * smoothstep(0.55, 0.95, lr)
     )
     if K.softness > 0:  # a soft brush pressed down: feathered all round
-        profile *= _libm.power(smoothstep(1.0, 1.0 - K.softness, rr), soft_pow)
+        profile *= smoothstep(1.0, 1.0 - K.softness, rr) ** soft_pow
     # tapped lightly, only the tips of the bristles touch: a stippled, broken
     # mark (a glob of paint on it touches all over even then)
     tip_thr = 0.75 - 1.5 * p - 0.4 * min(st.hold.overload, 1.5)
@@ -1514,10 +1508,10 @@ def surface_factors(cv, aux, win, K):
             Y, X = win.cy0 + y, win.cx0 + x
             wet = top[Y, X, IV] + und[Y, X, IV]
             dh = dry_h[Y, X]
-            bare = _libm.exp(-(wet + dh) / 0.4)
+            bare = math.exp(-(wet + dh) / 0.4)
             # lifting wet paint depends on how it adheres to what is beneath: it wipes
             # cleanly off a slick surface but stays stained into an absorbent one
-            on_ground = _libm.exp(-wet / 1.5) * _libm.exp(-dh / 0.4)
+            on_ground = math.exp(-wet / 1.5) * math.exp(-dh / 0.4)
             f_pick[y, x] = max(1.0 + on_ground * (2.0 * (sl - 0.5) - 0.8 * ab), 0.1)
             f_dep[y, x] = max(
                 1.0 + bare * (0.6 * ab + 0.4 * (to - 0.5) - 0.4 * (sl - 0.5)), 0.4
@@ -1547,12 +1541,12 @@ def surface_factors_on(cv, aux, st, part, K):
             Y, X = win.cy0 + y, win.cx0 + x
             wet = top[Y, X, IV] + und[Y, X, IV]
             dh = dry_h[Y, X]
-            bare = _libm.exp(-(wet + dh) / 0.4)
+            bare = math.exp(-(wet + dh) / 0.4)
             sum_bare += bare
             py, px = Y - part.cy0, X - part.cx0
             if not (0 <= py < ch and 0 <= px < cw):
                 continue
-            on_ground = _libm.exp(-wet / 1.5) * _libm.exp(-dh / 0.4)
+            on_ground = math.exp(-wet / 1.5) * math.exp(-dh / 0.4)
             f_pick[py, px] = max(1.0 + on_ground * (2.0 * (sl - 0.5) - 0.8 * ab), 0.1)
             f_dep[py, px] = max(
                 1.0 + bare * (0.6 * ab + 0.4 * (to - 0.5) - 0.4 * (sl - 0.5)), 0.4
@@ -1572,8 +1566,8 @@ def surface_at(cv, aux, Y, X, K):
     sl, ab, to = K.slickness, K.absorbency, K.surface_tooth
     wet = top[Y, X, IV] + und[Y, X, IV]
     dh = dry_h[Y, X]
-    bare = _libm.exp(-(wet + dh) / 0.4)
-    on_ground = _libm.exp(-wet / 1.5) * _libm.exp(-dh / 0.4)
+    bare = math.exp(-(wet + dh) / 0.4)
+    on_ground = math.exp(-wet / 1.5) * math.exp(-dh / 0.4)
     f_pick = max(1.0 + on_ground * (2.0 * (sl - 0.5) - 0.8 * ab), 0.1)
     f_dep = max(1.0 + bare * (0.6 * ab + 0.4 * (to - 0.5) - 0.4 * (sl - 0.5)), 0.4)
     return f_pick, f_dep
@@ -2088,7 +2082,7 @@ def _mound(F, st, wy, wx, a, pattern):
     rel = clip(F[F_REL, wy, wx] / max(F[F_H, wy, wx], 1e-9), -1.0, 1.0)
     rr = min(math.sqrt(lr * lr + rel * rel * (1.0 - lr * lr)), 1.0)
     iy, ix = dab_cell(F[F_U, wy, wx], F[F_ALONG, wy, wx], st.hold.r, n2)
-    return aa * _libm.power(1.0 - rr * rr, a) * (0.6 + 0.8 * pattern[iy, ix])
+    return aa * (1.0 - rr * rr) ** a * (0.6 + 0.8 * pattern[iy, ix])
 
 
 @njit(cache=True, error_model="numpy")
@@ -3135,7 +3129,7 @@ def own_lift(g, n):
     less instead."""
     if g < 1e-6 or n <= 1.0:
         return 1.0
-    return (1.0 - _libm.exp(-g)) / (n * (1.0 - _libm.exp(-g / n)))
+    return (1.0 - math.exp(-g)) / (n * (1.0 - math.exp(-g / n)))
 
 
 @njit(cache=True, error_model="numpy")
@@ -3167,9 +3161,9 @@ def pick_up(cv, br, taps, F, part, p, K, f_pick):
             own = ids[Y, X] == K.stroke_id
             # (not the paint this stroke has just laid: that is what the tips gave,
             # see own_lift; it shields the older paint below)
-            a_top = np.float32(0.0 if own else 1.0 - _libm.exp(-k))
+            a_top = np.float32(0.0 if own else 1.0 - math.exp(-k))
             a_und = np.float32(
-                (1.0 - _libm.exp(-k * p)) * _libm.exp(-top[Y, X, IV] / 1.5)
+                (1.0 - math.exp(-k * p)) * math.exp(-top[Y, X, IV] / 1.5)
             )
             other = und[Y, X, IV] + (0.0 if own else top[Y, X, IV])
             deep = past_tips(other, p, K)
@@ -3214,7 +3208,7 @@ def _catch_at(fill, wet, to, wet_contact, rough_thr):
     bristles coated ``wet``) offers a pixel of tooth and hair ``to`` catches
     there, beyond the threshold ``rough_thr`` (see _catch)."""
     fl = clip(max(fill, 0.9 * wet), 0.0, 1.0)
-    thr = 1.5 * _libm.power(1.0 - fl, 0.8) - 0.35 + rough_thr
+    thr = 1.5 * (1.0 - fl) ** 0.8 - 0.35 + rough_thr
     return max(smoothstep(thr - 0.08, thr + 0.08, to), wet_contact)
 
 
@@ -3223,7 +3217,7 @@ def _catch(fill, wet, to, wet_contact, fill_all, rough_thr):
     """How much of the paint a bristle tip offers a pixel catches there (see
     brush_step_on): (with this column's fill, with the brush's as a whole)."""
     catch = _catch_at(fill, wet, to, wet_contact, rough_thr)
-    thr_all = 1.5 * _libm.power(1.0 - fill_all, 0.8) - 0.35 + rough_thr
+    thr_all = 1.5 * (1.0 - fill_all) ** 0.8 - 0.35 + rough_thr
     return catch, max(smoothstep(thr_all - 0.08, thr_all + 0.08, to), wet_contact)
 
 
@@ -3531,7 +3525,7 @@ def _column_loads(br, st, K):
     wg = max(st.hold.Wn, 0.6 * K.bundle)
     k_g = (st.hold.Wn / wg) ** 2
     # small brushes have long hair for their width: they hold far more for their size
-    hold = HOLD * K.capacity * (1.3 - 0.6 * p) * _libm.power(max(1.0, 20.0 / wg), 1.5)
+    hold = HOLD * K.capacity * (1.3 - 0.6 * p) * max(1.0, 20.0 / wg) ** 1.5
     glob_gain = IMPASTO * (1.2 - 0.5 * p)
     thick = deposit_thickness(load) * (0.5 + p) + glob_gain * body * max(
         k_g * load - hold, 0.0
@@ -3673,7 +3667,7 @@ def _bite(K):
     """The share of the paint above the bristles' level that a pass of a
     brush's hair clears (see PLOUGH_RATE): how far a brush ploughs, from a
     little for soft hair to almost all for stiff."""
-    return 1.0 - _libm.exp(-PLOUGH_RATE * K.stiffness**3)
+    return 1.0 - math.exp(-PLOUGH_RATE * K.stiffness**3)
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -3681,7 +3675,7 @@ def _lane(K, hair):
     """How hard the bristles press at a pixel where the brush's hair pattern
     is ``hair``, against how hard they press on average (see LANE_K):
     harder along the lines of their clumps, the more the brush streaks."""
-    return _libm.exp(LANE_K * K.streaks * (1.0 - 2.0 * hair))
+    return math.exp(LANE_K * K.streaks * (1.0 - 2.0 * hair))
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -3991,7 +3985,7 @@ def _excess(cv, aux, F, st, K, levels, ploughing):
             hair = F[F_HAIR, wy0 + y, wx0 + x]
             # a point cut into the paint: a groove through a share of all of it
             if K.dig > 0:
-                ex = (t + und[Y, X, IV]) * depth * (1.0 - _libm.exp(-6.0 * e))
+                ex = (t + und[Y, X, IV]) * depth * (1.0 - math.exp(-6.0 * e))
             else:
                 ex = _riding(K, st, floor[Y, X], t, und[Y, X, IV], hb, hair, e)
             if ploughs and plough[y, x] > 0:
@@ -4012,7 +4006,7 @@ def _riding(K, st, floor, t, uv, hb, hair, e):
     level = floor + hb * (1.0 + 0.8 * K.streaks * (hair - 0.5))
     ex = max((floor + t + uv) - level, 0.0)
     # shifted gradually as it passes
-    ex *= 1.0 - _libm.exp(-0.8 * K.stiffness**2 * e)
+    ex *= 1.0 - math.exp(-0.8 * K.stiffness**2 * e)
     # a light tap only touches with the bristle tips: it doesn't plough
     if K.is_dab:
         ex *= smoothstep(0.4, 0.8, st.hold.p)
@@ -4028,7 +4022,7 @@ def _ploughing(K, wet, gap, lane, e):
     along the lines of their clumps (they press ``lane`` times as hard as on
     average there: see _lane and LANE_K)."""
     rate = PLOUGH_RATE * K.stiffness**3 * math.sqrt(lane)
-    return max(wet - gap, 0.0) * (1.0 - _libm.exp(-rate * e))
+    return max(wet - gap, 0.0) * (1.0 - math.exp(-rate * e))
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -4077,16 +4071,14 @@ def _contact_catch_wet_dry(st, part, wet, dry, K, F, taps, cv, aux, col_fill, lo
     sum_contact, sum_wet = sums
     o_taps = bristle_taps(o_u, st.hold.span, st.hold.nsub, K.ring, st.hold.rho)
     norm = max(sum_contact, 1e-12)
-    wet = max(sum_wet / norm, wet * _libm.exp(-st.motion.ds / st.hold.Wd))
+    wet = max(sum_wet / norm, wet * math.exp(-st.motion.ds / st.hold.Wd))
     fill = at_pixels(taps, col_fill, part.ch, part.cw)
     o_fill = at_pixels(o_taps, col_fill, 1, off.shape[0])
     fill_all = max(clip((load - RESIDUAL) / 0.6, 0.0, 1.0), 0.9 * wet)
     # dry brush: only the canvas tooth (and hair lines) catch paint; a toothy surface
     # breaks up a lightly pressed stroke even when the brush is loaded (scumbling)
     rough_t = K.surface_tooth - 0.5
-    rough_thr = (
-        (3.2 if rough_t > 0 else 0.6) * rough_t * _libm.power(1.0 - st.hold.p, 1.2)
-    )
+    rough_thr = (3.2 if rough_t > 0 else 0.6) * rough_t * (1.0 - st.hold.p) ** 1.2
     # light pressure and little paint: the tips ride over the hollows of the
     # surface deeper than they reach (see _reach)
     reach = _reach(st.hold.p, K, load)
@@ -4446,7 +4438,7 @@ def _fold_fractions(K, p, contact, f_mix, st, part, ploughing, pend):
         for x in range(cw):
             w = bite * plough[oy + y, ox + x]
             k = p * p * contact[y, x] * f_mix[y, x]
-            m[y, x] = 1.0 - _libm.exp(
+            m[y, x] = 1.0 - math.exp(
                 -K.mixing * 3.0 * p * p * contact[y, x] * f_mix[y, x] * (1.0 - w)
             )
             Y, X = part.cy0 + y, part.cx0 + x
@@ -4482,7 +4474,7 @@ def fold_pending(cv, pend):
     for py in range(r0, r1):
         for px in range(c0, c1):
             if folds[py, px] > 0:
-                f[py - r0, px - c0] = 1.0 - _libm.exp(-folds[py, px])
+                f[py - r0, px - c0] = 1.0 - math.exp(-folds[py, px])
     fold_up(cv, where[PEND_Y0] + r0, where[PEND_X0] + c0, f)
 
 
@@ -4495,7 +4487,7 @@ def _stir_fraction(K, p, contact, f_mix):
     m = np.empty((ch, cw))
     for y in range(ch):
         for x in range(cw):
-            m[y, x] = 1.0 - _libm.exp(
+            m[y, x] = 1.0 - math.exp(
                 -K.mixing * 3.0 * p * p * contact[y, x] * f_mix[y, x]
             )
     return m
@@ -4809,7 +4801,7 @@ def _soften_rates(top, ids, stroke_id, oy, ox, H, W):
                 0.82, 0.66, body
             )
             for c in range(IV):
-                sig[y, x, c] = _libm.log1p(top[Y, X, c] / v)
+                sig[y, x, c] = math.log1p(top[Y, X, c] / v)
     return k, sig
 
 

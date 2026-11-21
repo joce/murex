@@ -120,11 +120,8 @@ branch = true
 source = ["murex"]
 # Compiled by numba: coverage.py cannot see inside it, so it would read as
 # untested though the tests run it. (With NUMBA_DISABLE_JIT=1 huile's runs as
-# plain Python and can be measured, but its tests then take over 50 minutes.
-# murex/_libm.py cannot run as plain Python at all: it reads the bits of a
-# double with a compiled intrinsic. tests/test_libm.py checks every function
-# against exact values instead.)
-omit = ["murex/fusain/_engine.py", "murex/huile/_engine.py", "murex/_libm.py"]
+# plain Python and can be measured, but its tests then take over 50 minutes.)
+omit = ["murex/fusain/_engine.py", "murex/huile/_engine.py"]
 
 [tool.coverage.report]
 show_missing = true

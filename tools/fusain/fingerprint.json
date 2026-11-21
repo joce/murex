@@ -1,4 +1,5 @@
 {
+ "arithmetic": "30436522e64a068a",
  "marks": {
   "ballpoint/newsprint/12": {
    "inked._fresh": "198403911dce5ad0",
@@ -20,7 +21,7 @@
    "inked.under": "95398113846943a5",
    "inked.width": "557d7f88a9693be6",
    "pen._rim": "c09ae9f3b1f4506f",
-   "returned": "b533ace8b543d079",
+   "returned": "afbb7c0c6d62a26b",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "65577d8f1f36d383",
    "sheet.bonded": "909fb9576c2c53fa",
@@ -43,7 +44,7 @@
    "sheet:overhead": "4306307cd66ce4d8",
    "sheet:raking": "5ab116f4b7f2f685",
    "sheet:reflectance": "d30898c3873be278",
-   "sheet:shine": "88bdcab02c1c3bfb"
+   "sheet:shine": "63026c664a6958d3"
   },
   "ballpoint/printer paper/11": {
    "inked._fresh": "198403911dce5ad0",
@@ -65,7 +66,7 @@
    "inked.under": "95398113846943a5",
    "inked.width": "557d7f88a9693be6",
    "pen._rim": "7e28796b8da03287",
-   "returned": "3bc3cb8fad3296f9",
+   "returned": "ccc7e74fd9554e2c",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "3b28800fa9605a7b",
    "sheet.bonded": "2d36bb9ea82e7050",
@@ -88,13 +89,13 @@
    "sheet:overhead": "7b07e1d8528596cd",
    "sheet:raking": "2ab83683b629ba2d",
    "sheet:reflectance": "497a0e6b42213067",
-   "sheet:shine": "9cbc02c7c00c7795"
+   "sheet:shine": "db445e7c8878d405"
   },
   "drawing/toned grey/13": {
    "pencil.lead": "a62f11417141fef6",
    "pencil.point": "55931a67f207aeaa",
-   "pencil.worn": "2278949f53d0d817",
-   "returned": "57a1814494ec196a",
+   "pencil.worn": "25f20e2d289857a9",
+   "returned": "73092e18276855b2",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "aab04cc7b45e7756",
    "sheet.bonded": "6e1111cbef01f3c8",
@@ -104,7 +105,7 @@
    "sheet.films": "7048e1b940399419",
    "sheet.ground": "65a44a57efb30480",
    "sheet.height": "9782e26cbdbbda3b",
-   "sheet.held": "f0c434e9cc0599fa",
+   "sheet.held": "eccea222456acc4f",
    "sheet.ink": "59c94116507d8d83",
    "sheet.inked": "f88d1a4389bdaaa9",
    "sheet.loose": "d55991a0f2308f93",
@@ -116,7 +117,7 @@
    "sheet:image": "729d39bab93e8d5b",
    "sheet:raking": "68edddfcfedc4e1a",
    "sheet:reflectance": "b6537e5796c34c5b",
-   "sheet:shine": "22a0131123254cb9",
+   "sheet:shine": "32f750136fdc6e30",
    "stump._carried": "cbdbb262c8eea5da",
    "stump.width": "7c642df378cae3a2"
   },
@@ -125,7 +126,7 @@
    "finger.width": "5648458024618cb1",
    "finger:end._carried": "1095597bbeb3e577",
    "finger:end.width": "5648458024618cb1",
-   "returned": "5a9c090787878fa7",
+   "returned": "a9dcd294f5edae20",
    "rubbed._fresh": "198403911dce5ad0",
    "rubbed._rng": "7e9e63675accb019",
    "rubbed.bonded": "484c4c7009eaae63",
@@ -161,8 +162,8 @@
    "sheet:image": "ecb16135c4b9b4c9",
    "sheet:raking": "8c27619e8c577f25",
    "sheet:reflectance": "2881c00e76d21cdf",
-   "sheet:shine": "96dbeae8832200e4",
-   "stump:end._carried": "e18ef89c2fe1133f",
+   "sheet:shine": "bc8af2825710732c",
+   "stump:end._carried": "71c1f0d3db4a6fc9",
    "stump:end.width": "21eeb2e6f0a11933"
   },
   "dust/rough/5": {
@@ -170,7 +171,7 @@
    "finger.width": "5648458024618cb1",
    "finger:end._carried": "98b24b6ba70fc7ba",
    "finger:end.width": "5648458024618cb1",
-   "returned": "89bdd3bfbce88f63",
+   "returned": "54b956616b0c5703",
    "rubbed._fresh": "198403911dce5ad0",
    "rubbed._rng": "10a542ab0b35df69",
    "rubbed.bonded": "06b464a23e249219",
@@ -206,12 +207,12 @@
    "sheet:image": "163fbeb6f8d74730",
    "sheet:raking": "4fb40a27123498f9",
    "sheet:reflectance": "a66ad9cbe4eee0ce",
-   "sheet:shine": "5a117ecfdb77b0d3",
-   "stump:end._carried": "e1a73efed9565254",
+   "sheet:shine": "24814d26da220248",
+   "stump:end._carried": "cbadf37e406bc87c",
    "stump:end.width": "21eeb2e6f0a11933"
   },
   "graphite/cartridge/1": {
-   "returned": "9bca2f83bc059cc9",
+   "returned": "6a75e69a0a6e60c7",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "7314b970aa771491",
    "sheet.bonded": "5fc131a5d51639d1",
@@ -231,10 +232,10 @@
    "sheet:image": "e1afde1374249225",
    "sheet:raking": "65d56efed2f4920e",
    "sheet:reflectance": "fdd6199104b9f2e1",
-   "sheet:shine": "93bdf2fbcded11f5"
+   "sheet:shine": "f2a0c3ea0fef39e6"
   },
   "graphite/level/2": {
-   "returned": "65b70881fffa8395",
+   "returned": "63533f8a6a9bfc6a",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "9008daacf748deb8",
    "sheet.bonded": "5fc131a5d51639d1",
@@ -254,7 +255,7 @@
    "sheet:image": "ed1ce24da8025c1f",
    "sheet:raking": "15600f583d9d9c6f",
    "sheet:reflectance": "f333d2cfa74b04d2",
-   "sheet:shine": "d830723017aefbbd"
+   "sheet:shine": "de9b5598bc716b73"
   },
   "pastel/sanded card/6": {
    "fixed._fresh": "198403911dce5ad0",
@@ -273,7 +274,7 @@
    "fixed.tooth": "f252b5dc7cdef18e",
    "fixed.under": "7ee02600af1aca59",
    "fixed.width": "557d7f88a9693be6",
-   "returned": "2ddeafc1ecd6f8f4",
+   "returned": "a9859d8d533d8dfd",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "cf1d2d7d13233fd0",
    "sheet.bonded": "fa6ea7ba4515ab19",
@@ -283,7 +284,7 @@
    "sheet.films": "a964f09b54112f45",
    "sheet.ground": "ee301dd6aa453e2e",
    "sheet.height": "9782e26cbdbbda3b",
-   "sheet.held": "51911868669e9dff",
+   "sheet.held": "70b0ca3922ae22e4",
    "sheet.loose": "51aba427bd3bdcb4",
    "sheet.polish": "9df6a28cb5a4f499",
    "sheet.rough": "f4ae9bcc165b8137",
@@ -298,14 +299,14 @@
   "sticks/Ingres/3": {
    "chalk:end.lead": "067965bf5f144dd9",
    "chalk:end.point": "067965bf5f144dd9",
-   "chalk:end.worn": "8376645fbaf5632b",
+   "chalk:end.worn": "af080736635763ec",
    "pencil.lead": "81cf6635e5df956c",
    "pencil.point": "ecfd1bf158bc4733",
    "pencil.worn": "9f02f5e78d7e538d",
    "pencil:end.lead": "81cf6635e5df956c",
    "pencil:end.point": "55931a67f207aeaa",
-   "pencil:end.worn": "cda296bd0d712633",
-   "returned": "945b0936d0f8499b",
+   "pencil:end.worn": "ac4e0d402262e615",
+   "returned": "dedd106c3ebeb6ab",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "435bfc2a0901e95c",
    "sheet.bonded": "3ea2f520d722a547",
@@ -325,7 +326,7 @@
    "sheet:image": "8a9042190b6ba13f",
    "sheet:raking": "5a1b884aa22cad39",
    "sheet:reflectance": "de7498c02b175342",
-   "sheet:shine": "c5cbc80f684cc6f6",
+   "sheet:shine": "45af073c5a68c01e",
    "twig:end._side": "8a6466bcb123f915",
    "twig:end.lead": "b7a7bae76575dbfe",
    "twig:end.point": "b7a7bae76575dbfe",
@@ -348,7 +349,7 @@
    "pressed.tooth": "fdcbda4009025ca7",
    "pressed.under": "4f335cd41b754de3",
    "pressed.width": "557d7f88a9693be6",
-   "returned": "42d0a1e0e754a12d",
+   "returned": "358bbb2d6fef8b90",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "5c5cdba16157de5e",
    "sheet.bonded": "1c510138a8bf0550",
@@ -368,7 +369,7 @@
    "sheet:image": "f31f3ffd665efc58",
    "sheet:raking": "76ec6531c9d1b877",
    "sheet:reflectance": "f0df68bb1d6e5546",
-   "sheet:shine": "e0f96673de3a2620",
+   "sheet:shine": "4efbae402010a56f",
    "twin._fresh": "198403911dce5ad0",
    "twin._rng": "5c5cdba16157de5e",
    "twin.bonded": "1c510138a8bf0550",
@@ -403,7 +404,7 @@
    "pressed.tooth": "2f6a8fcd0657e6cc",
    "pressed.under": "e7a0618b3ea63318",
    "pressed.width": "557d7f88a9693be6",
-   "returned": "e2676f08daec15c4",
+   "returned": "dfaeed287fc7c299",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "76a20ede909573ce",
    "sheet.bonded": "42eb3513fa07e452",
@@ -423,7 +424,7 @@
    "sheet:image": "1ffb20f8164ea570",
    "sheet:raking": "b0d78a0c0b58a115",
    "sheet:reflectance": "b0270ffc717c9582",
-   "sheet:shine": "e3d1a4728cd9b52a",
+   "sheet:shine": "0d4afc43ad9ca1ac",
    "twin._fresh": "198403911dce5ad0",
    "twin._rng": "76a20ede909573ce",
    "twin.bonded": "42eb3513fa07e452",
@@ -458,7 +459,7 @@
    "layered.tooth": "a97cdedb50eb9346",
    "layered.under": "912e38b9f50b7357",
    "layered.width": "557d7f88a9693be6",
-   "returned": "d201d647a3bab0e3",
+   "returned": "bdbfdd012d297797",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "ad33f858323e2b5e",
    "sheet.bonded": "8d1e187aaa19e108",
@@ -478,7 +479,7 @@
    "sheet:image": "305541408e8fb747",
    "sheet:raking": "ec40b7aa0d372a92",
    "sheet:reflectance": "8b3e077a788d6872",
-   "sheet:shine": "a77c0380ecfe5fce"
+   "sheet:shine": "923d8292bc886ea9"
   },
   "wax/cold-pressed/8": {
    "layered._fresh": "198403911dce5ad0",
@@ -490,14 +491,14 @@
    "layered.films": "9c335cf4fd9ac90b",
    "layered.ground": "dea134e13726d7b2",
    "layered.height": "9782e26cbdbbda3b",
-   "layered.held": "a1fdb12ab36f227d",
+   "layered.held": "a1ec262cf9633d03",
    "layered.loose": "270857a360f66d33",
    "layered.polish": "0ae26e9063d73146",
    "layered.rough": "f4ae9bcc165b8137",
    "layered.tooth": "8b6d5350ce44cc83",
    "layered.under": "e8557d788983a9b6",
    "layered.width": "557d7f88a9693be6",
-   "returned": "8cb8a69f82e00986",
+   "returned": "6d34492b56d55803",
    "sheet._fresh": "198403911dce5ad0",
    "sheet._rng": "a645fa4c37cd4e90",
    "sheet.bonded": "0279be4f7355f18f",
@@ -507,7 +508,7 @@
    "sheet.films": "4e67b11114b3197d",
    "sheet.ground": "dea134e13726d7b2",
    "sheet.height": "9782e26cbdbbda3b",
-   "sheet.held": "49e9c7b5164e4e71",
+   "sheet.held": "dd2f70e4dc676c73",
    "sheet.loose": "b7f797730d2991ef",
    "sheet.polish": "f2cb72b71d4c6688",
    "sheet.rough": "86957edb4b82b50e",
@@ -517,7 +518,7 @@
    "sheet:image": "998860a1283b2cc8",
    "sheet:raking": "a414d1ae146a0bfb",
    "sheet:reflectance": "f6460a0c50392586",
-   "sheet:shine": "f688e28df280d762"
+   "sheet:shine": "49fe5c21cb19f363"
   }
  },
  "recorded on": "Linux x86_64, Python 3.13.18, numpy 2.5.4, numba 0.68.1"

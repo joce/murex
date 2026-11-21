@@ -6,7 +6,6 @@ import itertools
 import numpy as np
 import pytest
 
-from murex import _libm
 from murex import spectral as sp
 from murex.filters import box_blur
 from murex.fusain import (
@@ -183,7 +182,7 @@ def _held_shine(sheet) -> np.ndarray:
     matte = np.maximum(dust - sheet.under[..., IX] - sheet.loose[..., IX], 0.0)
     films = np.maximum(sheet.films[..., IV] - sheet.films[..., IX], 0.0)
     matte += films.sum(axis=-1)
-    return sheet.cover * film * _libm.np_exp(-matte / cover / np.float32(SHEEN_HIDE))
+    return sheet.cover * film * np.exp(-matte / cover / np.float32(SHEEN_HIDE))
 
 
 def _sum(array) -> float:

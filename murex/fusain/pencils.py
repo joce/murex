@@ -25,8 +25,6 @@ scratched out with ``tools.KNIFE``.
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 
 from .. import ColorLike, Pigment
@@ -117,10 +115,8 @@ def melts_of(color: ColorLike) -> float:
     are what a blender is made of)."""
     srgb = np.asarray(Pigment(color).color, dtype=np.float64)
     lab = sp.srgb_to_lab(srgb)
-    light, a, b = (float(v) for v in lab - np.array([100.0, 0.0, 0.0]))
-    far = math.sqrt(light * light + a * a + b * b)
-    near = max(1.0 - far / PALE_RANGE, 0.0)
-    return PALE_MELTS * near * near
+    far = float(np.linalg.norm(lab - np.array([100.0, 0.0, 0.0])))
+    return PALE_MELTS * max(1.0 - far / PALE_RANGE, 0.0) ** 2
 
 
 def coloured(color: ColorLike, name: str | None = None) -> Medium:

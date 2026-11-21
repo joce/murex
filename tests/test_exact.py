@@ -11,7 +11,6 @@ murex's own (``murex._libm``), not numpy's, which rounds some values
 differently from one processor to another."""
 
 import copy
-import math
 import pickle
 import warnings
 from typing import Any
@@ -54,11 +53,8 @@ def sample_011(path, spacing):
         return p, np.array([[1.0, 0.0]]), np.zeros(1), knot[:1]
     n = max(2, whole_ceil(length / max(spacing, 1e-3)) + 1)
     si = np.linspace(0.0, length, n)
-    # (murex's own interpolation, powers and lengths: numpy's, but the same
-    # on every machine)
-    interp = _libm.np_interp if pts.dtype.kind in "biuf" else np.interp
-    out = np.stack([interp(si, s, pts[:, 0]), interp(si, s, pts[:, 1])], -1)
-    k = interp(si, s, knot)
+    out = np.stack([np.interp(si, s, pts[:, 0]), np.interp(si, s, pts[:, 1])], -1)
+    k = np.interp(si, s, knot)
     tan = np.gradient(out, axis=0)
     tan /= np.maximum(np.linalg.norm(tan, axis=1, keepdims=True), 1e-12)
     return out, tan, si / length, k
@@ -100,9 +96,7 @@ def _catmull_dense_011(P, alpha, closed):
 
 def _catmull_segment_011(p0, p1, p2, p3, t, alpha):
     def tj(ti, a, b):
-        return ti + spline._power(
-            np.maximum(np.linalg.norm(b - a, axis=1), 1e-6), alpha
-        )
+        return ti + np.maximum(np.linalg.norm(b - a, axis=1), 1e-6) ** alpha
 
     t0 = 0.0
     t1 = tj(t0, p0, p1)
@@ -122,18 +116,13 @@ def _bezier_dense_011(P, n_knots):
     pts, knots = [], []
     for i in range(n_knots - 1):
         p0, p1, p2, p3 = P[3 * i : 3 * i + 4]
-        approx = sum(
-            math.sqrt(d[0] * d[0] + d[1] * d[1]) for d in (p1 - p0, p2 - p1, p3 - p2)
+        approx = (
+            np.linalg.norm(p1 - p0) + np.linalg.norm(p2 - p1) + np.linalg.norm(p3 - p2)
         )
         count = max(8, whole_floor(float(approx) / 2) + 1)
         t = np.linspace(0.0, 1.0, count, endpoint=False)[:, None]
         mt = 1 - t
-        pts.append(
-            mt * mt * mt * p0
-            + 3 * mt * mt * t * p1
-            + 3 * mt * t * t * p2
-            + t * t * t * p3
-        )
+        pts.append(mt**3 * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t**3 * p3)
         knots.append(i + t[:, 0])
     pts.append(P[-1][None])
     knots.append(np.array([float(n_knots - 1)]))

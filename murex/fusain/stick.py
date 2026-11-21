@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 
-from .. import _libm
 from ._engine import WEAR
 from .medium import Medium
 
@@ -85,9 +84,7 @@ class Stick:
     @property
     def width(self) -> float:
         """Width of the tip now, in pixels."""
-        # (as the kernels work it out: a cube root, the same on every machine)
-        point = self.point
-        return min(_libm.cbrt(point * point * point + WEAR * self.worn), self.lead)
+        return min((self.point**3 + WEAR * self.worn) ** (1.0 / 3.0), self.lead)
 
     def sharpen(self, width: float | None = None) -> None:
         """Sharpen it: back to its point, or to a point ``width`` wide."""

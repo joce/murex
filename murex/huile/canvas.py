@@ -8,7 +8,6 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from .. import _libm, _random
 from .. import spectral as sp
 from ..filters import box_blur, smooth121, smoothstep
 from ..png import write_png
@@ -361,15 +360,14 @@ class Canvas:
         if n <= 0:  # nothing flicked
             return 0
         # distance along the path the brush sweeps (a single point: none)
-        step = np.diff(path, axis=0)
-        arc = np.r_[0.0, np.cumsum(_libm.np_hypot(step[:, 0], step[:, 1]))]
+        arc = np.r_[0.0, np.cumsum(np.hypot(*np.diff(path, axis=0).T))]
         heading = np.deg2rad(direction)
         drops = 0
         for _ in range(n):
             if len(path) > 1:
                 s = rng.uniform(0.0, arc[-1])
-                x0 = float(_libm.np_interp(s, arc, path[:, 0]))
-                y0 = float(_libm.np_interp(s, arc, path[:, 1]))
+                x0 = float(np.interp(s, arc, path[:, 0]))
+                y0 = float(np.interp(s, arc, path[:, 1]))
             else:
                 x0, y0 = path[0]
             drops += self._fly(x0, y0, heading, spread, reach, size, paint, rng)
@@ -379,16 +377,16 @@ class Canvas:
         """One drop flicked from (x0, y0) (see :meth:`spatter`), and the
         satellites it throws off if it is a big one: how many of them land
         on or by the canvas."""
-        a = heading + np.deg2rad(spread) * _random.normal(rng, 0.0, _FAN)
-        dist = reach * _random.gamma(rng, *_FLIGHT)
+        a = heading + np.deg2rad(spread) * rng.normal(0.0, _FAN)
+        dist = reach * rng.gamma(*_FLIGHT)
         d = float(
             np.clip(
-                size * _random.lognormal(rng, 0.0, _SIZE_SIGMA),
+                size * rng.lognormal(0.0, _SIZE_SIGMA),
                 _DROP_MIN,
                 _DROP_MAX * size,
             )
         )
-        ux, uy = _libm.np_cos(a), _libm.np_sin(a)  # (float32 stays float32)
+        ux, uy = np.cos(a), np.sin(a)
         x, y = x0 + dist * ux, y0 + dist * uy
         # flying further, a drop comes in at more of a slant and stretches
         stretch = 1.0 + _STRETCH * min(dist / reach, _STRETCH_REACH) * rng.uniform(
@@ -400,7 +398,7 @@ class Canvas:
             # sideways by about 0.6 of one, each 0.15 to 0.35 of its size
             for _ in range(int(rng.integers(1, 5))):
                 t = rng.uniform(1.0, 3.5) * d
-                side = _random.normal(rng, 0.0, 0.6) * d
+                side = rng.normal(0.0, 0.6) * d
                 drops += self._drop(
                     x + t * ux - side * uy,
                     y + t * uy + side * ux,
@@ -678,7 +676,7 @@ class Canvas:
             return None
         t = self.top_v + self.und_v + self.dry_height
         coverage = np.clip(t / MIN_FILM, 0.0, 1.0)
-        return (a * _libm.np_exp(-t / SINK_DEPTH) * coverage).astype(np.float32)
+        return (a * np.exp(-t / SINK_DEPTH) * coverage).astype(np.float32)
 
     def _render_linear(self) -> np.ndarray:
         out = np.empty((self.height, self.width, 3), np.float32)
@@ -713,7 +711,7 @@ class Canvas:
         detail = DETAIL_MIN + (1.0 - DETAIL_MIN) * smoothstep(
             DETAIL_VAR[0], DETAIL_VAR[1], _blur(np.abs(fine - broad), 2)
         )
-        detail = np.maximum(detail, _libm.np_exp(-paint / WEAVE_FILM))
+        detail = np.maximum(detail, np.exp(-paint / WEAVE_FILM))
         return ((HEIGHT_PX * relief) * (broad + detail * (fine - broad))).astype(
             np.float32
         )
@@ -748,7 +746,7 @@ class Canvas:
         * brighter-than-paint values roll off towards white rather than clip.
         """
         h = np.ascontiguousarray(self.surface_height(relief), dtype=np.float32)
-        L = light / _length(light)
+        L = light / np.linalg.norm(light)
         lx, ly, lz = (float(v) for v in L)
         vis = np.empty_like(h)
         _render.shadows(h, lx, ly, lz, LIGHT_SIZE, SHADOW_REACH, vis)
@@ -1024,7 +1022,7 @@ def _check_light(light) -> np.ndarray:
     big = np.abs(L).max()
     if big > 0:
         L = L / big  # (scaled first, so the norm neither overflows nor underflows)
-        L = L / _length(L)
+        L = L / np.linalg.norm(L)
     if not L[2] >= MIN_LIGHT_Z:
         raise ValueError(
             f"light must shine from in front of the picture (z > 0), got {light!r}"
@@ -1038,12 +1036,3 @@ def _blur(a: np.ndarray, r: int) -> np.ndarray:
     out = np.empty_like(a)
     _render.box_blur(a, r, out)
     return out
-
-
-def _length(v) -> float:
-    """The length of a short vector, its squares summed in order (not by a
-    dot product, which BLAS sums in its own order)."""
-    total = 0.0
-    for x in np.asarray(v, dtype=np.float64).reshape(-1).tolist():
-        total += x * x
-    return float(np.sqrt(total))

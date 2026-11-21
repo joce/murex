@@ -46,7 +46,6 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from murex import _libm, _random
 from murex.huile import Brush, Canvas, Paint, brushes, surfaces
 from murex.huile import palette as P
 
@@ -268,9 +267,8 @@ def _short_strokes(rng, n, length):
     for _ in range(n):
         x, y = rng.uniform(30, W - 30), rng.uniform(30, H - 30)
         a = rng.uniform(0, 2 * np.pi)
-        # (murex's own sines and draws: the same scenes on every machine)
-        d = 0.5 * length * np.array([_libm.cos(a), _libm.sin(a)])
-        bend = _random.normal(rng, 0.0, 0.15 * length, 2)
+        d = 0.5 * length * np.array([np.cos(a), np.sin(a)])
+        bend = rng.normal(0, 0.15 * length, 2)
         yield [(x - d[0], y - d[1]), (x + bend[0], y + bend[1]), (x + d[0], y + d[1])]
 
 
@@ -445,13 +443,13 @@ def taper_curve(c):
         x, y = rng.uniform(100, W - 100), rng.uniform(100, H - 100)
         t = np.linspace(0, 1.5 * np.pi, 7)
         r = rng.uniform(40, 90)
-        pts = [(x + r * _libm.cos(a) * (1 - 0.1 * a), y + r * _libm.sin(a)) for a in t]
+        pts = [(x + r * np.cos(a) * (1 - 0.1 * a), y + r * np.sin(a)) for a in t]
         c.stroke(
             pts,
             (P.CADMIUM_YELLOW, P.PHTHALO_BLUE, P.TITANIUM_WHITE)[i % 3],
             amount=8,
             width=[18, 30, 26, 12] if i % 2 else (lambda u: 10 + 20 * u),
-            pressure=(lambda u: 0.2 + 0.6 * _libm.np_sin(np.pi * u)) if i % 3 else 0.5,
+            pressure=(lambda u: 0.2 + 0.6 * np.sin(np.pi * u)) if i % 3 else 0.5,
             brush=tools[i % 4],
             taper=((0.3, 0.1), 0.25, 0.0)[i % 3],
             angle=None if i % 4 else (lambda u: 90 * u),

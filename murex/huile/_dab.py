@@ -15,17 +15,11 @@ angle on every tap, as a painter's hand turns.
 from __future__ import annotations
 
 import functools
+import math
 import zlib
 
 import numpy as np
 from numba import njit
-
-from .. import _libm
-
-#: The digest of ``murex/_libm.py``, whose functions these kernels compile
-#: into themselves: numba makes a cached kernel again only when its own file
-#: changes, so a change to that one changes this line too (a test checks).
-LIBM = "7e0f8d157943cac3"
 
 # The pattern spans -SPAN..SPAN half-widths, as the engine reads it
 # (_engine.DAB_SPAN, see _engine.dab_cell). Written out in both modules, not
@@ -79,7 +73,7 @@ def _cone_bases(t, cell, pts, radii):
             continue
         for j in range(y0, y1):
             for i in range(x0, x1):
-                d = _libm.hypot(t[i] - px, t[j] - py)
+                d = math.hypot(t[i] - px, t[j] - py)
                 index[q] = j * n + i
                 base[q] = min(max(1.0 - d / rad, 0.0), 1.0)
                 cone[q] = k
@@ -127,11 +121,11 @@ def _bristle_tips(n, spacing, rng):
         )
     ]
     pts = np.asarray(pts) + rng.uniform(-0.35, 0.35, (len(pts), 2)) * spacing
-    heights = _libm.np_power(rng.uniform(0.25, 1.0, len(pts)), 0.6)
+    heights = rng.uniform(0.25, 1.0, len(pts)) ** 0.6
     radii = 0.62 * spacing * rng.uniform(0.75, 1.25, len(pts))
-    # (the powers murex's own, the same on every machine)
+    # (the powers in numpy, as numpy works them out)
     index, base, cone = _cone_bases(_ticks(n), 2 * SPAN / n, pts, radii)
-    return _highest(n, index, heights[cone] * _libm.np_power(base, 0.6))
+    return _highest(n, index, heights[cone] * base**0.6)
 
 
 @functools.lru_cache(maxsize=64)
@@ -154,4 +148,5 @@ def dab_pattern(bt, r_px: float, rng: np.random.Generator) -> np.ndarray:
     base = _layout(seed, round(2 * r_px) / 2, int(bt.tips), float(bt.bristles))
     n = base.shape[0]
     a = rng.uniform(0.0, 2 * np.pi)
-    return _turned(base, _ticks(n), _libm.cos(a), _libm.sin(a))
+    ca, sa = np.cos(a), np.sin(a)
+    return _turned(base, _ticks(n), float(ca), float(sa))

@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterator
 
 import numpy as np
 
-from .. import _libm, _random, spline
+from .. import spline
 
 #: How far apart the strokes of a shading are, in widths of the tip.
 SPACING = 0.55
@@ -69,23 +69,16 @@ def as_outline(area) -> np.ndarray:
 _AREA = "an area is a rectangle (x0, y0, x1, y1) or three or more points, got {!r:.80}"
 
 
-def _along(points: np.ndarray, way: np.ndarray) -> np.ndarray:
-    """How far along ``way`` each point (..., 2) is: x times its first part
-    plus y times its second, summed in that order (not by a matrix product,
-    which BLAS sums in its own order)."""
-    return points[..., 0] * way[0] + points[..., 1] * way[1]
-
-
 def _crossings(outline: np.ndarray, across: np.ndarray, offset: float) -> np.ndarray:
     """Where the line ``offset`` along ``across`` cuts the outline: the points,
     (M, 2), M even, in the order they come along the line."""
-    here = _along(outline, across) - offset
+    here = outline @ across - offset
     there = np.roll(here, -1)
     cut = (here < 0) != (there < 0)
     share = (here[cut] / (here[cut] - there[cut]))[:, None]
     points = outline[cut] + share * (np.roll(outline, -1, axis=0)[cut] - outline[cut])
     along = np.array([across[1], -across[0]])
-    return points[np.argsort(_along(points, along))]
+    return points[np.argsort(points @ along)]
 
 
 def strokes(
@@ -117,16 +110,16 @@ def strokes(
     broad = width if broad is None else broad
     share = 1.0 if lined is None else lined / broad
     turn = math.radians(angle)
-    across = np.array([_libm.sin(turn), _libm.cos(turn)])
-    along = np.array([_libm.cos(turn), -_libm.sin(turn)])
-    reach = _along(outline, across)
+    across = np.array([math.sin(turn), math.cos(turn)])
+    along = np.array([math.cos(turn), -math.sin(turn)])
+    reach = outline @ across
     for offset in np.arange(reach.min() + 0.5 * spacing, reach.max(), spacing):
-        offset += _random.normal(rng, 0.0, STRAY_ACROSS * broad * share * hand)
+        offset += rng.normal(0.0, STRAY_ACROSS * broad * share * hand)
         cuts = _crossings(outline, across, offset)
         for start, end in zip(cuts[0::2], cuts[1::2], strict=True):
             start = start + rng.uniform(-1.0, 1.0) * STRAY_ALONG * width * hand * along
             end = end + rng.uniform(-1.0, 1.0) * STRAY_ALONG * width * hand * along
-            length = float(_along(end - start, along))
+            length = float((end - start) @ along)
             if length < 0.5 * width:
                 continue
             start = start + min(inset[0] * width, 0.25 * length) * along
@@ -135,9 +128,9 @@ def strokes(
             path = start + (end - start) * np.linspace(0.0, 1.0, knots + 1)[:, None]
             # (a short stroke wanders less, from the same draws)
             wander = min(
-                WANDER * width * hand, WANDER_SHARE * float(_along(end - start, along))
+                WANDER * width * hand, WANDER_SHARE * float((end - start) @ along)
             )
-            path += _random.normal(rng, 0.0, wander, path.shape)
+            path += rng.normal(0.0, wander, path.shape)
             firm = rng.uniform(1.0 - FIRMNESS * hand, 1.0 + FIRMNESS * hand)
             # (however unsteady the hand, a tip keeps some width)
             vary = WIDTH * hand * share
@@ -176,9 +169,9 @@ def passes(
     margin = 0.5 * width
     sides = _Sides(outline)
     turn = math.radians(angle)
-    across = np.array([_libm.sin(turn), _libm.cos(turn)])
-    along = np.array([_libm.cos(turn), -_libm.sin(turn)])
-    reach = _along(outline, across)
+    across = np.array([math.sin(turn), math.cos(turn)])
+    along = np.array([math.cos(turn), -math.sin(turn)])
+    reach = outline @ across
     lo, hi = reach.min() + margin, reach.max() - margin
     if hi < lo:
         lo = hi = 0.5 * (lo + hi)
@@ -189,7 +182,7 @@ def passes(
     last = lo
     for k, offset in enumerate(np.linspace(lo, hi, count)):
         if 0 < k < count - 1:  # (the outermost passes go along the edge)
-            offset += _random.normal(rng, 0.0, STRAY_ACROSS * width * hand)
+            offset += rng.normal(0.0, STRAY_ACROSS * width * hand)
             # (it strays no further from the pass before it than ``apart``,
             # and leaves the passes after it near enough to reach the last)
             offset = min(offset, hi, last + apart)
@@ -197,14 +190,14 @@ def passes(
         last = offset
         cuts = _crossings(outline, across, offset)
         for start, end in zip(cuts[0::2], cuts[1::2], strict=True):
-            length = float(_along(end - start, along))
+            length = float((end - start) @ along)
             if length < 0.5 * width:
                 continue
             start = start + min(margin, 0.25 * length) * along
             end = end - min(margin, 0.25 * length) * along
             knots = max(int(length / BEND), 2)
             path = start + (end - start) * np.linspace(0.0, 1.0, knots + 1)[:, None]
-            path += _random.normal(rng, 0.0, WANDER * width * hand, path.shape)
+            path += rng.normal(0.0, WANDER * width * hand, path.shape)
             firm = rng.uniform(1.0 - FIRMNESS * hand, 1.0 + FIRMNESS * hand)
             # (the points the hand goes through are kept inside, and so is
             # the curve it draws through them, which can bulge past them)
@@ -252,8 +245,7 @@ class _Sides:
         side = self.side
         turning = float(np.sum(outline[:, 0] * side[:, 1] - outline[:, 1] * side[:, 0]))
         inward = math.copysign(1.0, turning) * np.stack([-side[:, 1], side[:, 0]], 1)
-        length = _libm.np_hypot(inward[:, 0], inward[:, 1])
-        self.inward = inward / np.maximum(length, 1e-12)[:, None]
+        self.inward = inward / np.maximum(np.hypot(*inward.T), 1e-12)[:, None]
         self.long = np.maximum((side * side).sum(1), 1e-12)
         self.level = (self.inward * outline).sum(1)
 
@@ -261,9 +253,7 @@ class _Sides:
         """For each point, how far inside the nearest of the lines the sides
         lie on it is (less than nothing outside one): never more than how
         far inside the outline it is."""
-        inward = self.inward
-        reach = at[:, 0:1] * inward[None, :, 0] + at[:, 1:2] * inward[None, :, 1]
-        return (reach - self.level[None]).min(axis=1)
+        return (at @ self.inward.T - self.level[None]).min(axis=1)
 
     def nearest(self, at: np.ndarray):
         """For each point: its nearest side, how far inside the outline it
@@ -272,7 +262,7 @@ class _Sides:
         rel = at[:, None, :] - self.corner[None]
         t = np.clip((rel * self.side).sum(2) / self.long, 0.0, 1.0)
         off = rel - t[..., None] * self.side
-        gap = _libm.np_hypot(off[..., 0], off[..., 1])
+        gap = np.hypot(off[..., 0], off[..., 1])
         which = np.argmin(gap, axis=1)
         rows = np.arange(len(at))
         away, gap = off[rows, which], gap[rows, which]
@@ -317,7 +307,7 @@ def bearing(pressure: Pressure, path: np.ndarray, firm: float, hand: float):
             wanted = np.asarray(pressure(x, y), dtype=np.float64)
         else:
             wanted = float(pressure)
-        lift = 1.0 - np.sqrt(_libm.np_sin(np.pi * np.clip(u, 0.02, 0.98)))
+        lift = 1.0 - np.sqrt(np.sin(np.pi * np.clip(u, 0.02, 0.98)))
         return wanted * firm * (1.0 - LANDING * min(hand, 1.0) * lift)
 
     return along

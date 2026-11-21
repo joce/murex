@@ -23,12 +23,10 @@ pixels. Only numpy and Pillow are needed::
 
 from __future__ import annotations
 
-import math
 from collections import OrderedDict
 
 import numpy as np
 
-from . import _libm
 from . import spectral as sp
 from .filters import bilinear, box_blur
 
@@ -42,15 +40,6 @@ def _blur(a, sigma):
     for _ in range(3):
         a = box_blur(box_blur(a, r, axis=0), r, axis=1)
     return a
-
-
-def _dot(a, b) -> float:
-    """The dot product of two short vectors, summed in order (not by BLAS,
-    which sums in its own order)."""
-    total = 0.0
-    for u, v in zip(np.asarray(a).tolist(), np.asarray(b).tolist(), strict=True):
-        total += u * v
-    return total
 
 
 def _sample(img, x, y):
@@ -145,16 +134,11 @@ class Reference:
         J = _blur(np.stack([gx * gx, gx * gy, gy * gy], axis=-1), 2.0 * max(scale, 1.0))
         jxx, jxy, jyy = J[..., 0], J[..., 1], J[..., 2]
         # the way the light changes fastest
-        across = 0.5 * _libm.np_atan2(2.0 * jxy, jxx - jyy)
+        across = 0.5 * np.arctan2(2.0 * jxy, jxx - jyy)
         root = np.sqrt((jxx - jyy) ** 2 + 4.0 * jxy * jxy)
         coherence = (root / np.maximum(jxx + jyy, 1e-12)) ** 2
         return np.stack(
-            [
-                _libm.np_cos(across + np.pi / 2),
-                _libm.np_sin(across + np.pi / 2),
-                coherence,
-            ],
-            axis=-1,
+            [np.cos(across + np.pi / 2), np.sin(across + np.pi / 2), coherence], axis=-1
         )
 
     def _make_detail(self, scale):
@@ -177,7 +161,7 @@ class Reference:
         follow the form), and how clear that direction is (0 = none, e.g. a
         flat area; 1 = a clean edge)."""
         t = _sample(self._map("tensor", scale), x, y)
-        return _libm.np_atan2(t[..., 1], t[..., 0]), t[..., 2]
+        return np.arctan2(t[..., 1], t[..., 0]), t[..., 2]
 
     def detail(self, x, y, scale: float = 4.0):
         """How much the lightness varies around (x, y), within ``scale``
@@ -203,24 +187,26 @@ class Reference:
         step = step or max(scale, 2.0)
         start_col = self.color(x, y, scale)
         a0, _ = self.direction(x, y, scale)
-        d0 = np.array([_libm.np_cos(a0), _libm.np_sin(a0)])
+        d0 = np.array([np.cos(a0), np.sin(a0)])
         halves = []
         for sign in (1.0, -1.0):
             p, d, pts, run = np.array([x, y], np.float64), sign * d0, [], 0.0
             while run < 0.5 * length:
                 a, _ = self.direction(p[0], p[1], scale)
-                nd = np.array([_libm.np_cos(a), _libm.np_sin(a)])
-                if _dot(nd, d) < 0:
+                nd = np.array([np.cos(a), np.sin(a)])
+                if nd @ d < 0:
                     nd = -nd
                 nd = (1 - bend) * d + bend * nd
-                nd /= max(math.sqrt(_dot(nd, nd)), 1e-9)
-                if _dot(nd, d) < 0.5:  # too sharp a turn
+                nd /= max(np.linalg.norm(nd), 1e-9)
+                if nd @ d < 0.5:  # too sharp a turn
                     break
                 q = p + step * nd
                 if not (0 <= q[0] < self.width and 0 <= q[1] < self.height):
                     break
-                off = self.color(q[0], q[1], scale) - start_col
-                if math.sqrt(_dot(off, off)) > tolerance:
+                if (
+                    np.linalg.norm(self.color(q[0], q[1], scale) - start_col)
+                    > tolerance
+                ):
                     break
                 p, d, run = q, nd, run + step
                 pts.append(p.copy())
