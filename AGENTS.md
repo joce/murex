@@ -40,6 +40,7 @@ uv run python tools/fusain/refcounts.py     # whether a kernel of fusain counts 
 uv run python tools/huile/bench.py                 # time huile's 16 benchmark scenes
 uv run python tools/huile/bench.py --save DIR      # keep each scene's painted state and picture
 uv run python tools/huile/bench.py --compare DIR   # compare byte for byte with a kept state
+uv run python tools/huile/knife_probe.py ribs      # measure the ribs a dragging knife leaves (skim: what a knife barely touching lays)
 ```
 
 The first run of huile's tests compiles its kernels (about a minute).
