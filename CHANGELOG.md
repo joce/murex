@@ -89,8 +89,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   than the bead, the same level as before where the blade carries no more than
   that (murex-iaa). The same pulls now leave 2928, 9693, 16785, 18938 and
   20724 (loads 0.3, 1, 2, 3, 8), and from pressure 0.03 to 0.25 over the bare
-  canvas, a thin and a thick wet base, what a pull leaves no longer falls as
-  the load rises (`tools/huile/knife_probe.py skim`). Of the 16 scenes of
+  canvas, a thin and a thick wet base, what a pull leaves rises with the load
+  until the bead is full, then stays level (within 3%: the bead's height is
+  bounded) (`tools/huile/knife_probe.py skim`). Between pressures 0.06 and
+  0.15 a heavily loaded blade, which already laid a slab, now lays the bead
+  on top of it: about twice as thick at pressure 0.08, load 8. Of the 16 scenes of
   `tools/huile/bench.py`, three change, where knives skim: `knife` (0.27% of
   the pixels of the lit picture move by more than 1/255, 18/255 at most),
   `knife-lift` (0.82%, the two strokes laid at pressure 0.2; 215/255 at most)

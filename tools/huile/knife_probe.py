@@ -17,7 +17,8 @@ there and run this again.
 
 ``skim`` (murex-iaa, murex-dnj): white knifed over a wet dark at a light
 touch, for some pressures and loads. The table gives the volume each stroke
-left on the canvas: at a given touch it rises with the load. (At the
+left on the canvas: at a given touch it rises with the load, then levels
+off once the bead is full. (At the
 lightest touch, more paint on the blade left less of a mark, down to nothing
 at loads 1 and 3: its bead hung from the level the blade's whole film held
 it up at, murex-iaa.) The dark base of the default (``--base 5``) covers the
