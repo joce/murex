@@ -111,6 +111,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   (within 1%) but sets the blade wavering at pressure 0.5 (0.10 units of
   ripple in steps up to 4 times shorter, where very short ones give 0.03):
   it was tried and left out.
+
+  What it costs, found in review: the paint now dragged at full speed shows
+  more plainly that the blade rides lower in a longer step. At a stroke's
+  own steps a knife carries the earlier paint 13 to 22% further (volume
+  times distance) than in steps eight times shorter, where it was within
+  -3 to +11%, and the heap it leaves at the end of a pull is 30 to 107%
+  bigger than in such steps (14 to 78% before); in very short steps the two
+  codes agree within 0.3% (murex-kau). And where a loaded pull runs along
+  the end ridge of an earlier one, the ridge it now gathers whole is dropped
+  as more tall lumps: on the dark ground of `knife_probe.py ribs`, 48
+  pixels stand above 8 units where 18 did (body 0.7; 34 against none at
+  body 0.2), a few small glints in the picture (murex-6fa).
 - **Breaking, in fusain's pictures:** how many points a path is cut into, and
   how many numbers `noise.value_noise_1d` draws, no longer hang on the last
   bit of a length. These counts are worked out from ratios that are often

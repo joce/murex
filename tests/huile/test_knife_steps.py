@@ -294,7 +294,7 @@ def test_a_knife_dragging_thick_wet_paint_leaves_no_rib_at_its_steps():
 def test_a_knife_pull_cut_twice_as_fine_ripples_the_same():
     """The same pull in steps half as long leaves much the same surface
     (three strokes each: 0.036 against 0.049 units of ripple, each within
-    0.007 from stroke to stroke; it was 0.135 against 0.065), and as even a
+    0.015 from stroke to stroke; it was 0.135 against 0.065), and as even a
     film of white (0.053 and 0.058 of its thickness; it was 0.29 and 0.16).
     In steps four times shorter, 0.048 and 0.07, much as it was (0.054 and
     0.09): the steps of a stroke now give what only short ones gave."""
