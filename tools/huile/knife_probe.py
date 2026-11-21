@@ -3,6 +3,7 @@
     python tools/huile/knife_probe.py ribs           # the ribs a dragging knife leaves
     python tools/huile/knife_probe.py skim           # what a knife barely touching lays
     python tools/huile/knife_probe.py ribs --save DIR   # also keep the pictures
+    python tools/huile/knife_probe.py ribs --finer 2    # in steps half as long
     python tools/huile/knife_probe.py skim --base 1     # over a thinner dark base
 
 ``ribs`` (murex-sdz, murex-bja): white knifed across a thick wet dark at
@@ -11,9 +12,11 @@ the wet paint lies under the stroke, the ripple of that thickness along the
 stroke (root mean square about its running mean) and the ripple's strongest
 period, for a runny, a tube and a stiff dark, and again with the stage that
 drags the film under the blade (``_knife._drag_film``) switched off. The
-period is the step of the stroke: 8 px for a blade this long (``spacing`` in
-``murex/huile/stroke.py``). To see the ribs follow the step, halve that cap
-there and run this again.
+period was the step of the stroke: 8 px for a blade this long (``spacing`` in
+``murex/huile/stroke.py``). A stroke must not show how it is cut into steps:
+``--finer K`` cuts the white pull into steps K times shorter, and the table
+should stay much as it is (the ripple left is the base's own, and the slow
+waver of the blade, half a blade apart).
 
 ``skim`` (murex-iaa, murex-dnj): white knifed over a wet dark at a light
 touch, for some pressures and loads. The table gives the volume each stroke
@@ -38,6 +41,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from murex import spline
 from murex.huile import Brush, Canvas, Paint, _knife, brushes
 from murex.huile import palette as P
 
@@ -65,12 +69,28 @@ def dark_base(canvas: Canvas, load: float, body: float | None = None) -> None:
         )
 
 
-def pull(canvas: Canvas, start, load: float, pressure: float) -> None:
-    """One pull of white, 270 px long, the blade across it."""
+class Finer(spline.Path):
+    """A path sampled ``k`` times as finely as a stroke asks."""
+
+    def __init__(self, points, k: int):
+        self.path, self.k = spline.as_path(points), k
+        self.n_knots = self.path.n_knots
+
+    def _dense(self):
+        return self.path._dense()
+
+    def sample(self, spacing):
+        return self.path.sample(spacing / self.k)
+
+
+def pull(canvas: Canvas, start, load: float, pressure: float, finer: int = 1) -> None:
+    """One pull of white, 270 px long, the blade across it (cut into steps
+    ``finer`` times shorter than a stroke's)."""
     x, y = start
     knife = Brush(SNOW_KNIFE).load(P.TITANIUM_WHITE, load)
+    path = [(x, y), (x + 110, y + 80), (x + 220, y + 160)]
     canvas.stroke(
-        [(x, y), (x + 110, y + 80), (x + 220, y + 160)],
+        Finer(path, finer) if finer > 1 else path,
         None,
         brush=knife,
         angle=ACROSS,
@@ -114,7 +134,7 @@ def ribs(args: argparse.Namespace) -> None:
                 _knife._drag_film = drag_film if drag else lambda *_a, **_k: None
                 canvas = Canvas(420, 300, seed=1)
                 dark_base(canvas, args.base, body)
-                pull(canvas, (90, 50), 0.3, 0.25)
+                pull(canvas, (90, 50), 0.3, 0.25, args.finer)
                 values = along_the_pull(canvas.wet_thickness, (90, 50))
                 rms, period = ripple(values)
                 print(
@@ -139,7 +159,7 @@ def skim(args: argparse.Namespace) -> None:
         row = []
         for j, load in enumerate(loads):
             before = float(canvas.wet_thickness.sum())
-            pull(canvas, (60 + j * 340, 40 + i * 215), load, pressure)
+            pull(canvas, (60 + j * 340, 40 + i * 215), load, pressure, args.finer)
             row.append(float(canvas.wet_thickness.sum()) - before)
         print(f"{pressure:8.2f}  " + "  ".join(f"{v:9.1f}" for v in row))
     if args.save:
@@ -154,6 +174,13 @@ def main() -> None:
         type=float,
         default=5.0,
         help="the load of each pull of the dark base (5: 2 to 3 units thick)",
+    )
+    parser.add_argument(
+        "--finer",
+        type=int,
+        default=1,
+        metavar="K",
+        help="cut each white pull into steps K times shorter",
     )
     parser.add_argument("--save", metavar="DIR", help="keep the pictures in DIR")
     args = parser.parse_args()

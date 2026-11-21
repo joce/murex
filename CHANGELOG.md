@@ -49,6 +49,68 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** a knife dragging wet paint no longer
+  shows how its stroke is cut into steps (murex-sdz). A knife pulled across
+  thick wet paint left fine ribs parallel to its blade, one per step of the
+  stroke (every 8 px for a wide blade), in the paint it dragged and in the
+  film it laid. Two things a step read of the paint under the blade made
+  them:
+  - The film flow under the blade (`_engine.flow_under_blade`) worked out,
+    and smoothed, the speed of each of the two wet layers apart. Where the
+    blade lays its own film, the old top layer goes under, up to a line drawn
+    afresh at every step; across that line the flow fell to about half, and
+    paint heaped up behind it and was drained ahead of it (on a flat bed 2.4
+    units thick, one step left a heap of 3.1 and a hollow of 1.3 there). The
+    earlier strokes' paint of a pixel now moves as one column, at a speed
+    that does not depend on which layer holds it (each layer still at its own
+    speed within it, the upper one faster), and what the flow brings to a
+    pixel under the blade's own film goes under the film, not into it.
+  - The blade laid its paint (`_knife._slab`) in the gap the canvas showed
+    under it when the step ended. The paint it drags travels under it, so
+    that gap, and the surface its bead touches when it skims, read once per
+    step, printed the shape of the paint under the blade at every step: a
+    bright line of the new paint per step. The flow now notes what the
+    blade meets at each of its sub-steps (a pixel or less of travel): the
+    gap its film can fill, and the surface as the bead on its edge finds it,
+    from the level the bead hangs from (murex-iaa); the blade fills, and its
+    bead touches, their mean. A step that drags no wet paint lays as it did.
+
+  Measured on the stroke of the issue (`tools/huile/knife_probe.py ribs`:
+  white knifed at pressure 0.25 across 2.8 units of wet dark; the ripple of
+  the wet thickness along the pull, root mean square about a 17 px running
+  mean), for a dark of body 0.2, 0.7 and 1.0: 0.030, 0.030 and 0.033 units
+  (0.066, 0.118 and 0.125 before; the dark alone, the drag switched off:
+  0.034, 0.057, 0.064); with the step halved (the cap of `stroke.py` at 4
+  px), 0.042, 0.036 and 0.038 (0.046, 0.064 and 0.068 before). The white
+  left along the pull is even to 0.046 of its thickness (0.26 before). The
+  same pull cut into steps 2, 4 and 8 times shorter (`--finer K`, three
+  strokes each) ripples by 0.048, 0.048 and 0.039, against 0.036 uncut
+  (before: 0.065, 0.053 and 0.040, against 0.135 uncut): a stroke's own
+  steps now give what only very short ones gave. Paint is conserved as
+  before. A skimming knife lays what it did (murex-iaa): over a thin and a
+  thick wet base, the 16 pulls of `knife_probe.py skim` leave within 0.1%
+  and 0.7% of what they left, and pulls at pressures 0.03 and 0.08 loaded
+  with 1, 3 and 8, in a stroke's steps and in steps 2 and 4 times shorter,
+  within 0.3% over the same base; how much such a pull leaves still changes
+  with the step, as it did (murex-86z). `tools/huile/bench.py --compare`:
+  `knife`, `knife-lift`, `edges` and `painting` change (knives over wet
+  paint); the 12 other scenes are the same, paint and picture. The knife
+  scenes take as long as they did (within 2%). The images of
+  `examples/huile/output/` are regenerated.
+
+  Not changed: how high the blade rides is still read once per step, from
+  the wet paint under where the step takes it, which the heap it pushes has
+  not reached yet. So the longer the step, the lower it rides: at a
+  stroke's own steps the paint left under this pull is 1.5% thinner than in
+  steps eight times shorter (2.85 against 2.90 units; 2.4% at pressure
+  0.5), and where the pull crosses a ridge of the base the surface can
+  waver, in steps of some lengths and not of others (twice over 25 px, by
+  0.2 units, in steps half as long; at pressure 0.5 the ripple is 0.030,
+  0.041, 0.067 and 0.026 in steps 1, 2, 4 and 8 times shorter). Reading it
+  under where the blade stands as the step begins evens the thickness
+  (within 1%) but sets the blade wavering at pressure 0.5 (0.10 units of
+  ripple in steps up to 4 times shorter, where very short ones give 0.03):
+  it was tried and left out.
 - **Breaking, in fusain's pictures:** how many points a path is cut into, and
   how many numbers `noise.value_noise_1d` draws, no longer hang on the last
   bit of a length. These counts are worked out from ratios that are often
