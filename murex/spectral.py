@@ -12,13 +12,6 @@ spectrum    ->  CIE XYZ (D65)  ->  linear sRGB  ->  sRGB
 Mixing paints means adding their absorption (K) and scattering (S) spectra,
 weighted by volume. That is what makes blue + yellow give green instead of the
 grey you get by averaging RGB values.
-
-Every result is the same to the last bit on every machine: powers, roots,
-``exp`` and ``tanh`` come from :mod:`murex._libm`, not from NumPy's SIMD
-routines or the C library, and sums over bands and basis spectra are taken
-in a fixed order by compiled loops, not by BLAS. Only IEEE addition,
-subtraction, multiplication, division and square root are left to NumPy,
-which every machine rounds alike.
 """
 
 from __future__ import annotations
@@ -30,7 +23,6 @@ import numpy as np
 from numba import njit
 from numpy.lib.stride_tricks import as_strided
 
-from . import _libm
 from ._spectral_tables import BASIS_TABLE, SPECTRUM_TO_RGB_TABLE
 
 # --------------------------------------------------------------------------
@@ -193,14 +185,12 @@ LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
 
 def srgb_to_linear(c) -> np.ndarray:
     c = np.asarray(c, dtype=np.float64)
-    return np.where(c <= 0.04045, c / 12.92, _libm.np_power((c + 0.055) / 1.055, 2.4))
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
 
 
 def linear_to_srgb(c) -> np.ndarray:
     c = np.clip(np.asarray(c, dtype=np.float64), 0.0, 1.0)
-    return np.where(
-        c <= 0.0031308, 12.92 * c, 1.055 * _libm.np_power(c, 1.0 / 2.4) - 0.055
-    )
+    return np.where(c <= 0.0031308, 12.92 * c, 1.055 * c ** (1.0 / 2.4) - 0.055)
 
 
 _HEX = re.compile(r"^#?([0-9a-fA-F]{6})$")
@@ -281,14 +271,10 @@ _D65_WHITE_XYZ = np.array([0.95047, 1.0, 1.08883])
 def srgb_to_lab(srgb) -> np.ndarray:
     """sRGB (..., 3) in 0..1 -> CIELAB (D65): L* 0..100, where a difference
     of ~2.3 is just noticeable."""
-    lin = srgb_to_linear(srgb)
-    r, g, b = lin[..., 0:1], lin[..., 1:2], lin[..., 2:3]
-    # (the matrix product, term by term in a fixed order: not by BLAS)
-    m = _RGB_TO_XYZ.T
-    xyz = (r * m[0] + g * m[1] + b * m[2]) / _D65_WHITE_XYZ
+    xyz = srgb_to_linear(srgb) @ _RGB_TO_XYZ.T / _D65_WHITE_XYZ
     f = np.where(
         xyz > (6 / 29) ** 3,
-        _libm.np_cbrt(np.maximum(xyz, 0.0)),
+        np.cbrt(np.maximum(xyz, 0.0)),
         xyz / (3 * (6 / 29) ** 2) + 4 / 29,
     )
     return np.stack(
@@ -387,10 +373,6 @@ for _table in (
     _table.flags.writeable = False
 del _table
 
-# (the transpose, laid out for _times_rows)
-_SPECTRUM_TO_RGB_T = np.ascontiguousarray(SPECTRUM_TO_RGB.T)
-_SPECTRUM_TO_RGB_T.flags.writeable = False
-
 #: Darkest reflectance any color is mapped to. Real "black" paint reflects a
 #: few percent; this keeps Kubelka-Munk absorption finite.
 MIN_REFLECTANCE = 1e-3
@@ -414,33 +396,12 @@ def linear_rgb_to_reflectance(lrgb) -> np.ndarray:
     green = np.minimum(np.maximum(0, g - b), np.maximum(0, g - r))
     blue = np.minimum(np.maximum(0, b - g), np.maximum(0, b - r))
     weights = np.stack([w, c, m, y, red, green, blue], axis=-1)
-    return np.clip(_rows_times(weights, _BASIS), MIN_REFLECTANCE, 1.0)
+    return np.clip(weights @ _BASIS, MIN_REFLECTANCE, 1.0)
 
 
 def reflectance_to_linear_rgb(R) -> np.ndarray:
     """Reflectance spectrum (..., N_BANDS) -> linear sRGB (..., 3)."""
-    return _rows_times(R, _SPECTRUM_TO_RGB_T)
-
-
-def _rows_times(a, matrix) -> np.ndarray:
-    """``a @ matrix`` for ``a`` (..., n) and ``matrix`` (n, m) float64: each
-    sum taken in order, by :func:`_times_rows`, the same on every machine."""
-    a = np.asarray(a, dtype=np.float64)
-    n, m = matrix.shape
-    rows = np.ascontiguousarray(a).reshape(-1, n)
-    out = np.empty((rows.shape[0], m))
-    _times_rows(rows, matrix, out)
-    return out.reshape(a.shape[:-1] + (m,))
-
-
-@njit(cache=True, error_model="numpy")
-def _times_rows(rows, matrix, out):
-    for i in range(rows.shape[0]):
-        for j in range(matrix.shape[1]):
-            acc = rows[i, 0] * matrix[0, j]
-            for k in range(1, matrix.shape[0]):
-                acc += rows[i, k] * matrix[k, j]
-            out[i, j] = acc
+    return np.asarray(R) @ SPECTRUM_TO_RGB.T
 
 
 def srgb_to_reflectance(color) -> np.ndarray:
@@ -469,7 +430,7 @@ def _km_terms(kappa, sigma):
         sigma = sigma[..., None]
     B = np.sqrt(kappa * kappa + 2.0 * kappa * sigma)
     small = B < 1e-4
-    tau = np.where(small, 1.0 - B * B / 3.0, _libm.np_tanh(B) / np.where(small, 1.0, B))
+    tau = np.where(small, 1.0 - B * B / 3.0, np.tanh(B) / np.where(small, 1.0, B))
     return kappa, sigma, B, tau
 
 
@@ -603,23 +564,29 @@ _KM_VALUES = 32768
 def _km_blocks(k, k_step, s, g, g_step, R, aside: bool) -> None:
     """Fill ``R`` (layers, bands) with the reflectance of the layers ``k``
     and ``s`` over ``g`` (as :func:`_rows` gives them): two compiled passes
-    over the layers, and :func:`murex._libm.tanh` between them, the very same
-    function as in :func:`_km_layer_general`.
+    over the layers, and numpy's ``tanh`` between them, so that too is the
+    very same function as in :func:`_km_layer_general`.
 
-    The layers are taken some at a time, each in whole, so that nothing as
-    large as the batch is needed but the result. ``aside`` says
+    The layers are taken some at a time, each in whole (what numpy's
+    ``tanh`` gives for a value does not depend on those around it), so that
+    nothing as large as the batch is needed but the result. ``aside`` says
     that ``R`` is not a new array of the kernels' own: it may be the ground,
     or the layers themselves. Each lot is then worked out aside and put in
     ``R`` once it is whole.
     """
     count, bands = R.shape
+    # (a multiple of 16 layers at a time: of whole vectors, whatever numpy's
+    # tanh takes at once, as when it is given the whole batch)
     size = min(max(_KM_VALUES // bands // 16, 1) * 16, count)
     B, tanh_B = np.empty((size, bands)), np.empty((size, bands))
     lot = np.empty((size, bands)) if aside else None
     for a in range(0, count, size):
         n = min(size, count - a)
         _km_b(k, k_step, s, a, n, B)
-        _libm.tanh_array(B[:n].reshape(-1), tanh_B[:n].reshape(-1))
+        if n == size:
+            np.tanh(B, out=tanh_B)
+        else:
+            np.tanh(B[:n], out=tanh_B[:n])
         if lot is None:
             _km_reflectance(k, k_step, s, g, g_step, a, n, B, tanh_B, R, a)
         else:
@@ -663,8 +630,8 @@ def _km_target(out, shape, inputs) -> np.ndarray | None:
 
 
 # Plain IEEE arithmetic only (no fastmath): numba then neither reorders nor
-# fuses the operations, so each matches numpy's (and _libm's) to the bit.
-# "x <= 0.0: 0.0" is np.maximum(x, 0.0): -0.0 becomes +0.0 and NaN stays NaN.
+# fuses the operations, so each matches numpy's to the bit. "x <= 0.0: 0.0"
+# is np.maximum(x, 0.0): -0.0 becomes +0.0 and NaN stays NaN.
 #
 # The kernels take the layers as _rows gives them (kappa: values and step)
 # and work on ``count`` of them from layer ``start``; B and tanh_B are
@@ -719,7 +686,7 @@ def km_film(kappa, sigma):
     kappa, sigma, B, tau = _km_terms(kappa, sigma)
     den = (sigma + kappa) * tau + 1.0
     # 1 / cosh(B), without overflow for thick, dark films
-    e = _libm.np_exp(-B)
+    e = np.exp(-B)
     sech = 2.0 * e / (1.0 + e * e)
     return sigma * tau / den, sech / den
 
@@ -748,10 +715,10 @@ def solve_absorption(target_R, sigma) -> np.ndarray:
     hi = np.full(target_R.shape, 12.0)
     for _ in range(70):
         mid = 0.5 * (lo + hi)
-        too_dark = target_R > _layer_over_white(_libm.np_exp(mid), sigma)
+        too_dark = target_R > _layer_over_white(np.exp(mid), sigma)
         hi = np.where(too_dark, mid, hi)
         lo = np.where(too_dark, lo, mid)
-    kappa = _libm.np_exp(0.5 * (lo + hi))
+    kappa = np.exp(0.5 * (lo + hi))
     return np.where(target_R >= 0.99999, 0.0, kappa)
 
 
@@ -763,7 +730,7 @@ def _layer_over_white(kappa, sigma: float):
     the same to the last bit."""
     B = np.sqrt(kappa * kappa + 2.0 * kappa * sigma)
     small = B < 1e-4
-    tau = _libm.np_tanh(B) / np.where(small, 1.0, B)
+    tau = np.tanh(B) / np.where(small, 1.0, B)
     if small.any():
         tau = np.where(small, 1.0 - B * B / 3.0, tau)
     num = sigma * tau - ((sigma + kappa) * tau - 1.0)

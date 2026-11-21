@@ -21,15 +21,6 @@ structure of oil paint, new lighting, stippling and spatter, reverse glass
 painting, strokes off the edge, clear errors, speed). `pip install oilpaint`
 still gives 0.1.0, which is not updated any more.
 
-## Breaking, in the last bits: the colours are the same on every machine
-
-The colour science no longer depends on how NumPy, the BLAS or the processor
-rounds: its powers, roots, `exp` and `tanh` are murex's own, made of plain
-arithmetic, and its sums are taken in a fixed order. Every result moves in its
-last bits (at most 2e-12 relative); no colour changes on the 0..255 scale.
-Drawings come out the same image for image; of the oil paintings, 9 images
-change, in at most 7 pixels each, by 1/255.
-
 ## Breaking, in fusain's drawings: a path's points no longer hang on a last bit
 
 How many points a path is cut into, and how many numbers a noise draws, were

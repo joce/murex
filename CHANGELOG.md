@@ -49,34 +49,6 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Breaking, in the last bits:** the colour science gives the same numbers
-  on every machine. Its powers, roots, `exp` and `tanh` were NumPy's, whose
-  SIMD routines round some values differently from one processor to another
-  (AVX-512 or not, x86 or ARM), and its matrix products were BLAS's, which
-  sums in its own order (with fused multiply-add or not). They are now
-  murex's own: `murex/_libm.py` computes `exp`, `expm1`, `tanh`, `power` and
-  `cbrt` with IEEE addition, subtraction, multiplication and division only
-  (fdlibm's algorithms), within one unit in the last place of the exact value
-  (two for `tanh`), and the products are sums in a fixed order. This holds
-  for `srgb_to_linear`, `linear_to_srgb`, `srgb_to_lab`,
-  `linear_rgb_to_reflectance`, `reflectance_to_linear_rgb`, `km_layer`,
-  `km_film`, `solve_absorption` and so for every `Pigment`. Results move in
-  their last bits: over 5,000 colours and 400 pigments, at most 2e-12
-  relative, and no colour changes on the 0..255 scale. A `float32` input to
-  `km_layer` gives `float32`, as before, now rounded once from double
-  precision. Measured in the media:
-  - fusain: its fingerprints are recorded again (the colours of its media and
-    papers move in their last bits; 438 of the 12,037 marks of the thorough
-    fingerprint hash differently), and all 17 of its example images come out
-    byte for byte as they were.
-  - huile: the paint moves by about 1e-14 relative; the reflectance of a
-    picture, in `float32`, by a few units in its last place. 13 of its 22
-    example images come out byte for byte as they were; in the other 9, at
-    most 7 pixels change, by 1/255.
-  `tests/test_bits.py` now pins every result of the colour science, where it
-  could pin only those NumPy happened to round alike everywhere, and CI runs
-  the tests on ARM as well as x86-64. (murex-krb)
-
 - **Breaking, in fusain's pictures:** how many points a path is cut into, and
   how many numbers `noise.value_noise_1d` draws, no longer hang on the last
   bit of a length. These counts are worked out from ratios that are often
@@ -147,15 +119,24 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   the counts stay.
 - `tests/test_bits.py` pins reflectances, spectrum to RGB and Kubelka-Munk
   layers to the last bit, on x86-64. On ARM eight of them differ in the last
-  bits: the results follow the processor until spectral's arithmetic is made
-  the same everywhere (`murex-krb`, decided, not yet done).
+  bits, so on another kind of processor they are skipped.
 
 ### Known, not changed
 
-- The media's own kernels and `noise.py` still use the machine's maths library
-  (numba's `math` functions, NumPy's `sin`, `exp` and `power`), so a picture
-  may still differ in its last bits from one machine to another, though its
-  colours no longer do (murex-9v4).
+- Some results still follow the processor to the last bit: NumPy's `power` and
+  `tanh` on arrays take a SIMD path on processors with AVX-512 (`tanh`, one
+  without AVX2) that rounds some values differently from libm, so `srgb_to_linear`, `linear_to_srgb`, `solve_absorption` (and the optics
+  of a `Pigment`) are not the same on every machine, and a BLAS with fused
+  multiply-add sums `linear_rgb_to_reflectance` differently from one without.
+  The media's kernels, their random draws and `noise.py` follow the machine
+  likewise (numba's `math` is the C library's). A picture is therefore the
+  same to the bit on one machine, and may differ in its last bits on another.
+  Making every machine agree was done and undone before any release
+  (`murex-krb`, `murex-9v4`): it takes murex's own maths library and random
+  draws, about 900 lines with NumPy's ziggurat tables, and a ban on ordinary
+  NumPy calls in murex's code, which is more than this project is worth.
+  Recorded hashes are those of the machine that recorded them; fusain's
+  fingerprint test and the pins of `tests/test_bits.py` skip elsewhere.
 
 ## [0.2.0] - 2026-11-15
 
