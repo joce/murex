@@ -152,6 +152,13 @@ def test_special_values():
 def test_a_number_in_gives_a_number_out_and_shapes_are_kept():
     assert isinstance(_libm.np_exp(1.0), float)
     assert _libm.np_tanh(np.zeros((2, 3, 4))).shape == (2, 3, 4)
+    # a narrower float stays as it was given, as with NumPy's own functions
+    x = np.linspace(0.1, 2.0, 50, dtype=np.float32)
+    assert _libm.np_tanh(x).dtype == np.float32
+    np.testing.assert_array_equal(
+        _libm.np_tanh(x), _libm.np_tanh(x.astype(np.float64)).astype(np.float32)
+    )
+    assert _libm.np_exp(np.arange(3)).dtype == np.float64  # (integers: float64)
     columns = np.arange(12.0).reshape(3, 4)[:, ::2]  # not contiguous
     np.testing.assert_array_equal(
         _libm.np_exp(columns), _libm.np_exp(np.ascontiguousarray(columns))

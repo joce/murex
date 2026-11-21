@@ -445,10 +445,15 @@ def cbrt_array(x, out):
 
 def _elementwise(kernel, x, *extra):
     """``kernel`` over every element of ``x``, keeping its shape (a number
-    gives a number)."""
-    a = np.asarray(x, dtype=np.float64)
+    gives a number) and, as NumPy's functions do, a floating type narrower
+    than float64 (worked out in float64, then rounded to it once: the same
+    everywhere too)."""
+    given = np.asarray(x)
+    a = given.astype(np.float64, copy=False)
     out = np.empty(a.shape)
     kernel(np.ascontiguousarray(a.reshape(-1)), *extra, out.reshape(-1))
+    if given.dtype.kind == "f" and given.dtype.itemsize < 8:
+        out = out.astype(given.dtype)
     return out if out.ndim else out[()]
 
 

@@ -18,8 +18,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from murex import Bezier, CatmullRom, Path, Polyline, spline
-from murex import _libm
+from murex import Bezier, CatmullRom, Path, Polyline, _libm, spline
 from murex import spectral as sp
 from murex._rounding import WHOLE_SLACK, whole_ceil, whole_floor
 
