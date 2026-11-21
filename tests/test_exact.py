@@ -2,11 +2,13 @@
 batch of layers, and a path that keeps its dense points and works them out
 in compiled code, give to the last bit what numpy gave in murex 0.1.1.
 
-The code of murex 0.1.1 is kept here to compare with, as it was but for one
-thing: fusain and huile check their pictures byte for byte, so that is the
-test. The one thing is how a path counts its points: since huile's fix came
-into the shared modules, a ratio within ``WHOLE_SLACK`` of a whole number
-counts as that number (see ``murex._rounding``), here as there."""
+The code of murex 0.1.1 is kept here to compare with, as it was but for two
+things: fusain and huile check their pictures byte for byte, so that is the
+test. One is how a path counts its points: since huile's fix came into the
+shared modules, a ratio within ``WHOLE_SLACK`` of a whole number counts as
+that number (see ``murex._rounding``), here as there. The other is ``tanh``:
+murex's own (``murex._libm``), not numpy's, which rounds some values
+differently from one processor to another."""
 
 import copy
 import pickle
@@ -16,14 +18,14 @@ from typing import Any
 import numpy as np
 import pytest
 
-from murex import Bezier, CatmullRom, Path, Polyline, spline
+from murex import Bezier, CatmullRom, Path, Polyline, _libm, spline
 from murex import spectral as sp
 from murex._rounding import WHOLE_SLACK, whole_ceil, whole_floor
 
 N = sp.N_BANDS
 
 # --------------------------------------------------------------------------
-# murex 0.1.1, as it was (but for the counts of a path's points)
+# murex 0.1.1, as it was (but for the counts of a path's points, and tanh)
 # --------------------------------------------------------------------------
 
 
@@ -34,7 +36,8 @@ def km_layer_011(kappa, sigma, ground):
         sigma = sigma[..., None]
     B = np.sqrt(kappa * kappa + 2.0 * kappa * sigma)
     small = B < 1e-4
-    tau = np.where(small, 1.0 - B * B / 3.0, np.tanh(B) / np.where(small, 1.0, B))
+    tanh = _libm.np_tanh(B)  # (murex's own tanh, the same on every machine)
+    tau = np.where(small, 1.0 - B * B / 3.0, tanh / np.where(small, 1.0, B))
     num = sigma * tau - ground * ((sigma + kappa) * tau - 1.0)
     den = (sigma + kappa - ground * sigma) * tau + 1.0
     return num / den
@@ -261,7 +264,7 @@ def test_any_number_of_bands(bands):
 
 @pytest.mark.parametrize("bands", [1, 3, 5, 7, 24, 29])
 def test_layers_taken_a_few_at_a_time(bands, monkeypatch):
-    """The layers are worked out some at a time (numpy's tanh on each lot):
+    """The layers are worked out some at a time (tanh on each lot):
     with lots of 16 layers, every count of layers there is around a few
     lots gives what the whole batch gives at once."""
     monkeypatch.setattr(sp, "_KM_VALUES", 16 * bands)
