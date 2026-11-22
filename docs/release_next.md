@@ -116,6 +116,44 @@ there (and more of it gets there), and a heap gathered from a narrow ridge
 stays narrow (the paint under a blade moves along the pull, not along the
 blade).
 
+## Breaking, in oil paintings: a knife at the edge of the canvas
+
+A knife coming onto the canvas over its edge, or set down across it, found
+the wet paint there drained away and laid its own in its place: up to four
+times the paint that the same stroke leaves in the same place on a larger
+canvas, and more or less of it as the stroke was cut into steps. The flow
+under a blade let wet paint out over the edge and none in, and what a blade
+pushed off the canvas was lost without being counted.
+
+The part of a knife's stroke that reaches past the edge is now painted on
+the canvas going on there as its own mirror image (wet paint, dried paint
+and weave, up to 128 px past each edge). A blade coming on brings with it
+the wet paint it has pushed along out there, one leaving takes some with
+it, and what lands on the canvas is what the same stroke leaves on a larger
+canvas: within 1.2% set down across the edge or leaving, 1.4% along the
+edge and 6% coming on at pressures 0.25 and above, at every step length,
+where it was 55% under to 310% over. `canvas.edge_loss` (new) is what the
+canvas and its knives have lost over the edge, less what they have gained
+there: a difference, which the canvas, the knife and it keep every pigment
+by; it is below nothing where knives have brought more on than they pushed
+off, and no store of paint.
+
+Knife strokes wholly on the canvas are unchanged, and so are brushes. Of
+the benchmark's 16 scenes, `edges` changes and `knife` barely (two
+strokes). Four of the README's images change: `knives.png` in 5.1% of its
+pixels, `knife_drag.png` in 1.1%, `dirty_brush.png` in 0.39% and
+`bob_ross_style.png` in 0.56%. The steps of a knife stroke past the edge
+take as long as steps on the canvas now, where they took a quarter (the
+three knife strokes of `edges`: 1.5 to 2.0 s for 0.8 to 1.1); memory is
+0.25 KB for each pixel those steps can reach, not for the whole stroke.
+
+Limits: nothing is kept past the edge between strokes, so a knife pulled
+onto the canvas again and again over one track keeps bringing paint on;
+paint that is uneven near the edge is mirrored as it is (a band of colour
+along the edge is twice as wide to a knife coming on); and a knife that
+starts further out than 128 px lays its paint out there as before and
+drags none until it is that near.
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and

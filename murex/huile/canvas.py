@@ -139,6 +139,18 @@ class Canvas:
         self.top_a = np.zeros((H, W), f32)
         self.und_a = np.zeros((H, W), f32)
         self.top_id = np.zeros((H, W), np.int32)
+        # What the canvas and the knives painting on it have lost over its
+        # edge, less what they have gained there: a difference, summed over
+        # the knife strokes, packed as a pixel's, and not a store of paint
+        # (see _knife._Edge). A knife at the edge works on the canvas going
+        # on past it as its mirror image: paint crosses the edge both ways
+        # under one blade, and where the blade brings more of a pigment
+        # onto the canvas than it pushes off, this goes below nothing. The
+        # canvas, the knife and this together keep every pigment over a
+        # knife stroke. Being a difference, it also takes the rounding of
+        # the single-precision paint (about 1e-4 units of volume a stroke).
+        # (What a brush lays past the edge is used up, and not counted.)
+        self.edge_loss = np.zeros(PACKED)
         self.dry_height = np.zeros((H, W), f32)
         self.texture = float(self.surface.relief)
         self.grain = self.surface.height_map(H, W, self._rng).astype(f32)
@@ -204,6 +216,8 @@ class Canvas:
         for name in _CACHED:  # (should a pickle hold them, made again)
             self.__dict__.pop(name, None)
         self.__dict__.setdefault("reverse", False)  # canvases saved before glass
+        # ... or before what knives lose over the edge was counted
+        self.__dict__.setdefault("edge_loss", np.zeros(PACKED))
         # (canvases saved by versions that kept the paint a stroke holds back
         # on the canvas: none is held between strokes)
         self.__dict__.pop("_pending", None)

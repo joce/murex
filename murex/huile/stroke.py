@@ -44,7 +44,13 @@ from ._geometry import (
     _step_slices,
 )
 from ._hair import _NICK_WANDER, _NO_TEX, _NO_TEX2, _hair_field
-from ._knife import _before_the_blade, _BladeStart, _knife_step, _knife_taps
+from ._knife import (
+    _before_the_blade,
+    _BladeStart,
+    _Edge,
+    _knife_step,
+    _knife_taps,
+)
 from .brush import (
     _COL_X,
     _PHYSICS,
@@ -380,13 +386,19 @@ def apply_stroke(canvas: _Canvas, stroke: Stroke) -> Brush:
     whole pass add up to the tool's lateral profile, so the result is smooth
     and does not depend on the step size. Each segment is then one step of
     :func:`_brush_step` or :func:`_knife_step`.
+
+    The steps of a knife's stroke that reach past the edge of the canvas
+    are painted on a stage, the canvas going on past its edge, and what the
+    canvas and the knife lose over the edge is counted (see _knife._Edge).
     """
     run = _Run.begin(canvas, stroke)
     if run.bt.rigid:
-        for st, tables in run.steps():
+        edge = _Edge(run)
+        for st, tables in run.steps(edge):
             s = run.footprint(st, tables, off=True)
             if s is not None:
                 _knife_step(run, s)
+        edge.leave(run)
     else:
         y0, y1, x0, x1 = run.bounds()
         if y0 < y1 and x0 < x1:
@@ -803,12 +815,18 @@ class _Run:
 
     A run is made by :meth:`begin`, which sizes and loads the brush first;
     the constructor then works out the rest, takes the stroke's id from the
-    canvas and starts the brush's hair dry (``brush.wet``)."""
+    canvas and starts the brush's hair dry (``brush.wet``).
+
+    ``canvas`` is what the stroke is being painted on: the canvas it was
+    given, or, for the steps of a knife that reach past the edge of that
+    one, a stage (see :meth:`paint_on` and _knife._Edge)."""
 
     blade: _BladeStart  # (knives only)
     # (knives only) the slab laid past the edge of the canvas, in tiles (see
     # _knife._laid_off)
     knife_off: dict[tuple[int, int], np.ndarray] | None = None
+    # (knives only) how far from the path the windows of its steps reach
+    pad: float = 0.0
     # (brushes only) what stays the same along the stroke, as the engine's
     # brush_step takes it (see _engine.brush_kit and brush_kit below). It
     # holds K, tex, tex2, cv, aux, br and col_u, all fixed once __init__
@@ -871,7 +889,7 @@ class _Run:
         self.lateral = 0.0
         self.lift_reach, self._lift_from = _lift_reach(bt, eff, smp, arc, radii)
         if bt.rigid:
-            pad = float(radii.max()) * shape.reach + 3.0
+            pad = self.pad = float(radii.max()) * shape.reach + 3.0
             self.blade = _before_the_blade(canvas, rng, pts, pad, w_typ, arc)
         self.stroke_id = canvas._new_stroke_id()
         if is_dab:
@@ -891,8 +909,10 @@ class _Run:
 
         self.dry = False
         brush.wet = 0.0
-        # the samples as plain floats, for the per-step arithmetic
-        self._pts = [(float(x), float(y)) for x, y in pts]
+        # the samples as plain floats, for the per-step arithmetic (the
+        # points: on the stroke's own canvas, and on what it is painted on,
+        # see paint_on)
+        self._path = self._pts = [(float(x), float(y)) for x, y in pts]
         self._pressure, self._angles, self._rolls = (
             smp.pressure.tolist(),
             smp.angles.tolist(),
@@ -902,28 +922,8 @@ class _Run:
         self._arc, self._lip = arc.tolist(), tex.lip.tolist()
 
         # what the compiled engine works on
-        self.cv = eng.Layers(
-            top=canvas.top,
-            und=canvas.und,
-            top_a=canvas.top_a,
-            und_a=canvas.und_a,
-            top_id=canvas.top_id,
-        )
-        relief = self.relief = canvas._relief()
         beyond_weave = canvas._beyond_weave()
-        self.aux = eng.Beneath(
-            floor=relief.floor,
-            tooth=relief.tooth,
-            hollows=relief.hollows,
-            dry_height=canvas.dry_height,
-            # (read only where something may be out of reach: see
-            # _engine._contact_catch_wet_dry)
-            weave_hollows=(
-                canvas._weave_hollows()
-                if beyond_weave > eng.REACH_MIN
-                else relief.hollows
-            ),
-        )
+        self.paint_on(canvas)
         self.br = eng.Load(tip=brush.tip, belly=brush.reservoir, heel=brush.heel)
         self.pend = _NO_PENDING
         self.K = _stroke_consts(
@@ -941,6 +941,41 @@ class _Run:
             spacing=smp.spacing,
             max_pressure=float(np.max(smp.pressure)),
             beyond_weave=beyond_weave,
+        )
+
+    def paint_on(self, canvas: _Canvas, x0: int = 0, y0: int = 0) -> None:
+        """Paint the steps to come on ``canvas``: the stroke's own canvas,
+        or a stage whose first pixel is (``x0``, ``y0``) of that one (see
+        _knife._Edge), where the path lies a whole number of pixels from
+        where it lies on the canvas. (A knife's; the stroke's ``blade`` and
+        ``knife_off`` are its caller's to change with it.)"""
+        self.canvas = canvas
+        self._pts = (
+            self._path
+            if x0 == 0 and y0 == 0
+            else [(x - x0, y - y0) for x, y in self._path]
+        )
+        # what the compiled engine works on
+        self.cv = eng.Layers(
+            top=canvas.top,
+            und=canvas.und,
+            top_a=canvas.top_a,
+            und_a=canvas.und_a,
+            top_id=canvas.top_id,
+        )
+        relief = self.relief = canvas._relief()
+        self.aux = eng.Beneath(
+            floor=relief.floor,
+            tooth=relief.tooth,
+            hollows=relief.hollows,
+            dry_height=canvas.dry_height,
+            # (read only where something may be out of reach: see
+            # _engine._contact_catch_wet_dry)
+            weave_hollows=(
+                canvas._weave_hollows()
+                if canvas._beyond_weave() > eng.REACH_MIN
+                else relief.hollows
+            ),
         )
 
     @property
@@ -971,14 +1006,18 @@ class _Run:
         return self._kit
 
     # ------------------------------------------------------------------
-    def steps(self):
-        """The steps of the stroke, in order, each as :meth:`step` gives it.
+    def steps(self, edge: _Edge | None = None):
+        """The steps of the stroke, in order, each as :meth:`step` gives it
+        (``edge``, a knife's: told of each step before it is worked out, see
+        _knife._Edge.at).
         Painting past the edge of the canvas uses up paint all the same: a
         tool's steps off the canvas are taken as on a canvas large enough to
         hold them (see _engine.off_canvas). (Each step is worked out once the
         one before it has been painted: it starts from the brush as that left
         it.)"""
         for i in range(1, len(self._pts)):
+            if edge is not None:
+                edge.at(self, i)
             seg = self._segment(i)
             if seg is None:
                 continue

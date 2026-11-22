@@ -255,6 +255,35 @@ lands on the canvas is what the same stroke would leave on a larger canvas
 (to within a few percent). The part off the canvas is simulated too, so it
 takes about as long as it would on that larger canvas.
 
+A knife drags the wet paint under it, so past the edge it needs paint to
+drag: the part of a knife's stroke that reaches past the edge is painted on
+the canvas going on there as its own mirror image (wet paint, dried paint
+and weave, as they were before the stroke), up to 128 px past each edge. A
+blade coming onto the canvas brings with it the wet paint it has pushed
+along out there, and one leaving takes some with it.
+`canvas.edge_loss` is what the canvas and its knives have lost over the
+edge, less what they have gained there (packed like a pixel of
+`canvas.top`; its volume is `canvas.edge_loss[-2]`): the canvas, the knife
+and that figure together keep every pigment over a knife stroke. It is a
+difference, not a store of paint: it goes below nothing where knives have
+brought more onto the canvas than they pushed off. What a brush lays past
+the edge is used up and not counted.
+
+What this does not do:
+
+* Nothing is kept past the edge from one stroke to the next: each stroke
+  meets the mirror image of the canvas as it is then. Pulled onto the
+  canvas again and again over one track, a clean knife keeps bringing paint
+  on (eight pulls at pressure 0.5: 30,300 units, where a larger canvas
+  gets 18,400).
+* The mirror image is of whatever lies near the edge: a band of red along
+  the edge is a band twice as wide to a knife coming on over it (a band 7
+  px wide holding 2,900 units gains 1,100 to 1,300 units of red).
+* A knife that starts further out than 128 px lays its paint out there as
+  a brush does, dragging none, until it is that near: what lands on the
+  canvas can then be far from what a larger canvas gets (from 300 px out,
+  half to two and a half times the paint).
+
 ### Brushes
 
 `murex.huile.brushes` is a rack of ready-made tools:
