@@ -5,7 +5,7 @@ off at the end."""
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 
@@ -67,6 +67,365 @@ _VISCOUS = 3
 # How deep a knife sinks into wet paint already on the canvas, as a share of
 # its thickness: pressure ** _KNIFE_SINK (light touch: skims; hard: nearly all).
 _KNIFE_SINK = 1.8
+
+
+# --- the stage: a knife's stroke that reaches past the edge of the canvas ---------
+# How far past each edge of the canvas a stage reaches at most (px). It
+# bounds the memory a stroke takes (0.25 KB per pixel of a stage), however
+# far out the stroke goes; it models nothing: a blade pushes along the wet
+# paint it passes over, so what it brings onto the canvas depends on all of
+# its way there. Further out the blade goes on as it did before there was
+# a stage (see _knife_step): it lays its paint and drags none. (A blade
+# 110 px long coming onto the canvas over 3.6 units of wet paint, in a
+# stroke's own steps, with the stage cut at 128 px against one that holds
+# all of its way: from 200 px out, the wet paint it brings on is within
+# 0.4% at pressures 0.25 and 0.5 and 15% short at 0.9, where it scrapes up
+# nearly all it passes over; from 400 px out, within 1%, 4% short and 28%
+# short. Cut at 64 px it is 9% over, 2% short and 44% short from 200 px
+# out. A blade set down no further out than this is not cut at all.)
+_STAGE_FAR = 128
+# The planes of a canvas that a stroke changes.
+_PAINT = ("top", "und", "top_a", "und_a", "top_id")
+
+
+def _mirrored(n: int, lo: int, hi: int) -> np.ndarray:
+    """Which of the n pixels along one side of a canvas each of the
+    positions lo..hi-1 along it reads: itself on the canvas; past its edge,
+    the canvas's mirror image there (the pixel at the edge first, as
+    numpy.pad's "symmetric"; and that mirrored again, as far as it takes)."""
+    at = np.mod(np.arange(lo, hi), 2 * n)
+    return np.where(at < n, at, 2 * n - 1 - at)
+
+
+class _Stage:
+    """What the steps of a knife's stroke that reach past the edge of the
+    canvas are painted on: the part of the canvas under them, and past its
+    edge, as far as they go (see :class:`_Edge`), the canvas going on as
+    its own mirror image, wet paint, dried paint and weave, as it was
+    before the stroke. On it a step is a step like any other, with canvas
+    all round: the wet paint past the edge is dragged, pushed and ridden on
+    as on the canvas, and comes onto the canvas with the blade or leaves
+    it. :meth:`take` brings its part of the canvas up to date before those
+    steps, and :meth:`put_back` puts it back after them; what lies past the
+    edge is gone with the stroke.
+
+    (The flow under a blade, _engine.flow_under_blade and
+    flow_under_riding_blade, was given the canvas alone: it let paint out
+    over the canvas's edge, uncounted, and none in, and what lay past the
+    edge was the canvas's edge pixel, still, whatever the blade had done
+    there. So the paint under a blade coming on, or set down across the
+    edge, drained away from the edge (0.4 to 1.3 units left of 2.4 in the
+    first 10 px, where a blade leaves 1.8 behind it), and the blade laid
+    its own paint in its place, more or less of it as its stroke was cut
+    into steps: murex-duo.)
+
+    The canvas goes on as its mirror image, not as its edge pixel repeated
+    (as it does past the stage, and for a brush): the maps a blade reads
+    belong together, where it rests on the thread tops around a pixel and
+    the surface it fills down to, and repeated pixel by pixel they do not.
+    (White knifed onto the canvas over its top edge with a blade 110 px
+    long, against the same stroke on a canvas 90 px larger all round: over
+    bare canvas it lays 13 to 24% more with the edge pixel repeated, at
+    pressures 0.25 and 0.5, and within 2% mirrored; over 3.6 units of wet
+    paint at pressure 0.25, 8% more and within 1%.)
+
+    It is all a stroke uses of a canvas (a ``stroke._Canvas``), from
+    (``y0``, ``x0``) of the canvas ``on``; ``wet_before`` is how thick the
+    wet paint lay on it before the stroke (see :func:`_before_the_blade`)."""
+
+    def __init__(self, on, y0: int, y1: int, x0: int, x1: int):
+        H, W = on.height, on.width
+        self.on, self.y0, self.x0 = on, y0, x0
+        self.height, self.width = y1 - y0, x1 - x0
+        self.surface = on.surface
+        # (its part of the canvas: there, and here)
+        cy0, cy1, cx0, cx1 = max(y0, 0), min(y1, H), max(x0, 0), min(x1, W)
+        self._there = (slice(cy0, cy1), slice(cx0, cx1))
+        self._here = (slice(cy0 - y0, cy1 - y0), slice(cx0 - x0, cx1 - x0))
+        # (how far it reaches past its part of the canvas, each way; where
+        # that is further than the part is large, the canvas's mirror image
+        # is not that part's: each pixel is looked up)
+        self._pads = ((cy0 - y0, y1 - cy1), (cx0 - x0, x1 - cx1))
+        self._at = None
+        if max(self._pads[0]) > cy1 - cy0 or max(self._pads[1]) > cx1 - cx0:
+            self._at = (_mirrored(H, y0, y1)[:, None], _mirrored(W, x0, x1)[None, :])
+        self.top = self._goes_on(on.top)
+        self.und = self._goes_on(on.und)
+        self.top_a = self._goes_on(on.top_a)
+        self.und_a = self._goes_on(on.und_a)
+        self.top_id = self._goes_on(on.top_id)
+        self.dry_height = self._goes_on(on.dry_height)
+        relief = on._relief()
+        self._relief_maps = type(relief)(*(self._goes_on(m) for m in relief))
+        self.wet_before = self.top_v + self.und_v
+        # (the slab laid past the stage's own edge: see _laid_off)
+        self.knife_off: dict[tuple[int, int], np.ndarray] | None = None
+
+    def _goes_on(self, plane: np.ndarray) -> np.ndarray:
+        """The ``plane`` of the canvas over the stage, a copy."""
+        if self._at is not None:
+            return plane[self._at]
+        # (the same, four to ten times as fast for a plane of one number a
+        # pixel)
+        pads = self._pads + ((0, 0),) * (plane.ndim - 2)
+        return np.pad(plane[self._there], pads, mode="symmetric")
+
+    @property
+    def top_v(self) -> np.ndarray:
+        return self.top[..., IV]
+
+    @property
+    def und_v(self) -> np.ndarray:
+        return self.und[..., IV]
+
+    def _stroke_rng(self, seed) -> np.random.Generator:
+        return self.on._stroke_rng(seed)
+
+    def _new_stroke_id(self) -> int:
+        return self.on._new_stroke_id()
+
+    def _relief(self):
+        return self._relief_maps
+
+    def _weave_hollows(self) -> np.ndarray:
+        return self._goes_on(self.on._weave_hollows())
+
+    def _beyond_weave(self) -> float:
+        # (the canvas's: no hollow of the stage is deeper than its deepest)
+        return self.on._beyond_weave()
+
+    def take(self, earlier=()) -> None:
+        """Bring the stage up to date, before the steps painted on it: its
+        part of the canvas, as the canvas is now; and past the edge, where
+        the stroke has been before on the stages ``earlier`` (in the order
+        it was), what it left there."""
+        for name in _PAINT:
+            getattr(self, name)[self._here] = getattr(self.on, name)[self._there]
+        H, W = self.on.height, self.on.width
+        for other in earlier:
+            y0, x0 = max(self.y0, other.y0), max(self.x0, other.x0)
+            y1 = min(self.y0 + self.height, other.y0 + other.height)
+            x1 = min(self.x0 + self.width, other.x0 + other.width)
+            if y0 >= y1 or x0 >= x1:
+                continue
+            ys, xs = np.arange(y0, y1), np.arange(x0, x1)
+            past = ((ys < 0) | (ys >= H))[:, None] | ((xs < 0) | (xs >= W))[None, :]
+            here = (
+                slice(y0 - self.y0, y1 - self.y0),
+                slice(x0 - self.x0, x1 - self.x0),
+            )
+            there = (
+                slice(y0 - other.y0, y1 - other.y0),
+                slice(x0 - other.x0, x1 - other.x0),
+            )
+            for name in _PAINT:
+                getattr(self, name)[here][past] = getattr(other, name)[there][past]
+
+    def put_back(self) -> None:
+        """Put the stage's part of the canvas back on the canvas."""
+        for name in _PAINT:
+            getattr(self.on, name)[self._there] = getattr(self, name)[self._here]
+
+
+class _Reach(NamedTuple):
+    """A run of a knife stroke's steps that may lay paint past the edge of
+    the canvas (see :class:`_Edge`)."""
+
+    first: int  # the steps: the points of the path they end at
+    last: int
+    box: tuple[int, int, int, int]  # (y0, y1, x0, x1): all they can reach
+    past: bool  # whether the window of any reaches past the edge
+
+
+def _join(a, b):
+    """The box that holds the boxes ``a`` and ``b`` (y0, y1, x0, x1)."""
+    return (min(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), max(a[3], b[3]))
+
+
+def _on_stage(box, H: int, W: int):
+    """The part of ``box`` that a stage may hold: on the canvas (H by W)
+    and no further than _STAGE_FAR px past its edges."""
+    far = _STAGE_FAR
+    return (
+        max(box[0], -far),
+        min(box[1], H + far),
+        max(box[2], -far),
+        min(box[3], W + far),
+    )
+
+
+def _area(box) -> int:
+    return max(box[1] - box[0], 0) * max(box[3] - box[2], 0)
+
+
+def _reaches(run: _Run) -> list[_Reach]:
+    """The runs of steps of a knife's stroke that may lay paint past the
+    edge of the canvas: those whose window, or what they lay outside it,
+    is not all on the canvas. None for a stroke that stays clear of the
+    edge. Two runs are taken as one, with the steps between them, where
+    one stage for both is no larger than a stage for each."""
+    canvas, pts = run.canvas, run.pts
+    H, W = canvas.height, canvas.width
+    # How far outside its window a step lays anything: its ridges (see
+    # _engine._ridge_pads) and what its blade presses out at its ends, which
+    # is smeared along the stroke over two steps (see _press_out).
+    steps = np.linalg.norm(np.diff(pts, axis=0), axis=1) if len(pts) > 1 else [0.0]
+    out = max(
+        math.ceil(run.margin),
+        eng.whole_ceil(_KNIFE_END_OUT + _KNIFE_END_PX + 2.0 * float(np.max(steps))) + 1,
+    )
+    # (the whole stroke clear of the edge, as most are: no step to look at)
+    reach = run.pad + 1 + out
+    if (
+        math.floor(float(pts[:, 1].min()) - reach) >= 0
+        and math.floor(float(pts[:, 0].min()) - reach) >= 0
+        and math.ceil(float(pts[:, 1].max()) + reach) + 1 <= H
+        and math.ceil(float(pts[:, 0].max()) + reach) + 1 <= W
+    ):
+        return []
+    found: list[tuple[_Reach, tuple | None]] = []  # (with the box of the steps before)
+    now, between = None, None
+    for i in range(1, len(pts)):
+        seg = run._segment(i)
+        if seg is None:
+            continue
+        w = run._window(seg)
+        box = (w.y0 - out, w.y1 + out, w.x0 - out, w.x1 + out)
+        if box[0] >= 0 and box[2] >= 0 and box[1] <= H and box[3] <= W:
+            if now is not None:
+                found.append(now)
+            now, between = None, box if between is None else _join(between, box)
+            continue
+        past = not (w.y0 >= 0 and w.x0 >= 0 and w.y1 <= H and w.x1 <= W)
+        if now is None:
+            now, between = (_Reach(i, i, box, past), between), None
+        else:
+            r = now[0]
+            now = (_Reach(r.first, i, _join(r.box, box), r.past or past), now[1])
+    if now is not None:
+        found.append(now)
+    runs: list[_Reach] = []
+    for r, gap in found:
+        if runs and gap is not None:
+            a = runs[-1]
+            both = _join(_join(a.box, gap), r.box)
+            if _area(_on_stage(both, H, W)) <= _area(_on_stage(a.box, H, W)) + _area(
+                _on_stage(r.box, H, W)
+            ):
+                runs[-1] = _Reach(a.first, r.last, both, a.past or r.past)
+                continue
+        runs.append(r)
+    return runs
+
+
+def _held(brush) -> np.ndarray:
+    """The paint on a tool, channel by channel."""
+    return (brush.tip.astype(np.float64) + brush.reservoir + brush.heel).sum(axis=0)
+
+
+def _lying(top, und, part) -> np.ndarray:
+    """The wet paint on the ``part`` (two slices) of a canvas's layers,
+    channel by channel."""
+    return top[part].sum(axis=(0, 1), dtype=np.float64) + und[part].sum(
+        axis=(0, 1), dtype=np.float64
+    )
+
+
+class _Edge:
+    """A knife's stroke at the edge of the canvas: which of its steps are
+    painted on a stage (see :class:`_Stage`), and the count of the paint
+    that crosses the edge.
+
+    The stroke's steps that may lay paint past the edge come in runs (see
+    :func:`_reaches`). A run with a step whose window reaches past the edge
+    is painted on a stage that holds all the run can reach, on the canvas
+    and up to _STAGE_FAR px past it; the other steps of the stroke are
+    painted on the canvas itself, as ever, and so is all of a stroke whose
+    windows stay on the canvas. So a stroke takes the memory of the parts
+    of it that are near the edge, not of all of it. (One stage for a whole
+    stroke took 0.25 KB for every pixel of the stroke's bounding box: a
+    stroke across a canvas 4,000 px square that left over its edge, 4 GB.)
+    The stages are made before the stroke's first step: what lies past the
+    edge is the mirror image of the canvas as it was before the stroke, not
+    of what the blade has just laid on its way to the edge.
+
+    Over each run the canvas and the knife together lose what the run sends
+    past the edge and gain what it brings on from there: that difference,
+    channel by channel, is added to the canvas's ``edge_loss``, whatever
+    the run is painted on (a stage; the canvas, where only a ridge or what
+    a blade presses out at its end crosses the edge; nothing, for steps
+    further out than a stage reaches, whose paint is used up). The steps of
+    no run lose nothing: all they can reach is on the canvas."""
+
+    def __init__(self, run: _Run):
+        canvas: Any = run.canvas  # (a huile.Canvas: the stroke's own)
+        self.canvas = canvas
+        H, W = canvas.height, canvas.width
+        self.runs = _reaches(run)
+        self.stages: list[_Stage | None] = []
+        for r in self.runs:
+            y0, y1, x0, x1 = _on_stage(r.box, H, W)
+            holds = r.past and max(y0, 0) < min(y1, H) and max(x0, 0) < min(x1, W)
+            self.stages.append(_Stage(canvas, y0, y1, x0, x1) if holds else None)
+        self.next = 0  # (the next run to come)
+        self.on: int | None = None  # (the run the stroke is in)
+        self._before = np.zeros(PACKED)
+        self._home: tuple = ()
+
+    def at(self, run: _Run, i: int) -> None:
+        """The stroke comes to its step ``i``: leave the run it was in if
+        that is over, and enter the one that begins."""
+        if self.on is not None and i > self.runs[self.on].last:
+            self.leave(run)
+        ahead = self.runs[self.next].first if self.next < len(self.runs) else None
+        if self.on is None and ahead is not None and i >= ahead:
+            self._enter(run)
+
+    def _part(self, canvas):
+        """The part of the canvas the run the stroke is in can reach."""
+        assert self.on is not None
+        y0, y1, x0, x1 = self.runs[self.on].box
+        H, W = canvas.height, canvas.width
+        return (
+            slice(max(y0, 0), max(min(y1, H), 0)),
+            slice(max(x0, 0), max(min(x1, W), 0)),
+        )
+
+    def _enter(self, run: _Run) -> None:
+        self.on, self.next = self.next, self.next + 1
+        stage = self.stages[self.on]
+        self._before = _held(run.brush)
+        if stage is None:
+            self._before += _lying(
+                run.canvas.top, run.canvas.und, self._part(run.canvas)
+            )
+            return
+        stage.take([s for s in self.stages[: self.on] if s is not None])
+        self._before += _lying(stage.top, stage.und, stage._here)
+        self._home = (run.canvas, run.blade, run.knife_off)
+        blade = run.blade
+        run.blade = _BladeStart(0, 0, stage.wet_before, blade.bands, blade.band_period)
+        run.knife_off = stage.knife_off
+        run.paint_on(stage, stage.x0, stage.y0)
+
+    def leave(self, run: _Run) -> None:
+        """The stroke leaves the run it is in, if any (and when it is
+        over): what was painted on a stage goes back on the canvas, and
+        what the canvas and the knife have lost over the run is counted."""
+        if self.on is None:
+            return
+        stage = self.stages[self.on]
+        after = _held(run.brush)
+        if stage is None:
+            after += _lying(run.canvas.top, run.canvas.und, self._part(run.canvas))
+        else:
+            after += _lying(stage.top, stage.und, stage._here)
+            stage.put_back()
+            stage.knife_off = run.knife_off
+            canvas, run.blade, run.knife_off = self._home
+            run.paint_on(canvas)
+        self.canvas.edge_loss += self._before - after
+        self.on = None
 
 
 class _BladeStart(NamedTuple):
@@ -165,12 +524,19 @@ def _knife_step(run: _Run, s: _Step) -> None:
         return
     # (how readily the paint takes stirring, as it lies before this step)
     _f_pick, _f_dep, f_mix, _f_drag = eng.surface_factors(run.cv, run.aux, win, run.K)
+    # (The canvas, here and below: what the step is painted on. For the
+    # steps of a stroke that reach past the edge of the canvas that is a
+    # stage, the canvas going on past its edge, see _Stage and _Edge; a
+    # step meets the stage's own edge only where it goes further out than
+    # a stage may reach, _STAGE_FAR.)
     # Where the blade sticks out past the edge of the canvas, it goes on as
     # over a canvas going on as it is at its edge (see _engine.off_canvas):
     # it rests and rides on that, and lays its slab there from the paint on
     # it, which is gone. (Taking the step over the canvas alone, the paint
     # under the part past the edge stayed on the blade, and went down on the
-    # visible part, a third to three quarters too much of it.)
+    # visible part, a third to three quarters too much of it.) It drags no
+    # wet paint out there, and none comes in from there: the flow under it
+    # (5) has the canvas alone, and what it carries over the edge is gone.
     whole = _whole_window(run, s) if win.ch < win.hh or win.cw < win.ww else None
     flows = run.bt.clumps == 0  # (a comb's teeth cut the paint: they drag none)
 

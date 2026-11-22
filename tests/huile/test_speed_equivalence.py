@@ -399,6 +399,11 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
         original(run, s)
 
     monkeypatch.setattr(stm, "_knife_step", check)
+    # (A knife that reaches past the edge is painted on a stage, the canvas
+    # going on there, see _knife._Stage. Past the stage's own edge its blade
+    # goes on as it did past the canvas's: with a stage that ends where the
+    # canvas does, that is what these strokes do.)
+    monkeypatch.setattr(kn, "_STAGE_FAR", 0)
     rng = np.random.default_rng(7)
     c = Canvas(220, 160, seed=4)
     tools = (

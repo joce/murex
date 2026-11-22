@@ -711,32 +711,44 @@ def _kernel_signatures() -> int:
 
 
 def test_a_long_knife_stroke_off_the_canvas_keeps_little_memory():
-    """What a knife has laid past the edge is kept only where it laid it: a
-    3,000 px diagonal stroke over a small canvas peaks at about 6 MB. A record
-    over the stroke's bounding box (2,100 px square) takes 18 MB in float32
-    alone, and the stroke with one peaks at about 27 MB (a float64 one took
-    40 MB), growing with the square of the stroke.
+    """What a knife stroke takes hardly grows with how far out it goes: a
+    3,000 px diagonal stroke over a small canvas peaks at about 30 MB, and
+    one twice as long at 32 MB. The 30 MB are the two stages its steps near
+    the canvas are painted on, coming on and leaving (_knife._Stage: the
+    canvas going on past its edges, 128 px at most, at 0.25 KB a pixel: two
+    of about 200 px square here, where the canvas itself is 14 MB),
+    whatever the stroke's length; further out, what the knife has laid is
+    kept only where it laid it, in tiles, which grow with the stroke's
+    length. (Before there was a stage the stroke peaked at about 6 MB. A
+    record of what was laid over the stroke's bounding box, 2,100 px
+    square, takes 18 MB in float32 alone, and the stroke with one peaked at
+    about 27 MB, growing with the square of the stroke: at 6,000 px that is
+    100 MB.)
 
     A shorter knife stroke from far past the edge, across a throwaway canvas,
     runs through the same kernels with the same signatures first: compiling
     them inside the measurement (with numba's cache empty, as on CI) took the
-    peak to 18 MB and more, whatever the record kept."""
+    peak 12 MB and more higher, whatever the record kept."""
     import tracemalloc
 
     def knife():
         return Brush(brushes.PALETTE_KNIFE).load(P.CADMIUM_RED, 6)
 
     Canvas(200, 200, seed=1).stroke(
-        [(-400, -400), (100, 100)], brush=knife(), pressure=0.5, seed=1
+        [(-400, -400), (600, 600)], brush=knife(), pressure=0.5, seed=1
     )
-    c, k = Canvas(200, 200, seed=1), knife()
-    compiled = _kernel_signatures()
-    tracemalloc.start()
-    c.stroke([(-950, -950), (1150, 1150)], brush=k, pressure=0.5, seed=1)
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    assert _kernel_signatures() == compiled, "a kernel compiled in the measurement"
-    assert peak < 12e6
+    peaks = []
+    for out in (950, 2000):
+        c, k = Canvas(200, 200, seed=1), knife()
+        compiled = _kernel_signatures()
+        tracemalloc.start()
+        c.stroke([(-out, -out), (200 + out, 200 + out)], brush=k, pressure=0.5, seed=1)
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        assert _kernel_signatures() == compiled, "a kernel compiled in the measurement"
+        peaks.append(peak)
+    assert peaks[0] < 40e6
+    assert peaks[1] < peaks[0] + 12e6
 
 
 @pytest.mark.parametrize(
