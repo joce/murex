@@ -540,7 +540,7 @@ def test_a_knife_barely_touching_leaves_more_the_more_it_carries(base):
 
 @pytest.mark.parametrize("base", [0.0, 4.0])
 def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
-    monkeypatch, base
+    same_textures, base
 ):
     # Skimming, the bead on the blade's edge laid more the shorter the
     # stroke's steps: how much it leaves over a pass was reckoned in the
@@ -548,26 +548,15 @@ def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
     # the more the more steps a pass was cut into. In steps of 2 px rather
     # than 8 the pulls below left 1.55 to 2.2 times as much (murex-86z). Over
     # the bare canvas they now leave the same within 1%; over wet paint,
-    # within 5% (where the blade rests on it is read once per step:
-    # murex-kau).
-    import murex.huile.stroke as stm
-
-    # (Only the white is cut finer: the base is laid in its own steps. The
-    # white's width does not wobble: the wobble's noise is counted in steps, so
-    # it would draw more random numbers in shorter ones, and the blade
-    # would tilt and its bands wander otherwise: as a different seed does,
-    # up to a fifth more or less paint. Whatever the step, as many numbers
-    # are drawn in its place.)
-    wobble = stm.value_noise_1d
-
-    def no_wobble(n, cell, rng):
-        if cell == 1.0:  # (the knife's chatter and lips, counted in px)
-            return wobble(n, cell, rng)
-        rng.random(8)
-        return np.full(n, 0.5)
-
-    monkeypatch.setattr(stm, "value_noise_1d", no_wobble)
-    bounds = (0.96, 1.04) if base == 0.0 else (0.9, 1.04)
+    # within 2.5%: 0.978 to 0.987 as much (these heavily loaded pulls drag
+    # none of it, and where a blade that drags nothing rests on wet paint is
+    # read once per step; for one that drags it, see the test below).
+    # (Only the white is cut finer: the base is laid in its own steps, with
+    # its textures as they are. The white's textures are the same whatever
+    # its steps: see same_textures.)
+    _skim_base(base)
+    same_textures()
+    bounds = (0.96, 1.04) if base == 0.0 else (0.94, 1.04)
     for pressure in (0.03, 0.08):
         for end, seed in (((180, 120), 1), ((170, 112), 3)):
             path = ((70, 40), ((70 + end[0]) / 2, (40 + end[1]) / 2), end)
@@ -578,6 +567,26 @@ def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
                 laid.append(v)
             ratio = laid[1] / laid[0]
             assert bounds[0] < ratio < bounds[1], (pressure, end, seed, laid)
+
+
+def test_a_light_skim_over_wet_paint_does_not_hang_on_its_steps(same_textures):
+    # A lightly loaded knife skimming thick wet paint drags some of it along
+    # and rides on it. How high it rides was read once per step, a step
+    # ahead of the paint it pushes, so the shorter the steps the higher it
+    # rode and the less it laid: in steps of 2 px rather than 8 the pulls
+    # below left 0.90 to 0.94 as much (six seeds; 0.89 to 0.93 in steps of 1
+    # px). The flow under it now works its level out as it goes: 0.974 to
+    # 0.980 (0.969 to 0.976 in steps of 1 px; murex-kau). (What is left is
+    # what the heavily loaded pulls above, which drag nothing, show too.)
+    _skim_base(4.0)
+    same_textures()
+    for seed in (1, 2, 3):
+        laid = []
+        for step in (8.0, 2.0):
+            v, kept = _skimmed(0.3, 0.03, 4.0, seed=seed, step=step)
+            assert kept, (seed, step)
+            laid.append(v)
+        assert 0.94 < laid[1] / laid[0] < 1.02, (seed, laid)
 
 
 def test_paint_shoved_onto_its_own_kind_does_not_tie_with_the_film_over_it():

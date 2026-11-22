@@ -49,6 +49,230 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** how far a knife drags wet paint no
+  longer hangs on how its stroke is cut into steps (murex-kau). A blade
+  pulled through wet paint pushes a wave of it along, as long as the blade
+  is wide, and rides on it. Three things a step did once, or by its own
+  length, made a stroke's own steps (8 px for a wide blade) drag, heap up
+  and lay other amounts than short ones:
+  - How high the blade rides was read once per step, from the paint under
+    where the step takes it: a step further on, where the part of the wave
+    it has yet to push there is missing. So the level was too low all along
+    the step, the more the longer the step next to the blade's width, and
+    too low a blade drags more. Measured over 2.8 units of wet dark, as how
+    far above the level a step read the blade now ends the step, on average
+    along a pull: 0.20, 0.12 and 0.02 units at pressures 0.25, 0.5 and 0.7
+    for a blade 22 px wide in steps of 8 px (0.04 in steps of 4 px at
+    pressure 0.25, nothing in steps of 2), 0.09, 0.75 and 1.02 units for one
+    12 px wide, 0.02 at most for one 32 px wide. The flow under a blade that
+    rides on wet paint (`_engine.flow_under_riding_blade`) now works its
+    level out again as it goes, about every pixel of its way, from the paint
+    under where the blade is then, as `_knife._blade_rest` works it out for
+    a step (a pixel counting by how much of it the blade is over). The
+    step's own reading still says whether the paint reaches the blade and
+    what it pushes past its ends, and is the level of a blade that drags
+    nothing. What a step
+    does once the flow is done, it does at the level the blade ends the step
+    at: the layers it folds together (`_knife._fold_layers`) are those it
+    cuts into from there, where they were those under the level read ahead.
+  - That flow took sub-steps of up to a pixel, whatever fitted the step:
+    0.99 px (of the fastest paint, along x and y together) at a stroke's own
+    steps along a slanted pull, 0.68 in steps of a pixel. The flow passes
+    paint on from pixel to pixel, which spreads it along the way, the more
+    the shorter the sub-steps, and the blade wavers on its wave the more the
+    sharper the wave is: so the surface a pull left depended on which
+    sub-steps its steps happened to take (at pressure 0.5, 0.026, 0.042,
+    0.070 and 0.026 units of ripple in steps 1, 2, 4 and 8 times shorter;
+    0.072, 0.022 and 0.071 in steps 6, 11 and 12 times shorter). Under a
+    riding blade the sub-steps are now 0.7 px at most (`_engine.RIDE_CFL`),
+    as near that as divides the step: 0.7 px down the slant of these pulls
+    in steps of 8, 4, 2 and 1 px.
+  - The blade laid the step's share of the mean of the gaps it met under it
+    over the step. Where the gap opens as the blade passes, behind the wave,
+    that is less than it lays in it step after step: 6, 8 and 12% less
+    white at pressures 0.5, 0.7 and 0.9 than in steps eight times shorter
+    (5 and 8% with the level alone put right). It now fills the gap
+    sub-step by sub-step where it rode on the paint it dragged
+    (`_engine.blade_slab`, `filled_as_met`): each part of the step fills its
+    share of what is left of the gap it finds; a gap that does not change is
+    filled as it was.
+
+  Measured on white, load 0.3, knifed 272 px across 2.3 to 2.9 units of wet
+  dark (14 configurations, three strokes each, their textures the same at
+  every cut, as the `same_textures` fixture of huile's tests has them), a
+  stroke's own steps (8 px) against steps of 1 px, before (with murex-86z
+  in) and after:
+  - the dark carried along the pull (volume times distance): for a blade 110
+    px long (22 px wide) at pressures 0.25, 0.5, 0.7 and 0.9, +21, +12, +4
+    and -1% before, +0.4, -0.5, +0.2 and +1.0% after; 60 px long (12 px
+    wide) at 0.25, 0.5 and 0.7, +94, +77 and +69% before, +0.4, -0.2 and
+    +0.2% after; 160 px long (wholly on a larger canvas), +4, -2 and -2%
+    before, +0.7, -0.3 and +0.4% after; a runny and a stiff dark (body 0.2
+    and 1.0) at 0.25 and 0.5, +19, +9, +21 and +13% before, within 0.7%
+    after;
+  - the heap left where the pull ends: +45, +25, +10 and -0.3% before for
+    the 110 px blade, +0.5, -0.2, +0.3 and +1.1% after; +127, +119 and +116%
+    before for the 60 px blade, within 0.3% after; +21, +3 and -2% before
+    for the 160 px blade, +1.2, -0.5 and -0.4% after; +42, +19, +46 and +26%
+    before for the runny and the stiff dark, within 0.6% after;
+  - the white laid: +1.5, -6, -8 and -11% before for the 110 px blade, +0.7,
+    -0.3, -0.5 and -2.2% after; +0.5, -12 and -17% before for the 60 px
+    blade, within 0.4% after; +0.2, -6 and -9% before for the 160 px blade,
+    +1.2, -1.1 and -1.7% after;
+  - the paint left under the pull: up to 4.6% thinner before (the 60 px
+    blade at pressure 0.7), within 0.8% after.
+
+  Stroke by stroke (42 of them), a stroke's own steps give within -0.9 to
+  +1.6% of what steps of 1 px give for the dark carried, -0.8 to +1.6% for
+  the heap, -2.2 to +1.4% for the white and -0.4 to +0.8% for the
+  thickness; steps of 4 and of 2 px lie between the two. The surface ripples
+  by the same at every cut: at pressure 0.5, 0.021, 0.020, 0.020 and 0.020
+  units in steps of 8, 4, 2 and 1 px, where it was 0.037, 0.026, 0.035 and
+  0.018 (the 160 px blade at pressure 0.7 still wavers a little in steps of
+  4 and 2 px: 0.024, 0.030, 0.031 and 0.024, where it was 0.037, 0.056,
+  0.040 and 0.024). In steps of 1 px the result is what it was within 1.2%
+  for the dark carried (+0.4 to +1.2%), 0.3% for the white and for the
+  thickness, and 2.4% for the heap, over these configurations; over the 72
+  of the review's sweep (pressures from 0.03, pulls along x and y too) the
+  heap of a pull in steps of 1 px is within -7.5 to +6% of what it was,
+  the most for the small heaps of light pulls. Paint is conserved as before
+  (every channel to 3e-9 of the largest over a pull, blade and canvas
+  together). Knives that drag no wet paint (on the bare canvas, on dry
+  paint; a comb through wet paint) paint what they did, to the bit.
+
+  Those pulls run down a slant. Along x or y (the 110 px blade at 0.25 and
+  0.5, the 60 px blade at 0.5; two strokes each), a stroke's own steps
+  against steps of 1 px: the dark carried +19, +18 and +69% before along x,
+  +2.0, -1.4 and -1.3% after; the heap +10, +8 and +210% before, +3.5, -2.3
+  and -7% after (the last a heap of 800 units); the white within 1.2% (-11%
+  before for the 60 px blade); along y, +3% and +13% before for the dark
+  carried and the heap, within 1% after, and 2.1% less white (6% less
+  before). Along x the result in steps of 1 px is not what it was: at
+  pressure 0.5 the 110 px blade carries 5% further and lays 5% more white
+  than it did in such steps. Along an axis the old flow's sub-steps were a
+  whole pixel long in steps of 1 px (0.68 px down a slant), which passes
+  the paint on without spreading it, and the blade wavered (0.13 units of
+  ripple, against 0.054 in steps of half a pixel). In steps of half a pixel
+  the old code gave what the new one gives at any step: +3.8% of dark
+  carried, +5.9% of white and 0.054 units of ripple against its own steps
+  of 1 px, where the new one gives +3.8 to +5.3%, +4.7 to +5.7% and 0.053
+  to 0.054 units in steps of 8 px to half a pixel. On a curved pull with
+  the blade following the path, a stroke's own steps are about half a
+  pixel, and both codes give the same within 1% at any cut.
+
+  A light touch too (pressures 0.03, 0.05 and 0.08, the 110 px blade loaded
+  with 0.3; steps of 2 px, and of 1, against a stroke's own): over the wet
+  dark it laid 0.961 (0.958), 0.974 (0.972) and 0.987 (0.986) of what it
+  laid at its own steps, and lays 0.990 (0.988), 0.993 (0.992) and 0.997
+  (0.996); over an earlier wet white, 0.959 (0.957), 0.974 (0.971) and 0.987
+  (0.985) before, 0.987 (0.985), 0.991 (0.989) and 0.995 (0.994) after.
+  murex-86z's pulls over wet paint (below: a 60 px blade loaded with 0.3
+  over a dark base, six seeds): at pressure 0.03, 0.917 in steps of 2 px
+  (0.903 to 0.936) and 0.909 in steps of 1 px before, 0.976 (0.974 to
+  0.980) and 0.972 after; at 0.05, 0.943 before and 0.981 after.
+
+  What a stroke's own steps give is now what short ones gave, ripple
+  included: the stroke of murex-sdz ripples by 0.031, 0.037 and 0.039 units
+  for a dark of body 0.2, 0.7 and 1.0 (0.030, 0.030 and 0.033 before, where
+  the blade, too low, dragged the unevenness of the ground away; steps of 1
+  px gave 0.037, 0.038 and 0.039, and give 0.031, 0.036 and 0.039), with no
+  rib at the step. Of the tall lumps a loaded pull drops along an earlier
+  pull's end ridge (murex-6fa) there are somewhat fewer on the dark ground
+  of `knife_probe.py ribs`: 14, 40, 18 and 112 pixels above 8 units where
+  34, 48, 36 and 118 stood (420 x 300 and 900 x 500, body 0.2 and 0.7).
+
+  Not fixed, and in some cases worse: the edge of the canvas. The flow
+  under the blade lets paint out past the edge of the canvas and none in,
+  so where a blade drags wet paint away from the edge the pixels along it
+  are drained (in review: 0.99 units thick there, where the same stroke on
+  a larger canvas leaves 3.10). Past the edge the blade reads that hollow
+  off the edge as one more gap to fill, with paint that is then gone, and
+  fills it or not as its steps fall: in a step of 8 px the hollow opens 2.5
+  units deep at once, beyond the reach of the film on the blade; in steps
+  of 1 px it opens a third of a unit at a time and is filled as it opens.
+  With the blade riding on its wave, more goes past the edge in short
+  steps: of the 3267 units on a blade coming onto the canvas at pressure
+  0.5, 1631 in steps of 1 px where 1416 went (256 and 251 in its own
+  steps). White left on the canvas at a stroke's own steps against steps of
+  1 px (load 0.3 over the wet dark, pressures 0.25, 0.5 and 0.7), before
+  and now:
+  - a blade 160 px long set down across the top edge on a slanted pull: +11,
+    +8 and +8% before, +22, +26 and +21% now; 110 px long, +10, +7 and +5%
+    before, +20, +20 and +17% now;
+  - a blade 110 px long coming onto the canvas from past its top edge, edge
+    on: -2, +74 and +109% before, +22, +104 and +114% now; its edge 5
+    degrees off the canvas's, -5, +36 and +77% before, +20, +70 and +89%
+    now;
+  - a pull along an edge, half the blade past it: -7.0 to +1.0% before,
+    -2.6 to +1.2% now.
+
+  In the review's measure (the furthest that steps of 8, 4, 2 and 1 px lie
+  from steps of half a pixel; the 110 px blade at pressure 0.5): coming on
+  5 degrees off, 67% now against 53% before; set down, 9.6% against 7.1%;
+  coming on edge on, 31% against 75%. And neither is what the same stroke
+  leaves on that part of a larger canvas: coming on edge on in steps of
+  half a pixel, 933 units of white on the canvas and 1474 past the edge
+  before, 957 and 1559 now, 564 and 1931 on the larger canvas. This is left
+  for its own issue (murex-duo). Over the bare canvas a blade past the edge lays
+  what it did, to the bit.
+
+  Not changed, and still hanging on the step:
+  - A heavily loaded blade (3 where the pulls above carry 0.3): at pressure
+    0.25 it carries the dark 7 to 15% further at its own steps than in steps
+    of 1 px (11 to 95% before), and 0.5 to 6% further at pressure 0.5; along
+    x at pressure 0.7, 14% further for the 110 and 160 px blades. Not looked
+    into (murex-5gw).
+  - The lightest pressures (0.03 to 0.1, load 0.3): 1.5 to 5% further at a
+    stroke's own steps (7 to 113% before).
+  - What the blade pushes out past its ends: for the 110 and 160 px blades
+    at pressures 0.5 and above, 9 to 20% less at a stroke's own steps than
+    in steps of 1 px (7 to 22% before); for the 60 px blade at 0.5 and 0.7,
+    3% more and 10% less (39 and 10% more before).
+  - A blade that skims wet paint without dragging any, as a heavily loaded
+    one does at the lightest touch: nothing here applies to it, and where
+    it rests is still read once per step. Loaded with 8 over the wet dark,
+    it lays 0.975 to 0.988 as much in steps of 2 px as in its own, before
+    and after; over a ground laid in white alone, the same. Over two wet
+    layers, the upper one of its own paint, it lays less in shorter steps:
+    with an earlier pull of white (the same 110 px blade, pressure 0.5,
+    load 1.5) laid along its path over the dark, the skim loaded with 8
+    lays 0.78 to 0.82 as much in steps of 2 px at pressures 0.03 and 0.05
+    (0.74 to 0.78 in steps of 1 px; 0.93 at pressure 0.08), before and
+    after. A third wet layer joins the one most like it: the stroke's white
+    goes into the earlier white's layer, which keeps the earlier stroke's
+    id (of the 19159 units the skim laid at pressure 0.05, 3662 lie under
+    its own), so its paint is no longer told from the earlier one, and the
+    blade comes to rest on what it has just laid, the more the shorter its
+    steps (0.46 units above the surface as it was before the stroke at its
+    own steps, 0.71 in steps of 1 px; 0.10 and 0.08 over the dark alone).
+    The higher it rests, the less its bead touches.
+  - How much a pull wavers still depends on the length of the flow's
+    sub-steps: see `_engine.RIDE_CFL` for what shorter and longer ones give.
+    Along an axis they are 0.67 px in steps of 8 and 2 px and half a pixel
+    in steps of 1 px (a pull at pressure 0.25 along x ripples by 0.112,
+    0.111 and 0.095 units), and a step shorter than 0.7 px is one sub-step
+    (in steps of a quarter of a pixel the pull at pressure 0.5 down the
+    slant carries 1.5% further than in steps of 1 px; 2.2% before). Down a
+    slant of 45 degrees they are 0.67, 0.63, 0.57 and 0.47 px in steps of
+    8, 4, 2 and 1 px, and the 110 px blade at pressure 0.5 ripples by
+    0.039, 0.029, 0.018 and 0.016 units (0.016 in steps of half a pixel;
+    0.035, 0.035, 0.047 and 0.041 before): there a stroke's own steps still
+    waver more than short ones. And a 60 px blade pressed hard (0.9) along
+    x lays 717, 736, 762 and 684 units of its white in steps of 8, 4, 2 and
+    1 px (617, 761, 800 and 821 before).
+
+  What it costs: the flow under a riding blade takes three sub-steps where
+  it took two. `tools/huile/bench.py`, each scene timed in turn before and
+  after, three times or more: `knife` takes 12 to 14% longer, `knife-lift`
+  8 to 10%, `edges` 2 to 5%, `painting` 0.5 to 2%. Sub-steps of a pixel
+  would give that time back, and were not taken: with them the flow takes
+  as long as it did, and the blade wavers at pressures 0.4 to 0.6 in steps
+  of some lengths and not of others. `RIDE_CFL` stays at 0.7: a stroke that
+  does not show its steps comes before the time. `bench.py --compare`:
+  `knife`, `knife-lift`, `edges` and `painting` change (knives over wet
+  paint: 0.9, 1.4, 0.7 and 2.2% of the pixels of the lit picture move by
+  more than 1/255, 0.3, 0.6, 0.1 and 0.7% by more than 8/255); the 12 other
+  scenes are the same, paint and picture.
 - **Breaking, in huile's pictures:** what a knife barely touching lays no
   longer depends on how its stroke is cut into steps (murex-86z). Skimming
   (pressure under 0.3), the bead of paint on the blade's edge laid more the

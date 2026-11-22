@@ -40,7 +40,10 @@ def _base():
 # exactly 90 degrees, a knife over wet paint, a dab of two paints at the
 # default pressure 0.5, a stroke whose axis runs through the middles of a
 # row of pixels (at half a pixel, or at 45 degrees between whole-number
-# points), a curve with a segment a whole even number of pixels long.
+# points), a curve with a segment a whole even number of pixels long, a
+# knife riding on wet paint in steps a whole number of the flow's sub-steps
+# long (7 px along x, ten sub-steps of _engine.RIDE_CFL: the ratio comes
+# out at 10.000000000000012, see the test of it below).
 MARKS = {
     "flat along a half-pixel axis": (
         [(20.0, 40.5), (140.0, 40.5)],
@@ -83,6 +86,11 @@ MARKS = {
         [(40.0, 64.0), (120.0, 64.0)],
         lambda: Brush(brushes.PALETTE_KNIFE),
         {"pressure": 0.85, "width": 30.0},
+    ),
+    "knife in steps of ten sub-steps": (
+        [(40.0, 64.0), (110.0, 64.0)],
+        lambda: Brush(brushes.PALETTE_KNIFE),
+        {"pressure": 0.85, "width": 28.0},
     ),
     "dab of two paints": (
         [(80.0, 60.0)],
@@ -138,7 +146,8 @@ def _scaled_difference(a, b):
 def test_a_mark_nudged_by_an_ulp_paints_the_same_to_rounding(name):
     # Measured over 12 nudges of each mark: at most 2e-7 (the flat along a
     # half-pixel axis), 1.1e-7 (the knife back along a curve), 6e-10 (the
-    # knife over wet paint), the others 0; no id changed. Before, the dab
+    # knife over wet paint), 2.5e-7 (the knife in steps of ten sub-steps),
+    # the others 0; no id changed. Before, the dab
     # came out 0.73 apart (its bristle tips printed half or fully), the flat
     # at 90 degrees 1 (its sides mirrored, 173 pixels with another stroke on
     # top), the knife over wet paint 1 (21), and, as the fixes went in, the
@@ -150,6 +159,33 @@ def test_a_mark_nudged_by_an_ulp_paints_the_same_to_rounding(name):
         nudged = _paint(name, np.random.default_rng(seed))
         assert np.array_equal(plain.top_id, nudged.top_id), seed
         assert _scaled_difference(plain, nudged) < 1e-3, seed
+
+
+def test_the_knife_in_steps_of_ten_sub_steps_sits_on_the_line(monkeypatch, by_name):
+    """The flow under a blade riding on wet paint takes as many sub-steps as
+    the step is long in sub-steps of _engine.RIDE_CFL, rounded up
+    (whole_ceil). That mark's steps are a whole number of them long in
+    exact arithmetic, and that or a hair more as computed (10 or
+    10.000000000000012): counted with a plain ceil, a step took 11
+    sub-steps or 10 as its inputs fell, and the paint it dragged and laid
+    went with them."""
+    from murex.huile import _engine as eng
+
+    ratios = []
+    flow = eng.flow_under_riding_blade
+
+    def spy(*args):
+        given = by_name(flow, args)
+        way = abs(given["tx"]) + abs(given["ty"])
+        ratios.append(given["ds"] * way / eng.RIDE_CFL)
+        return flow(*args)
+
+    monkeypatch.setattr(eng, "flow_under_riding_blade", spy)
+    _paint("knife in steps of ten sub-steps")
+    assert len(ratios) >= 8  # (the steps in which the blade rides on the paint)
+    assert all(abs(r - 10.0) < 1e-12 for r in ratios), ratios
+    assert {eng.whole_ceil(r) for r in ratios} == {10}
+    assert 11 in {int(np.ceil(r)) for r in ratios}  # (a hair over, some of them)
 
 
 def test_the_engine_is_compiled_with_the_slack_the_shared_modules_use():
