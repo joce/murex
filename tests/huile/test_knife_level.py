@@ -34,6 +34,10 @@ BED = 2.4  # how thick the earlier strokes' paint lies
 DEPTH = 0.27  # how far into it the blade sinks (pressure 0.5)
 RIDE = 0.085  # how high it rides on its own film
 FILM = 0.17  # how thick that film is
+# How thick the wet paint lay before the stroke, as the flow is told it (it
+# reads it only under the stroke's own film, of which these beds have none:
+# see tests/huile/test_knife_heaps.py).
+_BEFORE = np.full((H, W), BED, np.float32)
 
 
 def _packed(paint, volume):
@@ -98,7 +102,7 @@ def _step(cv, end, ds, half, riding=True):
     args = (
         cv, 0, 0, SID, np.zeros((H, W), np.float32), level, full, along,
         0.0 * full, half * full, ds, 1.0, 0.0, 0.6 * full, 3, FILM * full,
-        level, FILM * full,
+        level, FILM * full, _BEFORE,
     )  # fmt: skip
     if riding:
         return eng.flow_under_riding_blade(*args, _riding(sunk))
@@ -160,7 +164,7 @@ def test_a_riding_blade_rests_on_the_paint_under_where_it_is():
     met, got = eng.flow_under_riding_blade(
         cv, 0, 0, SID, np.zeros((H, W), np.float32), level * full, aa, along,
         0.0 * full, half * full, ds, 1.0, 0.0, 0.6 * full, 3, FILM * full,
-        (level - 0.05) * full, FILM * full, _riding(sunk, span=2),
+        (level - 0.05) * full, FILM * full, _BEFORE, _riding(sunk, span=2),
     )  # fmt: skip
     over = np.clip(half - np.abs(np.arange(W) + 0.5 - end) + 0.5, 0.0, 1.0)
     high = np.maximum(np.maximum(np.roll(before, 1), before), np.roll(before, -1))
@@ -203,7 +207,7 @@ def test_a_riding_blade_far_above_the_paint_drags_nothing():
     met, got = eng.flow_under_riding_blade(
         cv, 0, 0, SID, np.zeros((H, W), np.float32), level, full, along,
         0.0 * full, 11.0 * full, 8.0, 1.0, 0.0, 0.6 * full, 3, FILM * full, hang,
-        FILM * full, _riding(BED),
+        FILM * full, _BEFORE, _riding(BED),
     )  # fmt: skip
     assert met.shape == (0, 0, 2) and got.tobytes() == level.tobytes()
     assert cv.top.tobytes() == top.tobytes()

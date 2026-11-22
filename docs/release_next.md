@@ -85,6 +85,37 @@ short ones (a twentieth to a tenth more before); coming onto the canvas over
 wet paint, up to twice as much, as before. This is left for a separate
 issue.
 
+## Breaking, in oil paintings: a loaded knife no longer drops lumps along an earlier ridge
+
+A loaded knife pulled along the ridge an earlier pull left at its blade's
+end gathered the ridge into a heap and dropped it part of the way, as a lump
+two to three times as thick as the paint around it: the heap stopped
+wherever it came under the knife's own fresh paint, on which the blade
+glides. The blade now pushes on what is in its way under its own paint too,
+and takes the heap with it or lays it out as it goes: on a ground of such
+pulls there were up to 112 pixels more than 8 units thick (the paint is 2 to
+3.5 thick), and there are none, at a stroke's own steps and in shorter ones.
+
+Knife work over wet paint changes, the more the more the knife is loaded and
+the harder it is pressed. A lightly loaded knife paints much as it did
+(within 1% for what it carries and lays; barely touching, it carries the wet
+paint 2 to 5% further). A heavily loaded one carries the
+wet paint further, a tenth further at a firm pressure, where it used to drop
+lumps of its own; pressed nearly down to the canvas it leaves a bigger heap
+where it stops (a third to a half bigger for a short blade) and lays up to a
+tenth more of its own paint at its own steps, which is what it laid in short
+steps. Loaded pulls across the ridges of earlier ones lay about a twentieth
+less of their own paint, the room being taken by what they gather. A picture
+built of loaded knife pulls over one another changes all over, in the detail
+of its relief (`knives.png`: a fifth of its pixels by more than 1/255). Brush
+strokes, and knife strokes on the bare canvas or over dry paint, are painted
+as before, to the bit.
+
+Still as it was: what a blade carries to the end of its pull it leaves
+there (and more of it gets there), and a heap gathered from a narrow ridge
+stays narrow (the paint under a blade moves along the pull, not along the
+blade).
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and

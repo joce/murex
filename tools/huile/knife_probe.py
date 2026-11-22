@@ -1,7 +1,9 @@
-"""Measure two things a painting knife does over wet paint, for the issues on them.
+"""Measure three things a painting knife does over wet paint, for the issues on them.
 
     python tools/huile/knife_probe.py ribs           # the ribs a dragging knife leaves
     python tools/huile/knife_probe.py skim           # what a knife barely touching lays
+    python tools/huile/knife_probe.py lumps          # lumps dropped along a ridge
+    python tools/huile/knife_probe.py lumps --step 2    # its pulls in steps of 2 px
     python tools/huile/knife_probe.py ribs --save DIR   # also keep the pictures
     python tools/huile/knife_probe.py ribs --finer 2    # in steps half as long
     python tools/huile/knife_probe.py skim --base 1     # over a thinner dark base
@@ -35,7 +37,21 @@ it up at, murex-iaa.) The dark base of the default (``--base 5``) covers the
 canvas; a thin one (``--base 1``) runs out below the first row of pulls,
 which lie over the bare canvas.
 
-Both paint with fixed seeds, so the same code prints the same numbers.
+``lumps`` (murex-6fa): the dark ground the other two paint on, alone. Each
+of its pulls (a knife 160 px long loaded with ``--base``, at pressure 0.7)
+runs along the ridge the one before left at its blade's end, and bulldozes
+it. The table gives, for a runny and a stiff dark on a small canvas and on a
+larger one, how many pixels hold more than 8 units of wet paint (the ground
+is 2 to 3.5 thick, the beads along the pulls' edges up to 8), the thickest,
+and the peaks: how many pixels stand more than 3 units above all that lies
+on a ring 8 px around them, and the tallest (see ``standing_alone``: a ridge
+is no peak). There were lumps up to 13 units thick, where a pull dropped the heap
+it was pushing; there should be none. ``--step S`` cuts the ground's pulls
+into steps of S px at most, with the textures the same at every cut (the
+width does not wobble, as the ``same_textures`` fixture of huile's tests has
+it: ``--step 8`` gives a stroke's own steps with those textures).
+
+All three paint with fixed seeds, so the same code prints the same numbers.
 """
 
 from __future__ import annotations
@@ -193,9 +209,57 @@ def skim(args: argparse.Namespace) -> None:
         canvas.save(os.path.join(args.save, "skim.png"))
 
 
+def standing_alone(thickness: np.ndarray, r: int = 8) -> np.ndarray:
+    """How far each pixel of ``thickness`` stands above the highest of the
+    pixels on a ring ``r`` px around it (32 of them, a pixel apart or so):
+    next to nothing along a ridge, whichever way it runs, the height of a
+    peak that stands alone."""
+    h, w = thickness.shape
+    padded = np.pad(thickness, r, mode="edge")
+    high = np.full(thickness.shape, -np.inf)
+    turns = 2.0 * np.pi * np.arange(32) / 32
+    ring = {(int(round(r * np.sin(a))), int(round(r * np.cos(a)))) for a in turns}
+    for dy, dx in sorted(ring):
+        high = np.maximum(high, padded[r + dy :, r + dx :][:h, :w])
+    return thickness - high
+
+
+def lumps(args: argparse.Namespace) -> None:
+    print(f"{'canvas':>8}  {'dark body':>9}  {'over 8':>6}  {'thickest':>8}  peaks")
+    longest, wobble = stroke._MAX_STEP, stroke.value_noise_1d
+
+    def no_wobble(n, cell, rng):
+        if cell == 1.0:  # (the knife's chatter and lips, counted in px)
+            return wobble(n, cell, rng)
+        rng.random(8)
+        return np.full(n, 0.5)
+
+    if args.step is not None:
+        stroke._MAX_STEP = args.step
+        stroke.value_noise_1d = no_wobble
+    try:
+        for width, height in ((420, 300), (900, 500)):
+            for body in (0.2, 0.7):
+                canvas = Canvas(width, height, seed=1)
+                dark_base(canvas, args.base, body)
+                wet = canvas.wet_thickness
+                alone = standing_alone(wet)
+                size, over = f"{width}x{height}", int((wet > 8).sum())
+                print(
+                    f"{size:>8}  {body:9.1f}  {over:6d}  {wet.max():8.2f}  "
+                    f"{int((alone > 3).sum())} px, the tallest {alone.max():.2f} "
+                    "above what lies around it"
+                )
+                if args.save:
+                    name = f"lumps_{width}x{height}_body{body}.png"
+                    canvas.save(os.path.join(args.save, name))
+    finally:
+        stroke._MAX_STEP, stroke.value_noise_1d = longest, wobble
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
-    parser.add_argument("probe", choices=("ribs", "skim"))
+    parser.add_argument("probe", choices=("ribs", "skim", "lumps"))
     parser.add_argument(
         "--base",
         type=float,
@@ -213,13 +277,14 @@ def main() -> None:
         "--step",
         type=float,
         metavar="S",
-        help="cut each white pull into steps of S px at most (a stroke's: 8)",
+        help="cut each white pull (lumps: each pull of the ground, with the "
+        "textures matched) into steps of S px at most (a stroke's: 8)",
     )
     parser.add_argument("--save", metavar="DIR", help="keep the pictures in DIR")
     args = parser.parse_args()
     if args.save:
         os.makedirs(args.save, exist_ok=True)
-    {"ribs": ribs, "skim": skim}[args.probe](args)
+    {"ribs": ribs, "skim": skim, "lumps": lumps}[args.probe](args)
 
 
 if __name__ == "__main__":

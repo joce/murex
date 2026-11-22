@@ -420,15 +420,8 @@ def _push_aside(run: _Run, s: _Step, level):
     hair, expo_c = s.hair[wsl], s.expo[wsl]
     ridges = eng.Ridges(np.zeros(PACKED), np.zeros(PACKED), np.zeros(PACKED))
     flowing = run.bt.clumps == 0
-    wet = np.zeros((0, 0), np.float32)  # (a comb: none spills)
-    if flowing:  # what was lying there before the stroke
-        blade = run.blade
-        wet = np.ascontiguousarray(
-            blade.wet_before[
-                win.cy0 - blade.wet_y0 : win.cy0 - blade.wet_y0 + win.ch,
-                win.cx0 - blade.wet_x0 : win.cx0 - blade.wet_x0 + win.cw,
-            ]
-        )
+    # (what was lying there before the stroke; a comb: none spills)
+    wet = _wet_before(run, win) if flowing else np.zeros((0, 0), np.float32)
     # (what stands above the blade, the share of it a pass moves, and near
     # the edges of the mark what spills: see _engine.blade_excess)
     excess, tv, emax = eng.blade_excess(
@@ -478,7 +471,11 @@ def _drag_film(run: _Run, s: _Step, level, hang, film, riding=None):
     near the blade travels almost with it and paint at the canvas hardly
     moves; what stands above the blade is bulldozed ahead of it. Each wet
     layer moves at its own speed, so their order is kept (white dragged over
-    purple stays on top). The blade glides on its own fresh paint.
+    purple stays on top). The blade glides on its own fresh paint: under
+    that it drags nothing, and pushes on only what is in its way, the paint
+    it has brought there and what stands above it (see
+    _engine.pushed_under_film; it left that where its own paint began, in a
+    heap: murex-6fa).
 
     The paint it drags travels under it, so the gap left under the blade for
     its own paint changes as it goes; and where the blade rides on that
@@ -520,6 +517,7 @@ def _drag_film(run: _Run, s: _Step, level, hang, film, riding=None):
         # paint's surface as far below it as the one under it)
         hang + _own_paint(run, s),
         np.minimum(film, _KNIFE_BEAD_HEIGHT),  # (the bead: see _slab)
+        _wet_before(run, st.win),
     )
     if riding is None:  # (on the solid surface alone: its level stays)
         gaps = eng.flow_under_blade(*flow)
@@ -532,6 +530,18 @@ def _drag_film(run: _Run, s: _Step, level, hang, film, riding=None):
         hang = ends if hang is level else hang + (ends - level)
         level = ends
     return _Met(gaps, level, hang) if gaps.size else None
+
+
+def _wet_before(run: _Run, win: eng.Window):
+    """How thick the wet paint lay on the step's part of the canvas (``win``:
+    cy0, cx0, ch, cw) before the stroke (see :func:`_before_the_blade`)."""
+    blade = run.blade
+    return np.ascontiguousarray(
+        blade.wet_before[
+            win.cy0 - blade.wet_y0 : win.cy0 - blade.wet_y0 + win.ch,
+            win.cx0 - blade.wet_x0 : win.cx0 - blade.wet_x0 + win.cw,
+        ]
+    )
 
 
 class _Met(NamedTuple):
