@@ -5737,6 +5737,7 @@ def flow_under_blade(
     film,
     hang,
     bead,
+    before,
 ):
     """Move the wet paint a blade touches as it travels ``ds`` px along (tx, ty)
     in the window at (sy0, sx0) (thin-film shear and bulldozing, see
@@ -5757,6 +5758,11 @@ def flow_under_blade(
     top from a pixel the film is not on yet goes under the film too (see
     _upwind).
 
+    The blade glides on its own fresh paint: where it has laid more than a
+    film of it, it drags none of the paint below. What is in its way there
+    it pushes on all the same (see pushed_under_film; ``before``: how thick
+    the wet paint lay on each pixel before the stroke).
+
     The paint under the blade travels with it, so the gap left under the
     blade for its own paint (step 6 of a knife's step, _knife._slab) is not
     the one the canvas shows when the step ends: that one, read once per
@@ -5773,8 +5779,8 @@ def flow_under_blade(
     touches no wet paint, and nothing moved.
 
     The per-pixel arrays (``floor``, ``level``, ``aa``, ``along``,
-    ``c``, ``chord_half``, ``slip``, ``film``, ``hang``, ``bead``) all cover
-    the window: they have one shape."""
+    ``c``, ``chord_half``, ``slip``, ``film``, ``hang``, ``bead``,
+    ``before``) all cover the window: they have one shape."""
     # (the helpers below take that shape from whichever of them they are given)
     hh, ww = level.shape
     own, gap = _blade_gap(cv, level, floor, sy0, sx0, stroke_id)
@@ -5813,7 +5819,7 @@ def flow_under_blade(
             cv,
             own,
             inside,
-            (gap, slip),
+            (gap, slip, (level, floor, before)),
             viscous,
             (step * ax, step * ay),
             (in_rows, c_rows),
@@ -5832,13 +5838,15 @@ def flow_under_blade(
 def _drag_room(hh, ww):
     """Room for a sub-step of the flow under a blade (see _drag_paint), all
     zeros: how fast the blade moves the paint of each pixel, that smoothed,
-    and the shares of each layer's paint it passes on along x and along y
-    (below, above)."""
+    the shares of each layer's paint it passes on along x and along y
+    (below, above), and the share of the paint under the stroke's own film
+    that it pushes on (see _contact_speed)."""
     return (
         np.zeros((hh, ww)),
         np.zeros((hh, ww)),
         (np.zeros((hh, ww), np.float32), np.zeros((hh, ww), np.float32)),
         (np.zeros((hh, ww), np.float32), np.zeros((hh, ww), np.float32)),
+        np.zeros((hh, ww)),
     )
 
 
@@ -5848,35 +5856,38 @@ def _drag_paint(cv, own, inside, riding, viscous, moves, rows, heights, at, dirs
     blade, over ``inside`` of each pixel of the window at ``at`` (sy0, sx0)
     (``rows``: the columns of each row where it is over any, and room for
     those where it moves any paint), ``riding`` (gap, slip) above the
-    surface, moves the earlier strokes' wet paint (``heights``: see
-    _smoothed_heights) by ``moves`` (px along x, along y) at most,
+    surface (and what tells the paint in its way under the stroke's own
+    film: its level, the solid surface and how thick the wet paint lay
+    before the stroke, see _contact_speed), moves the earlier strokes' wet
+    paint (``heights``: see _smoothed_heights) by ``moves`` (px along x,
+    along y) at most,
     downstream (``dirs``: +1 or -1 along x, along y, and whether to leave
     alone the pixels whose paint does not move, see _upwind). ``room``: see
     _drag_room; it is left all zeros again. (Made afresh at every sub-step,
     that room took a twentieth of the flow's time.)"""
     top, und = cv.top, cv.und
-    gap, slip = riding
+    gap, slip = riding[0], riding[1]
     in_rows, c_rows = rows
     sy0, sx0 = at
     xdir, ydir, lean = dirs
-    speed, frac, below, above = room
+    speed, frac, below, above, pushed = room
     ww = own.shape[1]
-    if _contact_speed(
-        cv, own, inside, gap, slip, sy0, sx0, in_rows, heights, c_rows, speed
-    ):
+    if _contact_speed(cv, own, inside, riding, at, rows, heights, (speed, pushed)):
         # viscosity: neighbouring paint drags each other along, so the speed
         # varies smoothly (without it, the paint tears into foam)
         f_rows = grown(c_rows[0], c_rows[1], viscous, ww)
         box_blur_rows(speed, viscous, f_rows[0], f_rows[1], frac)
         # (and the pixels next to those, which they pass paint on to)
         g_rows = grown(f_rows[0], f_rows[1], 1, ww)
-        _shares_moved(cv, own, frac, gap, slip, moves, f_rows, sy0, sx0, below, above)
+        _shares_moved(
+            cv, own, (frac, pushed), gap, slip, moves, f_rows, sy0, sx0, below, above
+        )
         # (the layer below first: what the top layer passes on to a pixel
         # under the stroke's own film joins it there)
         _upwind(und, und, own, False, below, g_rows, sy0, sx0, xdir, ydir, lean)
         _upwind(top, und, own, True, above, g_rows, sy0, sx0, xdir, ydir, lean)
         _wipe_rows(frac, below, above, f_rows)
-    _wipe_speed(speed, in_rows)
+    _wipe_speed(speed, pushed, in_rows)
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -5894,13 +5905,15 @@ def _wipe_rows(frac, below, above, f_rows):
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _wipe_speed(speed, in_rows):
-    """Set back to zero the speeds a sub-step of the flow has worked out
-    (see _contact_speed): in the columns ``in_rows`` of each row."""
+def _wipe_speed(speed, pushed, in_rows):
+    """Set back to zero the speeds a sub-step of the flow has worked out,
+    and the shares it pushes on from under the stroke's own film (see
+    _contact_speed): in the columns ``in_rows`` of each row."""
     in_lo, in_hi = in_rows
     for y in range(in_lo.shape[0]):
         for x in range(in_lo[y], in_hi[y]):
             speed[y, x] = 0.0
+            pushed[y, x] = 0.0
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -6033,19 +6046,68 @@ def _smoothed_heights(cv, own, sy0, sx0, in_rows, src, heights):
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _contact_speed(
-    cv, own, inside, gap, slip, sy0, sx0, in_rows, heights, c_rows, speed
-):
-    """How fast the blade, over ``inside`` of each pixel at ``gap`` above
-    the surface, moves the earlier strokes' wet paint there, the two layers
-    as one column (``heights``: (u, t) thick, see _smoothed_heights; see
-    layer_speed), as a fraction of its own speed, into ``speed`` (zeros,
-    see _drag_room); returns whether it moves any. Sets in ``c_rows`` the
-    columns of each row where it does, c_lo..c_hi."""
-    top = cv.top
-    in_lo, in_hi = in_rows
+def pushed_under_film(old, film, gap, before):
+    """How much of the earlier strokes' paint of a pixel, ``old`` thick, a
+    blade ``gap`` above the solid surface pushes on from under the stroke's
+    own film, ``film`` thick on top of it: the paint that is in the blade's
+    way. That is the paint the blade has brought there (what lies above
+    where the wet paint lay ``before`` the stroke) and the paint that stands
+    above the blade itself, as far as the surface, film and all, stands
+    above the blade: the film is held down by the blade, and the paint that
+    lifts it past the blade has to go on. (The paint that lay there before
+    the stroke, under the blade, is none of the blade's business, however
+    much of the stroke's own paint stands on it, a bead at the blade's end
+    for one: the blade glides on that.)
+
+    Without this a blade dropped what it bulldozed as soon as that came
+    under a film of its own more than 0.3 thick, which stopped it dead, in
+    a heap two to three times as thick as the paint around it (murex-6fa).
+    Nothing here is a threshold: the push grows from nothing with what is
+    in the way. (Whether the blade glides on the film still is one, see
+    _contact_speed: it now decides how the paint under the film is moved,
+    no longer whether what the blade pushes is let go.)"""
+    in_the_way = min(old + film - gap, old - min(gap, before))
+    return min(max(in_the_way, 0.0), old)
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _contact_speed(cv, own, inside, riding, at, rows, heights, room):
+    """How fast the blade, over ``inside`` of each pixel of the window at
+    ``at`` (sy0, sx0), ``riding`` (gap, slip, ...) above the surface, moves
+    the earlier strokes' wet paint there, the two layers as one column
+    (``heights``: (u, t) thick, see _smoothed_heights; see layer_speed), as
+    a fraction of its own speed, into ``room[0]`` (zeros, see _drag_room);
+    returns whether it moves any. Sets in ``rows[1]`` the columns of each
+    row where it does, c_lo..c_hi (``rows[0]``: those where the blade is).
+
+    The blade glides on its own fresh paint: under more than a film of it,
+    it drags nothing. What is in its way there it pushes on with it, at its
+    own speed (see pushed_under_film; the rest of ``riding``: the blade's
+    level, the solid surface, and how thick the wet paint lay before the
+    stroke): the share of the pixel's earlier paint that is, which is that
+    paint's speed, and goes into ``room[1]`` too (zeros). The speeds are
+    smoothed afterwards (see _drag_paint), and this one with them, so that
+    the paint next to it goes along as next to any paint that moves; but
+    the pixel itself passes on no less than this share (see _shares_moved).
+    Both matter:
+
+    - passing on the smoothed share alone evens the thickness of the paint
+      out from pixel to pixel, where it is the surface that a blade levels:
+      over the threads of the canvas the paint was left standing above the
+      blade on every thread top, the surface ribbed by up to half a unit
+      from thread to thread, 4 px apart;
+    - left out of the smoothing, the paint under the film counted as still
+      for the paint coming to it, whose speed, smoothed with it, fell by
+      about half at the film's edge: a heap that had to get under the film
+      could not get through fast enough, and what did not was left there
+      (a lump 7.6 units high on 3, where it was 13)."""
+    top, und = cv.top, cv.und
+    gap, slip, (level, floor, before) = riding
+    sy0, sx0 = at
+    in_lo, in_hi = rows[0]
+    c_lo, c_hi = rows[1]
     u, t = heights
-    c_lo, c_hi = c_rows
+    speed, pushed = room
     hh, ww = own.shape
     any_c = False
     for y in range(hh):
@@ -6063,19 +6125,34 @@ def _contact_speed(
             speed[y, x] = contact * layer_speed(
                 np.float32(0.0), z, gap[y, x], slip[y, x]
             )
-            if contact != 0:
+            moves = contact != 0
+            if shielded:
+                old = np.float64(und[sy0 + y, sx0 + x, IV])
+                push = pushed_under_film(
+                    old,
+                    np.float64(top[sy0 + y, sx0 + x, IV]),
+                    level[y, x] - floor[y, x],
+                    np.float64(before[y, x]),
+                )
+                if push > 0:  # (so old > 0)
+                    pushed[y, x] = inside[y, x] * (push / old)
+                    speed[y, x] = pushed[y, x]
+                    moves = moves or pushed[y, x] != 0
+            if moves:
                 any_c = True
                 c_lo[y], c_hi[y] = min(c_lo[y], x), x + 1
     return any_c
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _shares_moved(cv, own, frac, gap, slip, moves, f_rows, sy0, sx0, below, above):
+def _shares_moved(cv, own, speeds, gap, slip, moves, f_rows, sy0, sx0, below, above):
     """The share of each pixel's paint in the layer below (``below``: (fx,
     fy)) and in the top layer (``above``) that moves on to its neighbour
     downstream in x and in y in a sub-step of ``moves`` (px along x, along
-    y), its column of earlier strokes' paint moving at ``frac`` of the
-    blade's speed (``f_rows``: columns f_lo..f_hi of each row).
+    y), its column of earlier strokes' paint moving at ``speeds[0]`` of the
+    blade's speed (``f_rows``: columns f_lo..f_hi of each row), and no less
+    than the share ``speeds[1]`` of what lies under the stroke's own film
+    going with the blade (see _contact_speed).
 
     Each layer moves at its own speed, the one above faster (see
     layer_speed), so their order is kept; the two together carry what the
@@ -6088,6 +6165,7 @@ def _shares_moved(cv, own, frac, gap, slip, moves, f_rows, sy0, sx0, below, abov
     paint heaped up behind that line and was drained ahead of it, at every
     step of the stroke.) The stroke's own paint on top stays."""
     top, und = cv.top, cv.und
+    frac, pushed = speeds
     f_lo, f_hi = f_rows
     move_x, move_y = moves
     hh = frac.shape[0]
@@ -6101,7 +6179,13 @@ def _shares_moved(cv, own, frac, gap, slip, moves, f_rows, sy0, sx0, below, abov
             column = layer_speed(zero, z, g, k)
             if not column > 0:  # (no paint, or none that the blade moves)
                 continue
-            f = clip(frac[y, x] * (layer_speed(zero, zu, g, k) / column), 0.0, 1.0)
+            # (what is pushed on from under the stroke's own film is all in
+            # the layer below: none anywhere else)
+            f = clip(
+                max(frac[y, x] * (layer_speed(zero, zu, g, k) / column), pushed[y, x]),
+                0.0,
+                1.0,
+            )
             below[0][y, x] = f * move_x
             below[1][y, x] = f * move_y
             f = clip(frac[y, x] * (layer_speed(zu, z, g, k) / column), 0.0, 1.0)
@@ -6246,6 +6330,7 @@ def flow_under_riding_blade(
     film,
     hang,
     bead,
+    before,
     ride,
 ):
     """flow_under_blade for a blade that rides on the wet paint it drags
@@ -6342,7 +6427,7 @@ def flow_under_riding_blade(
             cv,
             own,
             inside,
-            (gap_now, slip),
+            (gap_now, slip, (planes[1], floor, before)),
             viscous,
             (step * ax, step * ay),
             rows,

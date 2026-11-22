@@ -49,6 +49,220 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** a loaded knife pulled along the end
+  ridge of an earlier pull no longer drops tall lumps (murex-6fa). A blade
+  pushes along the wet paint that stands above it, and glides on its own
+  fresh paint: under more than a film of that (0.3 units) it dragged
+  nothing, and that went for the whole column of paint below, the part
+  standing above the blade too. So a heap the blade was pushing stopped dead
+  as soon as it came under such a film, and the blade went on without it.
+  Along a ridge that happened in two ways, traced on the dark ground of
+  `tools/huile/knife_probe.py` (pulls of a knife 160 px long loaded with 5,
+  at pressure 0.7, each over the ridge the one before left at its blade's
+  end; a dark of body 0.7 on 420 by 300 px):
+  - Further down the pull, where the earlier ridge sinks under the blade's
+    level. The heap rides some 9 px behind the leading edge of a blade 32 px
+    wide, and from there on the blade lays its own paint in the gap ahead of
+    it. In the second pull the heap, 6.4 to 7.1 units thick with the blade
+    3.3 above the canvas, met a film 0.3 to 0.6 thick at the 19th step and
+    stayed there, 10.6 and then 11.3 units thick (9.3 once the paint had
+    settled).
+  - At the pull's start, where the blade widens out of its taper and the
+    paint it squeezes out past its end lands on the earlier ridge (0.5 to
+    1.7 units, in the first step of the third pull). Over the next three
+    steps the paint under those few pixels grew from 6.7 units to 10.2,
+    13.6 and 17.6: a lump 10.7 thick once settled.
+
+  The same in the flow alone: a blade pushing a ridge of 12 units of paint
+  along 2.4 units of wet paint, come to where half a unit of its own film
+  lies up to it, left the ridge 3 px into the film, 19 units high (8 under a
+  blade that rides on the paint), in steps of 8, 2 or 1 px alike.
+
+  Under its own film the blade still drags nothing, but it now pushes on
+  what is in its way there (`_engine.pushed_under_film`): the paint it has
+  brought there (what lies above where the wet paint lay before the
+  stroke) and the paint that stands above the blade itself, as far as the
+  surface, film and all, stands above the blade. The film is held down by
+  the blade, so the paint that lifts it past the blade has to go on. The
+  paint that lay there before the stroke and under the blade stays, however
+  much of the stroke's own paint stands on it (the bead at a blade's end).
+  The push grows from nothing with what is in the way: no new constant, and
+  the 0.3 no longer decides whether a heap is let go. The flow under a blade
+  is told how thick the wet paint lay before the stroke
+  (`flow_under_blade` and `flow_under_riding_blade` take it as `before`).
+  A heap now goes on under the film with the blade, or, under a blade that
+  rides on it and so higher, is laid out in the room that leaves under the
+  film: in the flow alone, 38 units stay with a blade held at its level and
+  nothing behind it stands above the bed; a riding blade lays the 12 units
+  out over 60 px, 0.6 above the bed at most.
+
+  Two other ways of doing it were tried and measured. Pushing the paint on
+  as far as the surface stands above the blade, whatever the surface is
+  made of, moves the paint under the blade's own slab whenever the blade
+  dips: a knife 110 px long loaded with 3, at pressure 0.5, then carried
+  the wet paint under it 12% further than before (1% with what was done).
+  And how the push joins the smoothing of the flow's speeds matters both
+  ways: passing on the smoothed share alone left the paint standing on
+  every thread top of the canvas (the surface ribbed by up to half a unit,
+  4 px apart), and leaving the push out of the smoothing held a heap back
+  at the film's edge (a lump 7.6 units thick left on the larger ground). It
+  is smoothed with the speeds, and a pixel passes on no less than its own.
+
+  Measured on that ground (`knife_probe.py lumps`, new; a runny and a stiff
+  dark, body 0.2 and 0.7, on 420 by 300 and on 900 by 500 px), before and
+  after, at a stroke's own steps:
+  - pixels more than 8 units thick: 14, 40, 18 and 112 before, none after;
+    the thickest paint 9.0, 10.7, 9.6 and 13.1 units before, 5.6, 7.6, 5.8
+    and 7.9 after (what is left above 6 units is the beads along the pulls'
+    edges);
+  - pixels standing more than 3 units above all that lies on a ring 8 px
+    around them (peaks, not ridges): 12, 69, 54 and 142 before, the tallest
+    4.5, 6.4, 5.4 and 8.7 units above it; none after, the tallest 1.6, 2.5,
+    0.8 and 1.9.
+
+  The same in shorter steps, with the textures the same at every cut
+  (`--step`): in steps of 8, 4, 2 and 1 px, 10, 12, 11 and 7 pixels above 8
+  units (body 0.2, the smaller canvas), 51, 43, 37 and 35 (body 0.7), 1, 0,
+  0 and 0, and 32, 25, 22 and 22 (the larger canvas) before, none at any
+  step after; the tallest peak 4.1 to 7.6 units before, 0.6 to 2.5 after
+  (2.5, 2.2, 2.2 and 1.8 for the stiff dark on the smaller canvas).
+
+  What a blade still carries when it stops, it leaves there, as it did
+  (murex-dl9). The
+  probe's pulls on 420 by 400 px, stopped 100 px short of the bottom edge
+  (three of them, the stiff dark): the thickest paint where they stop was
+  8.8 units at a stroke's own steps (7.2, 6.2 and 5.9 in steps of 8, 2 and
+  1 px with the same textures), and is 6.5 (5.5, 5.4 and 5.3). On the
+  probe's ground, whose pulls end 10 px from the edge, that is the tallest
+  thing left: 5.5 units thick, 2.5 above what lies around it, at a stroke's
+  own steps for the stiff dark on the smaller canvas, 1.8 in steps of 1 px.
+
+  What else changes depends on how the knife is loaded and pressed. All of
+  it is white knifed 272 px across some 2.5 units of wet dark, base and
+  change on one ground (laid with the change, so without lumps), the same
+  textures where steps are compared.
+
+  A lightly loaded knife, and a loaded one at a middling pressure, are much
+  as they were, and what the last change put right holds for them (load
+  0.3, blades 60, 110 and 160 px long at pressures 0.25, 0.5 and 0.7; load
+  3, blades 110 and 60 px long at pressure 0.5; two strokes each). A
+  stroke's own steps against steps of 1 px, before and after:
+  - the dark carried: within -0.3 to +0.5% before and -0.4 to +1.0% after
+    at load 0.3 (the +1.0% is the 160 px blade at pressure 0.25, from
+    +0.5%), +2.7 and +5.8% before and +2.9 and +5.8% after at load 3
+    (murex-5gw, not changed here);
+  - the heap left where the pull ends: within 0.7% before and after (-1.0
+    and +0.3% before, -1.3 and +0.3% after at load 3);
+  - the white laid: -1.0 to +1.3% before, -1.1 to +1.5% after;
+  - the paint left under the pull: within 0.4% before, 0.2% after (1.1% at
+    load 3, before and after).
+
+  At the same steps these pulls give what they gave within 0.2% for the
+  white and the heap and 0.6% for the dark carried, except: the 160 px
+  blade at pressure 0.25, which carries 1.0% further at its own steps; and
+  the 110 px blade loaded with 3, which carries 1.0% further and leaves a
+  heap 1.2% bigger (1.6% in steps of 1 px). The ripple of their surface
+  along the pull is what it was (to 0.001 units; the short blade loaded
+  with 3 ripples by 0.004 less), but for the 160 px blade at pressures 0.5
+  and 0.7, whose pull the measure takes from where it crosses a bead of the
+  ground: 0.022 to 0.027 units at 0.5, where the paint under the middle of
+  the pull is also 2.7% thicker, and at 0.7, 0.027 to 0.030 at its own
+  steps and 0.020 to 0.042 in steps of 1 px. At 0.7 that is the bead and no
+  rib: past it one of the two pulls ripples by 0.0094 to 0.0099 units at
+  every step, before and after, and what the blade makes of the bead
+  stands 0.8 units above what lies around it where it stood 1.1 (the pulls
+  at 0.5 were not looked into). `knife_probe.py ribs` gives 0.035, 0.038
+  and 0.040 units where it gave 0.031, 0.037 and 0.039: its ground is
+  another now (on the same ground the pull ripples by 0.0002 to 0.0005
+  more).
+
+  A heavily loaded knife pressed hard changes more (load 3, one stroke
+  each, at a stroke's own steps unless said):
+  - At pressure 0.7 the 160 px blade carries the dark 13.4% further and
+    lays 2.6% less white, the 110 px blade 10.4% further and 0.7% less.
+    These pulls dropped lumps of their own on the way: along the 160 px
+    pull 422 pixels were more than 8 units thick (the thickest 11.8) and
+    the surface rippled by 0.18 units (0.14 for the 110 px blade); none is
+    now (the thickest 5.2), and it ripples by 0.019 (0.030). What was
+    dropped goes on with the blade: 7% more dark lies around where the 160
+    px pull ends. How far these pulls carry hung on their steps and hangs
+    on them less: in steps of 8 px against 1 px, -4.4 and -5.1% before,
+    -0.9 and -2.3% after (the heap at the end: -8.5 and -7.0%, now -2.5 and
+    -2.9%).
+  - At pressure 0.9 the blade goes nearly down to the canvas, and the paint
+    under its slab stands above it: by the rule that paint, which stayed,
+    is pushed on (the pulls were not traced step by step). The heap left
+    where the pull ends is 4.5% bigger for the 160 px blade,
+    29% for the 110 px blade and 56% for the 60 px blade (2540 units to
+    3968), the dark carried 5.2, 3.9 and 2.4% further, and the white laid
+    11.5, 2.3 and 10.3% more. The white is mostly a dependence on the step
+    that has gone: in steps of 8 px these pulls laid 7.0, 5.1 and 19.3%
+    less white than in steps of 1 px and now lay 1.3, 1.3 and 11.4% less,
+    and in steps of 1 px they lay about what they laid (+4.3, -1.5 and
+    -0.3%).
+    The heap is bigger at any step (+4, +38 and +77% in steps of 1 px), and
+    no longer hangs on it: +0.4, +7.9 and +14.3% in steps of 8 px against 1
+    px before, +0.4, +2.0 and +1.4% after.
+
+  A knife barely touching (the 160 px blade at pressure 0.03, load 0.3,
+  three strokes) carries the dark 2.3 to 2.6% further at its own steps and
+  3.8 to 4.6% in steps of 1 px; why was not traced. The ripple along these
+  pulls rises: 0.056 to 0.064, 0.055 to 0.056 and 0.037 to 0.040 units at
+  their own steps, 0.040 to 0.057, 0.031 to 0.042 and 0.026 to 0.033 in
+  steps of 1 px. Looked into on the first of them, it is where the pull
+  crosses a bead of the ground, not a rib along it: over that third of the
+  stretch measured the ripple goes from 0.059 to 0.092 units in steps of 1
+  px (0.091 to 0.106 at its own), and over the thirds before and after it
+  from 0.020 to 0.026 units to 0.017 to 0.023. Around the crossing the
+  thickest paint is 4.4 units where it was 5.1 (4.53 for 4.65 at its own
+  steps), and nothing stands more than 1 unit above what lies around it,
+  before or after: the blade lays what it gathers from the bead out a
+  little otherwise.
+
+  Loaded pulls across ridges lay less of their own paint. Three pulls of
+  white (the 160 px knife loaded with 5, pressure 0.7, 400 px long and 120
+  px apart, so that each overlaps the last) across such pulls of dark
+  covering 500 by 400 px: the first lays what it laid, the second and the
+  third 5.2 and 6.1% less (1.5% less paint on the canvas). The dark a pull
+  gathers from the ridges it crosses goes on under the blade, where it
+  fills the room the blade's own paint filled when the heap was left
+  behind. 1042 pixels are more than 8 units thick where 2764 were, and 58
+  stand more than 3 units above what lies around them where 200 did; but
+  the heaps now reach the ends of the pulls, and the thickest paint is 18.5
+  units where it was 17.0.
+
+  Paint is conserved as before: every channel to 2e-9 of the largest over a
+  loaded pull along a ridge, blade and canvas together.
+
+  Of the 16 scenes of `tools/huile/bench.py`, 12 are painted as before, to
+  the bit, paint and picture; four change: `knife` (0.27% of the lit
+  picture's pixels move by more than 1/255, 0.09% by more than 8/255),
+  `knife-lift` (0.07% and 0.01%), `edges` (1.15% and 0.30%) and `painting`
+  (0.41% and 0.04%). Of the example images, four change, and are not
+  regenerated here: `knives.png` most, all over the knife landscape of its
+  lower half, which is loaded pulls laid over one another (20.9% of its
+  pixels move by more than 1/255, 8.1% by more than 8/255);
+  `bob_ross_style.png` in the knife work of its mountain (2.5% and 0.4%);
+  `knife_drag.png` (0.07% by more than 1/255) and `brush_uses.png` (0.01%).
+  (Rendered both ways and compared: the 15 images of
+  `examples/huile/demo.py` and `bob_ross_style.png`; `bruegel_winter.png`
+  was found unchanged in review; the other paintings and `quickstart.png`
+  were not rendered.)
+  Brush strokes, and knife strokes on the bare canvas or over dry paint,
+  are painted to the bit as they were, as is any stroke in which no paint
+  is in the blade's way under its own film. The `knife` scene takes 2%
+  longer (best of 7, four runs each in turn: 1029 to 1061 ms before, 1052
+  to 1073 after), `painting` the same (7306 to 7606 ms, 7325 to 7529).
+
+  Not fixed: a heap from a narrow ridge stays as narrow as the ridge, for
+  the flow under a blade moves paint along the pull only, never along the
+  blade, where a real knife would squash it flat; what is left of it is
+  carried to where the pull ends. Whether the blade glides on its film is
+  still decided at 0.3 units, for the paint it drags. The paint beside a
+  heap that passes under the film goes a little way with it (1 to 2% of it
+  in the flow alone). And a pull that ends at the edge of the canvas takes
+  what it carries out with it (murex-duo, not changed here): 0.2% less
+  paint at most stays on the probe's grounds.
 - **Breaking, in huile's pictures:** how far a knife drags wet paint no
   longer hangs on how its stroke is cut into steps (murex-kau). A blade
   pulled through wet paint pushes a wave of it along, as long as the blade

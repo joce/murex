@@ -86,8 +86,8 @@ def _sweep(cv, level, end=60.0, ds=8.0, film=FILM, hang=None, bead=None):
     """A blade 22 px along its way, over every row, at ``level`` over the
     canvas, goes ``ds`` px along +x and ends centred on ``end``, carrying a
     ``film`` of paint, its bead (``bead`` tall: the film) hanging from
-    ``hang`` (the level). Returns what it met (see
-    _engine.flow_under_blade)."""
+    ``hang`` (the level), over wet paint that lay BED thick before the
+    stroke. Returns what it met (see _engine.flow_under_blade)."""
     along = np.tile(np.arange(W) + 0.5 - end, (H, 1))
     full = np.full((H, W), 1.0)
     hang = level if hang is None else hang
@@ -95,7 +95,7 @@ def _sweep(cv, level, end=60.0, ds=8.0, film=FILM, hang=None, bead=None):
     return eng.flow_under_blade(
         cv, 0, 0, SID, 0.0 * full, level * full, full, along, 0.0 * full,
         11.0 * full, ds, 1.0, 0.0, 0.6 * full, 3, film * full, hang * full,
-        bead * full,
+        bead * full, BED * full,
     )  # fmt: skip
 
 
