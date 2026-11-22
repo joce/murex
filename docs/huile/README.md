@@ -249,40 +249,49 @@ finite, a negative width, a `taper` outside 0..1, a `brush` that is not a
 function is checked as the stroke samples it, still before any paint is
 laid.)
 
-A stroke can run off the canvas. The tool goes on past the edge as if the
-canvas went on there, using up its paint as it would on canvas, so what
-lands on the canvas is what the same stroke would leave on a larger canvas
-(to within a few percent). The part off the canvas is simulated too, so it
-takes about as long as it would on that larger canvas.
+A stroke can run off the canvas. The canvas goes on past its edge: bare at
+first (its ground, and its weave over again), and holding whatever strokes
+leave there. The part of a stroke that reaches past the edge, a brush's or
+a knife's, is painted out there as on the canvas, and the paint settles
+across the edge, so what lands on the canvas is what the same strokes leave
+on a larger canvas: a knife coming onto the canvas brings with it the wet
+paint that earlier strokes left past the edge, and no other; one leaving
+takes some out; thick paint left at the edge slumps over it.
 
-A knife drags the wet paint under it, so past the edge it needs paint to
-drag: the part of a knife's stroke that reaches past the edge is painted on
-the canvas going on there as its own mirror image (wet paint, dried paint
-and weave, as they were before the stroke), up to 128 px past each edge. A
-blade coming onto the canvas brings with it the wet paint it has pushed
-along out there, and one leaving takes some with it.
+The part off the canvas is painted like the rest, so a stroke at the edge
+costs what it would on a canvas that much larger, and a little more for
+crossing the edge. Along the whole top edge of a canvas 2,000 px square, a
+flat brush 80 px wide takes about 10% longer than on the larger canvas (5
+to 13% over the runs) and a knife 15% longer (the brush, 1.6 times what it
+took when the half of it past the edge was skipped; the knife, what it
+took). At its peak the brush's stroke
+takes 71 MB for 55 MB on the larger canvas and the knife's 29 MB for 6 MB:
+what the stroke is painted on at the edge (a stage, 16 MB at most at a
+time) and what the canvas then keeps past its edge (25 MB and 8 MB), which
+the larger canvas has in its own arrays.
+
+What lies past the edge is not shown. The canvas keeps it up to 128 px out,
+where there is any (about 0.23 KB a pixel), copies and pickles it with the
+rest, and dries it with the rest: paint dried out there raises the canvas's
+surface beside it, and nowhere else. Further out a knife is still painted
+all its way, on what it has itself left there, but what a stroke leaves
+beyond 128 px is gone once the stroke is over; a brush further out than
+that uses its paint up as before. So strokes that work further out than 128
+px one after another do not find what the earlier ones left out there: over
+a ground brushed 250 px over the edge, two knife pulls onto the canvas from
+300 px out bring on 9,682 and 5,126 units of wet paint where a larger
+canvas gets 11,820 and 10,045.
+
 `canvas.edge_loss` is what the canvas and its knives have lost over the
 edge, less what they have gained there (packed like a pixel of
 `canvas.top`; its volume is `canvas.edge_loss[-2]`): the canvas, the knife
-and that figure together keep every pigment over a knife stroke. It is a
-difference, not a store of paint: it goes below nothing where knives have
-brought more onto the canvas than they pushed off. What a brush lays past
-the edge is used up and not counted.
+and that figure together keep every pigment over a knife stroke. It rises
+when a knife pushes paint off the canvas and falls when one brings paint
+on, below nothing where knives have brought on paint that brushes laid out
+there. What crosses the edge under a brush is not counted.
 
-What this does not do:
-
-* Nothing is kept past the edge from one stroke to the next: each stroke
-  meets the mirror image of the canvas as it is then. Pulled onto the
-  canvas again and again over one track, a clean knife keeps bringing paint
-  on (eight pulls at pressure 0.5: 30,300 units, where a larger canvas
-  gets 18,400).
-* The mirror image is of whatever lies near the edge: a band of red along
-  the edge is a band twice as wide to a knife coming on over it (a band 7
-  px wide holding 2,900 units gains 1,100 to 1,300 units of red).
-* A knife that starts further out than 128 px lays its paint out there as
-  a brush does, dragging none, until it is that near: what lands on the
-  canvas can then be far from what a larger canvas gets (from 300 px out,
-  half to two and a half times the paint).
+Paint put on a canvas by hand (by writing to `canvas.top`) is not past its
+edge: only strokes paint there.
 
 ### Brushes
 

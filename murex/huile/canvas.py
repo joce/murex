@@ -13,7 +13,7 @@ from ..filters import box_blur, smooth121, smoothstep
 from ..png import write_png
 from ..spline import Profile
 from . import _engine as eng
-from . import _render, brushes
+from . import _knife, _render, brushes
 from .brush import (
     IB,
     IS,
@@ -71,7 +71,9 @@ class Canvas:
 
     Memory: about 0.35 KB per pixel (24 spectral bands for the dry ground and
     for each of the two wet sublayers, and maps of the surface); 0.65 KB
-    painted in reverse.
+    painted in reverse. Where strokes have run over its edge, it also
+    keeps the paint they left past the edge, up to 128 px out: 0.23 KB per
+    pixel that holds any.
 
     Raises ValueError or TypeError unless ``width`` and ``height`` are whole
     numbers above 0, ``texture`` (if given) a finite number >= 0, ``weave``
@@ -141,16 +143,32 @@ class Canvas:
         self.top_id = np.zeros((H, W), np.int32)
         # What the canvas and the knives painting on it have lost over its
         # edge, less what they have gained there: a difference, summed over
-        # the knife strokes, packed as a pixel's, and not a store of paint
-        # (see _knife._Edge). A knife at the edge works on the canvas going
-        # on past it as its mirror image: paint crosses the edge both ways
-        # under one blade, and where the blade brings more of a pigment
-        # onto the canvas than it pushes off, this goes below nothing. The
+        # the knife strokes, packed as a pixel's (see _knife._Edge). The
         # canvas, the knife and this together keep every pigment over a
-        # knife stroke. Being a difference, it also takes the rounding of
-        # the single-precision paint (about 1e-4 units of volume a stroke).
-        # (What a brush lays past the edge is used up, and not counted.)
+        # knife stroke. It counts what crosses the edge, not where that
+        # lies: paint crosses the edge both ways under one blade, and what
+        # goes out stays out there (see _past_edge) as far as the canvas
+        # keeps anything, where a later stroke can bring it back on. So
+        # this goes below nothing where knives have brought on more than
+        # knives pushed off: paint that brushes laid out there. Being a
+        # difference, it also takes the rounding of the single-precision
+        # paint (about 1e-4 units of volume a stroke). (What crosses the
+        # edge under a brush is not counted.)
         self.edge_loss = np.zeros(PACKED)
+        # What lies past the edge of the canvas: bare canvas at first (its
+        # ground, and its weave over again), then whatever strokes leave
+        # there, brushes and knives alike, wet and dried. The steps of a
+        # stroke that reach past the edge are painted on the canvas and
+        # this together (see _knife._Stage). In tiles, keyed by (row,
+        # column) of the tile, where there is anything: for each, the
+        # planes top, und, top_a, und_a and top_id over it and the height
+        # of the paint dried there (see _knife._KEPT_TILE); no further out
+        # than _knife._KEPT_FAR px, whatever strokes leave beyond that
+        # being gone once they are over. None on a canvas nothing has been
+        # taken past the edge of. A render shows the canvas alone; a copy
+        # and a pickle take this along; when the paint dries, it dries out
+        # there too.
+        self._past_edge: dict[tuple[int, int], tuple[np.ndarray, ...]] = {}
         self.dry_height = np.zeros((H, W), f32)
         self.texture = float(self.surface.relief)
         self.grain = self.surface.height_map(H, W, self._rng).astype(f32)
@@ -218,6 +236,8 @@ class Canvas:
         self.__dict__.setdefault("reverse", False)  # canvases saved before glass
         # ... or before what knives lose over the edge was counted
         self.__dict__.setdefault("edge_loss", np.zeros(PACKED))
+        # ... or before the canvas kept what lies past its edge
+        self.__dict__.setdefault("_past_edge", {})
         # (canvases saved by versions that kept the paint a stroke holds back
         # on the canvas: none is held between strokes)
         self.__dict__.pop("_pending", None)
@@ -456,7 +476,9 @@ class Canvas:
 
     def dry(self) -> None:
         """Let all wet paint dry. Later strokes no longer mix with it; they
-        layer over it optically (glazes show the dry paint through)."""
+        layer over it optically (glazes show the dry paint through). (The
+        wet paint strokes left past the edge of the canvas dries where it
+        lies: see ``_past_edge``.)"""
         for s in self._row_chunks():
             if self.reverse:
                 self.glass_r[s], self.glass_rb[s], self.glass_t2[s] = self._stack(s)
@@ -468,6 +490,10 @@ class Canvas:
         self.top_a.fill(0)
         self.und_a.fill(0)
         self.top_id.fill(0)
+        for tile in self._past_edge.values():  # (past the edge too)
+            tile[-1][...] += tile[0][..., IV] + tile[1][..., IV]
+            for plane in tile[:-1]:
+                plane.fill(0)
         self._update_relief()
 
     # ------------------------------------------------------------------
@@ -492,35 +518,140 @@ class Canvas:
         :meth:`_update_relief`). The same maps until the paint dries."""
         return self._relief_maps
 
+    def _relief_past_edge(self, stage) -> _Relief:
+        """The surface under the wet paint over a ``stage`` (see
+        _knife._Stage: a part of the canvas and what lies past its edge
+        there), as a stroke meets it: on the canvas, the canvas's own maps;
+        past its edge, where the weave goes on as the canvas's own, over
+        again, the maps of that weave, with the paint that has dried out
+        there on it (none of the canvas's: what dried on the canvas is not
+        out there)."""
+        maps = self._relief_maps
+        if not self._any_dried():
+            # (nothing has dried, there or anywhere: the canvas's maps are
+            # those of its weave, and go on as it does)
+            return _Relief(*(stage._goes_on(m) for m in maps))
+        # (worked out over the stage and what lies around it, as far as any
+        # of the maps reads: the weave, and the dried paint the stage has)
+        m = self._relief_reads()
+        ys = _knife._repeated(self.height, stage.y0 - m, stage.y0 + stage.height + m)
+        xs = _knife._repeated(self.width, stage.x0 - m, stage.x0 + stage.width + m)
+        grain = self.grain[ys[:, None], xs[None, :]]
+        dry = _knife._dried_over(
+            self,
+            stage.y0 - m,
+            stage.y0 + stage.height + m,
+            stage.x0 - m,
+            stage.x0 + stage.width + m,
+        )
+        over, _ = self._relief_of(grain, dry, self._tooth_range())
+        own = (slice(m, m + stage.height), slice(m, m + stage.width))
+        out = []
+        for there, mine in zip(over, maps, strict=True):
+            there = np.ascontiguousarray(there[own])
+            there[stage._here] = mine[stage._there]
+            out.append(there)
+        return _Relief(*out)
+
+    def _any_dried(self) -> bool:
+        """Whether any paint has dried, on the canvas or past its edge."""
+        dried = self.__dict__.get("_dried")
+        if dried is None:
+            dried = self._dried = bool(self.dry_height.any()) or any(
+                tile[-1].any() for tile in self._past_edge.values()
+            )
+        return dried
+
+    def _tooth_range(self) -> tuple[float, float]:
+        """What the tooth of the canvas is measured against (see
+        :meth:`_relief_of`): worked out again where a pickle has none."""
+        span = self.__dict__.get("_tooth_span")
+        if span is None:
+            _, span = self._own_relief()
+            self._tooth_span = span
+        return span
+
     def _update_relief(self) -> None:
         """Work out the maps of the surface under the wet paint (a
         :class:`huile.stroke._Relief`) from the weave and the dried paint:
         on a new canvas, and whenever paint dries."""
+        self._relief_maps, self._tooth_span = self._own_relief()
+        self.__dict__.pop("_beyond_weave_at", None)  # (see _beyond_weave)
+        self.__dict__.pop("_dried", None)  # (see _any_dried)
+
+    def _own_relief(self):
+        """The maps of the canvas's surface, and what its tooth is measured
+        against (see :meth:`_relief_of`): of the canvas alone; but near
+        where paint has dried past its edge, as far as the maps read (see
+        :meth:`_relief_reads`), of the canvas with what lies round it there
+        (a heap dried just past the edge holds a blade up on the canvas
+        beside it). Further from such paint the maps are the canvas's
+        alone, to the bit, and so is what the tooth is measured against."""
+        maps, span = self._relief_of(self.grain, self.dry_height)
+        T, m, H, W = _knife._KEPT_TILE, self._relief_reads(), self.height, self.width
+        near = []
+        for key in sorted(self._past_edge):
+            if self._past_edge[key][-1].any():
+                box = (
+                    key[0] * T - m,
+                    key[0] * T + T + m,
+                    key[1] * T - m,
+                    key[1] * T + T + m,
+                )
+                near.append(_knife._meet(box, (0, H, 0, W)))
+        for y0, y1, x0, x1 in _knife._gathered(
+            [b for b in near if _knife._area(b) > 0]
+        ):
+            ys = _knife._repeated(H, y0 - m, y1 + m)
+            xs = _knife._repeated(W, x0 - m, x1 + m)
+            over, _ = self._relief_of(
+                self.grain[ys[:, None], xs[None, :]],
+                _knife._dried_over(self, y0 - m, y1 + m, x0 - m, x1 + m),
+                span,
+            )
+            for mine, there in zip(maps, over, strict=True):
+                mine[y0:y1, x0:x1] = there[m : m + y1 - y0, m : m + x1 - x0]
+        return maps, span
+
+    def _relief_reads(self) -> int:
+        """How far from a pixel (px) the maps of the relief read the surface,
+        at most (see :meth:`_relief_of`: its blurs, 18 px; the mean a hollow
+        is measured from, a thread; its widest search for high points, a
+        thread and a half and 5 px), and 2 px to spare."""
+        scale = self.surface.scale
+        r_fine = max(1, int(round(0.5 * scale)))
+        return max(18, max(2, int(round(scale))), 3 * r_fine + 5) + 2
+
+    def _relief_of(self, grain, dry_height, span=None):
+        """The maps of the surface that the weave ``grain`` and the dried
+        paint ``dry_height`` make, and what its tooth is measured against
+        (the 1st and 99th percentiles of its raw tooth: ``span``, if given,
+        in their place, for a surface that is not the canvas's own)."""
         # What a nearly-dry brush catches on: the weave, plus ridges of dry paint.
-        relief = self.dry_height - box_blur(self.dry_height, 6)
-        tooth = self.texture * self.grain + 1.5 * relief
+        relief = dry_height - box_blur(dry_height, 6)
+        tooth = self.texture * grain + 1.5 * relief
         tooth = tooth - box_blur(tooth, 12) + 0.5 * self.texture
-        lo, hi = np.percentile(tooth, [1, 99])
+        if span is None:
+            span = np.percentile(tooth, [1, 99])
+        lo, hi = span
         tooth = np.clip((tooth - lo) / max(hi - lo, 1e-6), 0, 1).astype(np.float32)
         # The solid surface under the wet paint, in units of paint thickness:
         # the weave plus dried paint. A rigid blade pressed on it rests on its
         # high points: the tops of the threads (a flexible blade) or the
         # highest ridges around (a stiff one).
-        floor = (WEAVE_DEPTH * self.texture * self.grain + self.dry_height).astype(
-            np.float32
-        )
+        floor = (WEAVE_DEPTH * self.texture * grain + dry_height).astype(np.float32)
         # How far each point lies below the local average surface (the hollows
         # of the weave and of dried paint): thick wet paint fills these first.
         hollows = self._below_mean(floor)
         r_fine = max(1, int(round(0.5 * self.surface.scale)))
-        self._relief_maps = _Relief(
+        maps = _Relief(
             floor=floor,
             tooth=tooth,
             hollows=hollows,
             peaks_fine=box_blur(eng.max_filter(floor, r_fine), 1),
             peaks_wide=box_blur(eng.max_filter(floor, 3 * r_fine + 3), 2),
         )
-        self.__dict__.pop("_beyond_weave_at", None)  # (see _beyond_weave)
+        return maps, (float(lo), float(hi))
 
     def _below_mean(self, floor: np.ndarray) -> np.ndarray:
         """How far each point of the surface ``floor`` lies below the local
@@ -546,16 +677,19 @@ class Canvas:
         the deepest hollow of the surface is, at most: where it is no deeper
         than the tips of a brush reach, the brush reaches everywhere (and the
         engine need not look). With no dried paint, the hollows are the
-        weave's: 0. Worked out when first needed after paint dries (and not
-        pickled)."""
+        weave's: 0. Past the edge of the canvas (see ``_past_edge``) no
+        hollow is deeper than the paint dried there stands high. Worked out
+        when first needed after paint dries (and not pickled)."""
         deep = self.__dict__.get("_beyond_weave_at")
         if deep is None:
             deep = 0.0
-            if self.dry_height.any():
+            if self._any_dried():
                 # (in double precision, as the engine compares them)
                 hollows = self._relief_maps.hollows.astype(np.float64)
                 weave = self._weave_hollows().astype(np.float64)
                 deep = float(np.max(hollows - np.maximum(weave, 0.0)))
+                for tile in self._past_edge.values():
+                    deep = max(deep, float(tile[-1].max()))
             self._beyond_weave_at = deep
         return deep
 
@@ -820,7 +954,7 @@ class Canvas:
 #: What a canvas keeps worked out from its relief, made again when needed:
 #: left out of what it pickles (``__getstate__``, which ``copy`` goes through
 #: too), so never stale (see Canvas._beyond_weave).
-_CACHED = ("_weave_hollows_map", "_beyond_weave_at")
+_CACHED = ("_weave_hollows_map", "_beyond_weave_at", "_dried", "_tooth_span")
 
 #: Rendered height of one unit of paint thickness, in pixels (``relief`` in
 #: :meth:`Canvas.render` scales it).

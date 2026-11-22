@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import NamedTuple, Protocol
+from typing import Any, NamedTuple, Protocol
 
 import numpy as np
 
@@ -45,11 +45,14 @@ from ._geometry import (
 )
 from ._hair import _NICK_WANDER, _NO_TEX, _NO_TEX2, _hair_field
 from ._knife import (
+    _STAGE_AREA,
     _before_the_blade,
     _BladeStart,
     _Edge,
+    _kept_band,
     _knife_step,
     _knife_taps,
+    _Stage,
 )
 from .brush import (
     _COL_X,
@@ -387,30 +390,171 @@ def apply_stroke(canvas: _Canvas, stroke: Stroke) -> Brush:
     and does not depend on the step size. Each segment is then one step of
     :func:`_brush_step` or :func:`_knife_step`.
 
-    The steps of a knife's stroke that reach past the edge of the canvas
-    are painted on a stage, the canvas going on past its edge, and what the
-    canvas and the knife lose over the edge is counted (see _knife._Edge).
+    The steps of a stroke that reach past the edge of the canvas are
+    painted on a stage, the canvas and what lies past its edge as one
+    surface, and what the canvas and a knife lose over the edge is counted
+    (see _knife._Edge).
     """
     run = _Run.begin(canvas, stroke)
+    edge = _Edge(run)
+    staged = edge if edge.runs else None  # (most strokes: no step is)
     if run.bt.rigid:
-        edge = _Edge(run)
-        for st, tables in run.steps(edge):
-            s = run.footprint(st, tables, off=True)
+        for st, tables in run.steps(staged):
+            s = run.footprint(st, tables)
             if s is not None:
                 _knife_step(run, s)
-        edge.leave(run)
     else:
         y0, y1, x0, x1 = run.bounds()
+        if edge.runs:  # (and past the edge, as far as a brush is painted)
+            y0, y1, x0, x1 = _kept_band(run._reach(), canvas.height, canvas.width)
         if y0 < y1 and x0 < x1:
             run.pend = _pending(y0, y1, x0, x1)
-        for st, tables in run.steps():
+            run._pend_at = (y0, x0)
+        for st, tables in run.steps(staged):
             _brush_step(run, st, tables)
-    eng.settle_pending(run.cv, run.pend, run.stroke_id)
-    eng.fold_pending(run.cv, run.pend)
+    edge.leave(run)
+    _settle_held(run, bool(edge.runs))
     if run.is_dab and not run.bt.rigid and run.bt.deposits:
-        _dab_lift(run)
-    run.settle()
+        _dab_lift_at_edge(run)
+    if edge.runs and run.pend.where[eng.PEND_ON]:
+        # (the paint held back has settled: its room is given up before the
+        # paint settles on pieces of the canvas and what lies past its edge,
+        # all but how far the stroke's ridges reached)
+        run.pend = _NO_PENDING._replace(where=run.pend.where.copy())
+    edge.settle(run)
     return run.brush
+
+
+def _settle_held(run: _Run, past_edge: bool) -> None:
+    """The stroke has passed: the paint it still holds back settles, and
+    the old paint folds up where it ploughed (see _engine.settle_pending,
+    fold_pending). On the canvas; and for a stroke that reached past its
+    edge (``past_edge``), on what lies past the edge too, a part at a time:
+    each pixel settles and folds on its own."""
+    where = run.pend.where
+    if not (past_edge and where[eng.PEND_ON]):
+        eng.settle_pending(run.cv, run.pend, run.stroke_id)
+        eng.fold_pending(run.cv, run.pend)
+        return
+    canvas: Any = run.canvas
+    H, W = canvas.height, canvas.width
+    assert run._pend_at is not None
+    py, px = run._pend_at
+    as_left = where.copy()
+    r0, r1, c0, c1 = (int(where[k]) for k in _HELD)
+    f0, f1, g0, g1 = (int(where[k]) for k in _FOLDS)
+    box = (
+        py + min(r0, f0),
+        py + max(r1, f1),
+        px + min(c0, g0),
+        px + max(c1, g1),
+    )
+    top, bottom = min(box[1], 0), max(box[0], H)
+    parts: list[tuple[bool, tuple[int, int, int, int]]] = [
+        (False, (max(box[0], 0), min(box[1], H), max(box[2], 0), min(box[3], W)))
+    ]
+    for y0, y1, x0, x1 in (
+        (box[0], top, box[2], box[3]),
+        (bottom, box[1], box[2], box[3]),
+        (max(box[0], 0), min(box[1], H), box[2], min(box[3], 0)),
+        (max(box[0], 0), min(box[1], H), max(box[2], W), box[3]),
+    ):
+        # (past the edge, in stages no larger than a stage may be)
+        if y0 >= y1 or x0 >= x1:
+            continue
+        tall = y1 - y0 > x1 - x0
+        span = max(_STAGE_AREA // ((x1 - x0) if tall else (y1 - y0)), 1)
+        cuts = range(y0 if tall else x0, y1 if tall else x1, span)
+        if tall:
+            parts.extend((True, (at, min(at + span, y1), x0, x1)) for at in cuts)
+        else:
+            parts.extend((True, (y0, y1, at, min(at + span, x1))) for at in cuts)
+    for staged, (y0, y1, x0, x1) in parts:
+        if y0 >= y1 or x0 >= x1:
+            continue
+        on = _Stage(canvas, y0, y1, x0, x1, relief=False) if staged else canvas
+        oy, ox = (y0, x0) if staged else (0, 0)
+        cv = eng.Layers(
+            top=on.top, und=on.und, top_a=on.top_a, und_a=on.und_a, top_id=on.top_id
+        )
+        where[:] = as_left
+        where[eng.PEND_Y0], where[eng.PEND_X0] = py - oy, px - ox
+        # (the rows and columns of this part where any is held, and folds)
+        for (lo, hi), (a, b), (first, last) in (
+            ((r0, r1), (y0 - py, y1 - py), _HELD[:2]),
+            ((c0, c1), (x0 - px, x1 - px), _HELD[2:]),
+            ((f0, f1), (y0 - py, y1 - py), _FOLDS[:2]),
+            ((g0, g1), (x0 - px, x1 - px), _FOLDS[2:]),
+        ):
+            where[first], where[last] = max(lo, a), max(min(hi, b), max(lo, a))
+        eng.settle_pending(cv, run.pend, run.stroke_id)
+        eng.fold_pending(cv, run.pend)
+        if staged:
+            on.keep()
+    where[:] = as_left
+
+
+_HELD = (eng.PEND_ROW0, eng.PEND_ROW1, eng.PEND_COL0, eng.PEND_COL1)
+_FOLDS = (
+    eng.PEND_FOLD_ROW0,
+    eng.PEND_FOLD_ROW1,
+    eng.PEND_FOLD_COL0,
+    eng.PEND_FOLD_COL1,
+)
+
+
+def _dab_lift_at_edge(run: _Run) -> None:
+    """:func:`_dab_lift`: on the canvas; or, for a dab that reaches past
+    its edge (no further than a brush is painted), on the canvas and what
+    lies past the edge together."""
+    canvas: Any = run.canvas
+    H, W = canvas.height, canvas.width
+    cx, cy = run.pts[-1]
+    R = run.r_max * run.reach + 1.0
+    box = (
+        math.floor(cy - R),
+        math.floor(cy + R) + 2,
+        math.floor(cx - R),
+        math.floor(cx + R) + 2,
+    )
+    on = box[0] >= 0 and box[2] >= 0 and box[1] <= H and box[3] <= W
+    if on or _kept_band(box, H, W) != box:
+        _dab_lift(run)
+        return
+    stage = _Stage(canvas, *box, relief=False)
+    _dab_lift(run, stage)
+    stage.put_back()
+    stage.keep()
+
+
+def _level(canvas, part) -> None:
+    """:func:`_engine.level` over the ``part`` (y0, y1, x0, x1) of
+    ``canvas``, whatever the thickest paint on that part: for a piece of
+    what a stroke's paint settles on (see :meth:`_Run.settle`), where
+    whether any paint is thick enough to level (0.3 units) is asked of all
+    the pieces together."""
+    by0, by1, bx0, bx1 = part
+    V, crit, _thickest = eng._heights(canvas.top, canvas.und, by0, by1, bx0, bx1)
+    sy0, sy1, sx0, sx1 = eng._steep_box(V, crit, canvas.dry_height, by0, bx0)
+    if sy1 < 0:
+        return
+    pad = _LEVEL_PASSES + 2
+    y0, y1 = max(sy0 - pad, 0), min(sy1 + pad + 1, by1 - by0)
+    x0, x1 = max(sx0 - pad, 0), min(sx1 + pad + 1, bx1 - bx0)
+    eng._relax(
+        canvas.top,
+        canvas.und,
+        canvas.dry_height,
+        V,
+        crit,
+        by0,
+        bx0,
+        y0,
+        y1,
+        x0,
+        x1,
+        _LEVEL_PASSES,
+    )
 
 
 def _pending(y0, y1, x0, x1):
@@ -606,7 +750,7 @@ def _radii(smp: _Samples, wobble, bt: BrushType) -> tuple[np.ndarray, np.ndarray
 def _lift_reach(bt: BrushType, eff: dict, smp: _Samples, arc, radii):
     """Lifting a brush off at the end (see _Run._lift): how far before the
     end it starts, at most (px), and the arc length from which a step can be
-    lifting off."""
+    lifting off. And the longest step of the stroke (px), which that takes."""
     reach = (
         0.0
         if smp.is_dab or bt.rigid or not bt.deposits
@@ -615,10 +759,9 @@ def _lift_reach(bt: BrushType, eff: dict, smp: _Samples, arc, radii):
     pts = smp.pts
     # (no step further than this from the end can be lifting off)
     steps = np.linalg.norm(np.diff(pts, axis=0), axis=1) if len(pts) > 1 else [0.0]
-    lift_from = (
-        float(arc[-1]) - reach - float(np.max(steps)) - 2.0 * float(radii.max()) - 1.0
-    )
-    return reach, lift_from
+    longest = float(np.max(steps))
+    lift_from = float(arc[-1]) - reach - longest - 2.0 * float(radii.max()) - 1.0
+    return reach, lift_from, longest
 
 
 class _Segment(NamedTuple):
@@ -822,11 +965,11 @@ class _Run:
     one, a stage (see :meth:`paint_on` and _knife._Edge)."""
 
     blade: _BladeStart  # (knives only)
-    # (knives only) the slab laid past the edge of the canvas, in tiles (see
-    # _knife._laid_off)
-    knife_off: dict[tuple[int, int], np.ndarray] | None = None
-    # (knives only) how far from the path the windows of its steps reach
+    # how far from the path the windows of its steps reach
     pad: float = 0.0
+    # (brushes only) where on the stroke's own canvas the paint it holds
+    # back begins (see _pending), once it holds any
+    _pend_at: tuple[int, int] | None = None
     # (brushes only) what stays the same along the stroke, as the engine's
     # brush_step takes it (see _engine.brush_kit and brush_kit below). It
     # holds K, tex, tex2, cv, aux, br and col_u, all fixed once __init__
@@ -884,10 +1027,23 @@ class _Run:
         self.chatter, self.blade_tilt = tex.chatter, tex.blade_tilt
         nominal, radii = _radii(smp, tex.wobble, bt)
         self.radii = radii
+        # (the widest the tool is along the stroke, and the box its path
+        # lies in, y0, y1, x0, x1: what its reach is worked out from, see
+        # _reach and _knife._reaches)
+        self.r_max = float(radii.max())
+        self.path_box = (
+            float(pts[:, 1].min()),
+            float(pts[:, 1].max()),
+            float(pts[:, 0].min()),
+            float(pts[:, 0].max()),
+        )
         # the widest the footprint reaches across the stroke, either side of
         # its centre (px): the largest r * lmax over its steps (see _step)
         self.lateral = 0.0
-        self.lift_reach, self._lift_from = _lift_reach(bt, eff, smp, arc, radii)
+        # (and the longest of its steps: see _knife._reaches)
+        self.lift_reach, self._lift_from, self.longest_step = _lift_reach(
+            bt, eff, smp, arc, radii
+        )
         if bt.rigid:
             pad = self.pad = float(radii.max()) * shape.reach + 3.0
             self.blade = _before_the_blade(canvas, rng, pts, pad, w_typ, arc)
@@ -947,14 +1103,20 @@ class _Run:
         """Paint the steps to come on ``canvas``: the stroke's own canvas,
         or a stage whose first pixel is (``x0``, ``y0``) of that one (see
         _knife._Edge), where the path lies a whole number of pixels from
-        where it lies on the canvas. (A knife's; the stroke's ``blade`` and
-        ``knife_off`` are its caller's to change with it.)"""
+        where it lies on the canvas. (A knife's ``blade`` is its caller's to
+        change with it.)"""
         self.canvas = canvas
         self._pts = (
             self._path
             if x0 == 0 and y0 == 0
             else [(x - x0, y - y0) for x, y in self._path]
         )
+        # (the paint a brush holds back lies where it lay: see _pending)
+        if self._pend_at is not None:
+            where = self.pend.where
+            where[eng.PEND_Y0] = self._pend_at[0] - y0
+            where[eng.PEND_X0] = self._pend_at[1] - x0
+        self._kit = None
         # what the compiled engine works on
         self.cv = eng.Layers(
             top=canvas.top,
@@ -1008,13 +1170,14 @@ class _Run:
     # ------------------------------------------------------------------
     def steps(self, edge: _Edge | None = None):
         """The steps of the stroke, in order, each as :meth:`step` gives it
-        (``edge``, a knife's: told of each step before it is worked out, see
-        _knife._Edge.at).
-        Painting past the edge of the canvas uses up paint all the same: a
-        tool's steps off the canvas are taken as on a canvas large enough to
-        hold them (see _engine.off_canvas). (Each step is worked out once the
-        one before it has been painted: it starts from the brush as that left
-        it.)"""
+        (``edge``: told of each step before it is worked out, see
+        _knife._Edge.at, so that the steps that reach past the edge of the
+        canvas are painted on a stage).
+        Painting further past the edge than a brush is painted uses up paint
+        all the same: its steps out there are taken as on a canvas large
+        enough to hold them (see _engine.off_canvas). (Each step is worked
+        out once the one before it has been painted: it starts from the brush
+        as that left it.)"""
         for i in range(1, len(self._pts)):
             if edge is not None:
                 edge.at(self, i)
@@ -1225,53 +1388,70 @@ class _Run:
             return none
         return float(L), float(amp)
 
-    def footprint(self, st, tables, off: bool = False) -> _Step | None:
+    def footprint(self, st, tables) -> _Step | None:
         """Where the tool touches the canvas while it moves along the step
         ``st`` (with the chord tables ``tables``, see :meth:`step`), or None
-        if it touches nothing (with ``off``: nothing on or off the canvas).
+        if it touches nothing.
 
         For every pixel we compute its *exposure* (see :func:`apply_stroke`),
         its anti-aliased coverage, and where it sits under the brush (across
         the bristles, along the motion); see :func:`_engine.footprint`. And
         which bristle columns are above each pixel."""
         F, hit = eng.footprint(st, self.K, self.tex, self.tex2, *tables)
-        if not hit and not (off and eng._touches_off(st.win, F)):
+        if not hit:
             return None
         if self.bt.rigid:
-            taps, taps_all = _knife_taps(self, st, F)
-            return _Step(st, F, tables, taps, taps_all)
+            return _Step(st, F, tables, _knife_taps(self, st, F))
         u_px = F[eng.F_U][_step_slices(st)[1]]
         taps = eng.bristle_taps(
             u_px, st.hold.span, st.hold.nsub, self.brush.ring, st.hold.rho
         )
         return _Step(st, F, tables, taps)
 
+    def _reach(self, ridges: float | None = None):
+        """(y0, y1, x0, x1): all the stroke can reach, on the canvas or past
+        its edge, its ridges reaching ``ridges`` px past the mark (by default
+        as far as they may: its room)."""
+        out = self.room if ridges is None else ridges
+        pad = self.r_max * self.reach + out + 2.0
+        y0, y1, x0, x1 = self.path_box
+        return (
+            math.floor(y0 - pad),
+            math.ceil(y1 + pad) + 1,
+            math.floor(x0 - pad),
+            math.ceil(x1 + pad) + 1,
+        )
+
     def bounds(self, ridges: float | None = None):
         """(y0, y1, x0, x1): the part of the canvas the stroke can reach,
         its ridges reaching ``ridges`` px past the mark (by default as far as
         they may: its room)."""
-        canvas, pts = self.canvas, self.pts
-        H, W = canvas.height, canvas.width
-        out = self.room if ridges is None else ridges
-        pad = float(self.radii.max()) * self.reach + out + 2.0
-        bx0, by0 = (
-            int(max(np.floor(pts[:, 0].min() - pad), 0)),
-            int(max(np.floor(pts[:, 1].min() - pad), 0)),
-        )
-        bx1, by1 = (
-            int(min(np.ceil(pts[:, 0].max() + pad) + 1, W)),
-            int(min(np.ceil(pts[:, 1].max() + pad) + 1, H)),
-        )
-        return by0, by1, bx0, bx1
+        H, W = self.canvas.height, self.canvas.width
+        y0, y1, x0, x1 = self._reach(ridges)
+        return max(y0, 0), min(y1, H), max(x0, 0), min(x1, W)
 
-    def settle(self):
-        """The paint settles: fluid paint levels out, sheer edges of thick paint
-        slump."""
-        canvas = self.canvas
-        # (as far as its ridges reached)
+    def settles_over(self):
+        """(y0, y1, x0, x1): all the paint settles over after the stroke
+        (see :meth:`settle`), on the canvas or past its edge: as far as the
+        stroke's ridges reached."""
         reach = float(self.pend.where[eng.PEND_REACH])
-        by0, by1, bx0, bx1 = self.bounds(max(self.margin, min(reach, self.room)))
-        if bx0 < bx1 and by0 < by1:
+        return self._reach(max(self.margin, min(reach, self.room)))
+
+    def settle(self, on: _Canvas | None = None, part=None, thick=None):
+        """The paint settles: fluid paint levels out, sheer edges of thick paint
+        slump. (On the canvas, where the stroke reached; or on the ``part``
+        (y0, y1, x0, x1) of ``on``, a piece of what the paint settles on
+        across the edge of the canvas, see _knife._Edge.settle: then
+        ``thick`` says whether any of the paint, on all it settles on, is
+        thick enough to level, which _engine.level asks of what it is
+        given.)"""
+        canvas = self.canvas if on is None else on
+        if part is None:
+            H, W = canvas.height, canvas.width
+            y0, y1, x0, x1 = self.settles_over()
+            part = max(y0, 0), min(y1, H), max(x0, 0), min(x1, W)
+        by0, by1, bx0, bx1 = part
+        if bx0 < bx1 and by0 < by1 and thick is None:
             eng.level(
                 canvas.top,
                 canvas.und,
@@ -1282,6 +1462,8 @@ class _Run:
                 bx1,
                 _LEVEL_PASSES,
             )
+        elif bx0 < bx1 and by0 < by1 and thick:
+            _level(canvas, part)
         # (a brush with no paint of its own only moves the wet paint about)
         if bx0 < bx1 and by0 < by1 and not self.bt.rigid and self.lays_paint:
             eng.soften(
@@ -1301,9 +1483,9 @@ class _Run:
             eng.fix_coverage(
                 canvas.top, canvas.und, canvas.top_a, canvas.und_a, by0, by1, bx0, bx1
             )
-            self._cover_ramps(by0, by1, bx0, bx1)
+            self._cover_ramps(canvas, by0, by1, bx0, bx1)
 
-    def _cover_ramps(self, by0: int, by1: int, bx0: int, bx1: int) -> None:
+    def _cover_ramps(self, canvas, by0: int, by1: int, bx0: int, bx1: int) -> None:
         """Where a wide brush's own paint ends in a slope, the last pixel
         covers as the slope says (see _engine.cover_ramps): by how wide its
         footprint reached across the stroke (``lateral``, see RAMP_FROM)."""
@@ -1311,7 +1493,6 @@ class _Run:
             return
         ramps = float(eng.smoothstep(eng.RAMP_FROM, eng.EDGE_FREE, self.lateral))
         if ramps > 0:
-            canvas = self.canvas
             eng.cover_ramps(
                 canvas.top,
                 canvas.top_a,
@@ -1346,16 +1527,18 @@ def _brush_step(run: _Run, st, tables) -> None:
 DAB_PULL = 0.3
 
 
-def _dab_lift(run: _Run) -> None:
+def _dab_lift(run: _Run, on: _Stage | None = None) -> None:
     """A loaded brush lifted straight off the mound of paint it pressed out
     pulls it up into a peak or two, a little off centre the way it leaves:
     more so for thick, stiff paint and stiff hair. The peaks are made of the
     paint around them, which falls a little (see _engine.pull_up): nothing
     is made or lost, pigment by pigment."""
-    canvas, lift = run.canvas, float(run.eff["lift"])
+    canvas, lift = run.canvas if on is None else on, float(run.eff["lift"])
     if lift <= 0:
         return
     (ax, ay), (cx, cy) = run.pts[0], run.pts[-1]
+    if on is not None:  # (a stage: see _dab_lift_at_edge)
+        ax, ay, cx, cy = ax - on.x0, ay - on.y0, cx - on.x0, cy - on.y0
     r = float(run.radii.max())
     R = r * run.reach + 1.0
     H, W = canvas.height, canvas.width

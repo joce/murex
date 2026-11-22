@@ -49,18 +49,335 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** the canvas goes on past its edge, and
+  strokes are painted there (murex-n6o, murex-6s6, murex-w8r, murex-uwl).
+  Past its edge a canvas is bare at first (its ground, and its weave over
+  again) and then holds whatever strokes leave there. The steps of a
+  stroke that reach past the edge, a brush's as well as a knife's, are
+  painted on the canvas and what lies past its edge as one surface (a
+  stage, `_knife._Stage`), and after the stroke the paint settles across
+  the edge. So what strokes leave on the canvas is what the same strokes
+  leave on a larger canvas. A stroke that stays clear of the edge is
+  painted on the canvas itself and comes out as before, to the bit.
+
+  What was wrong (after murex-duo, the next entry). Past the edge a knife
+  met the canvas's mirror image, made anew for each stroke and gone after
+  it, 128 px out at most; the paint settled on the canvas alone; and a
+  brush past the edge laid nothing anywhere. So:
+  - paint a blade had brought on lay out there again for the next blade,
+    and paint it had pushed off was gone: over repeated strokes the edge
+    was a source (murex-n6o);
+  - the mirror image had paint where nobody had laid any (murex-6s6): over
+    a ground brushed up to the edge and no further, a blade coming on
+    brought on paint from outside;
+  - thick paint left at the edge piled against it as against a wall
+    (murex-w8r);
+  - a blade from further out than 128 px dragged nothing till there
+    (murex-uwl).
+
+  How it is made.
+  - `Canvas._past_edge` holds what lies past the edge: tiles 16 px square,
+    where there is anything, each with the planes `top`, `und`, `top_a`,
+    `und_a`, `top_id` and the height of the paint dried there. A canvas
+    nothing is taken past the edge of holds none. It is copied and pickled
+    with the canvas (a canvas pickled before loads with none), a render
+    does not show it, and `dry()` dries it where it lies: a later blade
+    rests on it (the maps of the relief past the edge are worked out from
+    the weave and what has dried there). On the canvas, paint dried past
+    the edge raises the relief beside it and nowhere else: the canvas's
+    maps are worked out again, with what lies round the canvas, only as
+    far from that paint as they read the surface (18 px, or a thread and a
+    half of the weave and 5 px if that is more), and are the canvas's own
+    everywhere else, to the bit, with the tooth measured as the canvas's
+    alone. Where the part worked out again ends, the two meet as they
+    are, and within the maps' reach of the edge they are not the same
+    there: the canvas's own maps take its border as going on past the
+    edge, the part worked out again has the weave going on, as along
+    every edge the canvas's maps and those of what lies past it differ. So
+    a map can step along that line by as much as it does across the
+    edge: `peaks_wide` by 0.15 units on coarse linen, where its largest
+    step from one pixel to the next is 0.07, and by 0.012 on a gesso
+    panel; the tooth within 18 px of the edge, the other maps as far in
+    as they read. (As first made, anything dried past the edge had the whole
+    canvas's relief worked out again with what lies round it: a dab dried
+    past one edge changed the tooth at every pixel, the other maps along
+    every edge, and a dry brush pulled across the middle afterwards.)
+  - A run of steps that can lay paint past the edge is painted on a stage
+    made when the run begins and gone when it ends, the canvas keeping
+    what it held past the edge; a long run is cut into stages of about
+    64,000 px, one after another. A knife is painted all its way, however
+    far out. A brush's stages end 128 px out: further out it goes on as
+    over the stage's edge and uses its paint up there, as it did past the
+    canvas's edge, so that what it leaves within 128 px does not hang on
+    how far out it started. (A flat brush 60 px wide pulled on from 80,
+    100, 120, 160, 200 and 400 px out leaves within 128 px of the edge
+    what it leaves there on a larger canvas, within 0.2%, 0.7% from 400 px
+    out, and a clean knife pulled on after it brings on as much, within
+    0.2%, 1% from 400 px. What reaches the canvas from 400 px out is 6 to
+    8% short, 10% before: the brush runs low out there otherwise than over
+    bare canvas, `brush_far.py` of the change.)
+  - What the canvas keeps is bounded: what a stroke leaves further out
+    than 128 px is forgotten once no later step of the stroke can reach
+    it. (128 px by measurement: at 64 px a brushed ground running 40 px
+    over the edge is not laid out there, and the first pull below brings
+    on 2,510 units for 4,370; at 256 px nothing below changes.)
+  - After a stroke whose reach crosses the edge, the paint settles on
+    pieces of the canvas and what lies past it together, from the paint as
+    the stroke left it: a strip along each edge in reach, 40 px of the
+    canvas and all that is kept past the edge there, cut along its length
+    into pieces of about 64,000 px that overlap by 40 px, each put back 20
+    px in from where it was cut (the settling of a pixel hangs on nothing
+    further than 16 px from it), so that no pixel is put back twice; the
+    rest of the canvas settles as ever. A stroke that reaches no deeper
+    than 160 px into the canvas (one along an edge) settles in one such
+    strip that holds all of it, and nothing settles twice. A piece is
+    gone when it has settled; what a later piece reads of it is kept as
+    the stroke left it, 20 px wide. Whether any paint is thick enough to
+    level (`_engine.level` asks it of what it is given) is asked of all
+    the pieces and the canvas together. What comes out does not hang on
+    how the settling is cut, to the bit: in pieces of 64,000, 16,000 and
+    1,500 px, in strips with the canvas settling alone or all in one
+    strip, the same canvas and the same paint past its edge
+    (`test_the_paint_settles_the_same_however_it_is_cut`). The strips,
+    with the canvas settling alone, need 80 px of canvas between two
+    opposite edges, four times the 20 px; they are used only where the
+    stroke reaches deeper than 160 px, and an assertion keeps that depth
+    no less than the 80. With the stages the strokes are
+    painted on cut smaller as well (64,000, 16,000, 5,000 and 1,500 px),
+    ten strokes at three edges leave the same paint within 7e-5 units on
+    the canvas and 5e-5 past its edge.
+  - One kernel is changed: what a brush meets round its window
+    (`_engine._meet_box`) is read no further than what the step is painted
+    on reaches (the box the stroke can reach now goes on past the canvas).
+    What served the knife's old way of going on past the edge, which no
+    step takes any more, is gone: the kernels `off_surface`, `crop_taps`
+    and `nearest`, the copy `blade_rest` gathered for it, and the
+    parameters of `blade_slab` and `blade_ends` that said what lay past
+    the edge. Knife strokes on the canvas come out as before, to the bit.
+  - The weave past the edge is the canvas's own over again, not its
+    mirror image, whose lay is turned over: skimming through a corner at
+    pressures 0.03 and 0.1 a blade laid 7% and 4% less on the canvas than
+    on larger canvases (six weaves each, which differ by 2% among
+    themselves) over the mirrored weave, and 2% less over the weave
+    repeated (it was 20% and 34% less).
+
+  Measured against truly larger canvases: the same strokes, brushes and
+  knives alike, on a canvas 130 px larger all round (420 px for the
+  strokes from far out) with a weave of its own, two weaves; what the
+  strokes bring onto the canvas's window of 240 by 240 px, or take off it
+  (-). The ground is laid by strokes too: four pulls of a flat brush 70 px
+  wide down the canvas, running 40 px over its top and bottom edges. Then
+  a clean knife 110 px long is pulled over the top edge from 40 px out
+  (`final.py` of the change; before: main at murex-duo):
+
+  | strokes | larger canvas | before | now |
+  |---|---|---|---|
+  | eight pulls on, pressure 0.5: all; the eighth | 5,980; 181 to 185 | 10,520; 1,013 | 5,950; 180 |
+  | ... pressure 0.9 | 6,410; 70 to 72 | 8,100; 218 | 6,400; 69 |
+  | off and on four times, pressure 0.5: net; the last pull on | -370; 1,619 | -700; 1,396 | -370; 1,625 |
+  | ... pressure 0.9 | -3,250; 3,094 to 3,101 | -8,090; 583 | -3,260; 3,104 |
+  | four pulls on over a ground brushed up to 8 px inside the edges: each | -5, 0, 0, 0 | 1,664, 1,466, 1,415, 1,378 | -4, 0, 0, 0 |
+  | a band of red brushed along the edge, inside it, then a knife on at pressures 0.5 and 0.9: red brought on | -1, -1 | 1,040, 1,586 | -1, -1 |
+  | ... the band brushed half past the edge | 1,410, 812 | 1,294, 1,659 | 1,415, 802 |
+  | a knife loaded with 4 stopped 6 px short of the edge, pressure 0.9: added | 1,695 to 1,711 | 1,721 | 1,698 |
+  | pulled on from 300 px out, pressure 0.25, and three times more: each | 1,196, 1,146, 1,112, 910 | 1,052, 972, 956, 942 | 1,202, 1,147, 1,114, 912 |
+  | ... pressure 0.5 | 1,904, 1,618, 1,145, 692 | 1,781, 1,703, 1,580, 1,542 | 1,908, 1,620, 1,144, 689 |
+  | ... pressure 0.9 | 4,371, 1,225, 319, 225 | 7,330, 8,712, 9,445, 10,215 | 4,372, 1,224, 320, 227 |
+  | ... pressure 0.9, on, off, on, off | 4,371, -6,093, 3,746, -4,235 | 7,330, -7,794, 6,789, -6,297 | 4,372, -6,093, 3,744, -4,230 |
+  | the white a loaded blade lays from 300 px out, pressures 0.25, 0.5, 0.9 | 66, 32, 38 | 40, 55, 95 | 67, 34, 40 |
+  | two pulls off, the paint dries, a loaded pull on: white laid, pressures 0.5 and 0.9 | 1,144 to 1,183; 806 to 811 | 456; 499 | 1,143; 761 |
+
+  On a larger canvas whose weave goes on as the canvas's own over again,
+  both bare at first and painted with the same strokes, the paint lies as
+  thick pixel by pixel after every stroke, to rounding (1e-5 units), for
+  brushes and knives in turn, grounds laid by either, at all four edges
+  and through corners, strokes from 300 px out and paint stopped at the
+  edge: `tests/huile/test_past_edge.py` (0.1 to 6 units off before). In
+  one case there, a loaded knife pulled twice onto bare canvas, 0.018
+  units at a few pixels: as two larger canvases that differ by 2 px in
+  size differ from each other, on any version (murex-088, which is as it
+  was). Once paint has dried, the two are the same surface only beside
+  paint dried past the edge: elsewhere along its edges the canvas's relief
+  is its own, as it would be with nothing past its edge, where the larger
+  canvas works its relief out across where the canvas ends. In a scene of
+  ten strokes at three edges with a drying in it, the paint lies the same
+  to rounding (4e-6 units) on a larger canvas given the canvas's relief in
+  its window; on one with its own, a brush pulled along an edge after the
+  drying differs by up to 0.1 units at 475 of 156,000 pixels.
+
+  What crosses the edge. `Canvas.edge_loss` is, as before, what the canvas
+  and its knives lost over the edge, less what they gained there. What it
+  counts as gone is now out there, as far as the canvas keeps anything:
+  over a knife stroke that stays within 128 px, the canvas, the knife and
+  what the canvas keeps past its edge keep every pigment, to 1e-6 of the
+  largest, and so do the canvas, the knife and the count. It goes below
+  nothing where knives bring on paint that brushes laid out there. What
+  crosses the edge under a brush is not counted, as before.
+
+  Paint written into a canvas's arrays by hand is on the canvas only:
+  past the edge there is what strokes left.
+
+  What the bounded band costs. What a stroke leaves further out than 128
+  px is gone when the stroke is over, so strokes that work out there one
+  after another do not find it. Over a ground brushed 250 px over the
+  edge, two knife pulls onto the canvas from 300 px out at pressure 0.9
+  bring on 9,682 and 5,126 units where larger canvases get 11,820 and
+  10,045 (two weaves, within 10 units of each other; before, 9,088 and
+  10,299): the first pull finds the ground as far out as it is kept and
+  comes on 18% short, and the second finds nothing of what the first
+  left beyond 128 px and comes on 49% short. The window ends with 67,300
+  units for the larger canvas's 74,600. Within 128 px, and for a single
+  stroke from any distance over bare canvas out there, the figures above
+  hold.
+
+  Two figures move with the weave more than with anything here. Over
+  paint dried past the edge at pressure 0.9 (the row above), larger
+  canvases 130, 260 and 400 px larger all round give 521 to 551, 491 to
+  504 and 499 to 512 units (four weaves each, on 180 px square), the
+  canvas 494 to 508 (six weaves); on a larger canvas with the canvas's own
+  weave over again the knife and a brush after it paint the same pixel by
+  pixel. Skimming through a corner is 2% short, as said above.
+
+  Not changed: a spatter's drops that land more than their width past the
+  edge are not painted (and draw no random number), as before murex-duo.
+
+  Cost. A canvas keeps 0.23 KB for each pixel past its edge in a tile
+  that holds paint. A stroke at the edge takes one stage at a time, 0.25
+  KB a pixel, and its paint then settles on one piece at a time: a 3,000
+  px diagonal knife stroke over 200 by 200 px peaks at 26 MB with what the
+  canvas then keeps (3 MB), for 30 MB before with nothing kept, and one
+  twice as long at the same
+  (`test_a_long_knife_stroke_off_the_canvas_keeps_little_memory`, which
+  now bounds it at 32 MB).
+
+  Single strokes on a canvas 2,000 px square, against the code before and
+  against the same stroke on a canvas 128 px larger all round, on which
+  all of it is on the canvas: what the part past the edge costs when it is
+  simply painted. Processor time, the best of three, two rounds; the peak
+  of the memory the stroke takes, with what the canvas keeps past its edge
+  afterwards (`cost2.py` of the second review):
+
+  | stroke | seconds: before; now; on the larger canvas | MB at the peak: before; now (of it kept); on the larger canvas |
+  |---|---|---|
+  | a flat brush 80 px wide along the whole top edge, half of it past the edge | 0.33 to 0.36; 0.53 to 0.54; 0.48 to 0.52 | 29; 71 (25); 55 |
+  | ... on 4,000 px square | 0.55 to 0.60; 0.87 to 0.98; 0.80 to 0.93 | 47; 113 (32); 86 |
+  | the brush round a corner and back, mostly outside the canvas | 3.5; 5.0 to 5.3; 4.9 to 5.4 | 17; 46 (12); 29 |
+  | the brush across the canvas, leaving it once | 1.9; 2.1 to 2.3; 2.0 to 2.1 | 666; 477 (2); 686 |
+  | a knife 60 px long along the whole top edge | 0.85 to 0.90; 0.83 to 0.86; 0.72 to 0.81 | 75; 29 (8); 6 |
+  | ... on 4,000 px square | 1.7 to 1.8; 1.8 to 1.9; 1.5 to 1.7 | 140; 37 (15); 10 |
+  | the knife across the canvas, leaving it once | 1.9 to 2.1; 2.0 to 2.1; 2.1 | 82; 71 (1); 71 |
+  | the brush, and the knife, staying inside | 1.9 to 2.0; 1.9 to 2.2. 1.8 to 1.9; 1.9 | 652; 652 (the brush) |
+
+  A brush along an edge takes 1.6 times what it took: the half of its
+  mark past the edge is painted, held back and settled like the rest,
+  where it was skipped. That is about 10% more than the same stroke
+  takes on the larger canvas: 11 to 13% more by three rounds of the best
+  of 5 on a quiet machine (0.53 to 0.54 s for 0.48), 8 to 10% by the
+  third review's, 5 to 6% in the rounds of the table; on 4,000 px 5 to
+  16% more (0.87 to 0.93 s for 0.80 to 0.84), 10 to 16% by the third
+  review's. Of its 0.53 s, by the
+  shares of a profile, 0.33 s are its steps, 0.11 s its paint settling
+  (four pieces, each pixel once) and 0.05 s its five stages. (As first
+  made it took about 40% more than on the larger canvas, 50 to 65% more on
+  4,000 px: its paint settled twice wherever a piece met the canvas's own
+  settling, and every stage and piece was summed for a count that only a
+  knife keeps.) At its peak it takes 1.3 times what the stroke takes on
+  the larger canvas: the peak is while its last stage is alive, 71 MB, of
+  which 25 MB are what the canvas has kept past its edge by then (the
+  larger canvas has those pixels in its own arrays, 250 MB more of them,
+  made before the measurement), 13 MB the stage, and the rest what the
+  stroke takes on any canvas, most of it the paint it holds back; the
+  settling peaks at 50 MB. Without what the canvas keeps it is 46 MB for
+  55.
+
+  A knife along an edge takes what it took, 15% more than on the larger
+  canvas by the best of each (2 to 19% within a round): its six stages
+  are a tenth of its time, half of that the count of what crosses the
+  edge. It takes less than half the memory it took, and 23 MB more than
+  on the larger canvas: a stage, 16 MB at most, and what the canvas
+  keeps. A stroke that leaves the canvas once costs what it
+  does on the larger canvas, and a brush's takes less memory than it did
+  (the room for the paint it holds back is given up before the paint
+  settles). A knife zigzagging in and out over the left edge all the way
+  down 2,000 px takes 36 s for 39 and peaks at 48 MB for 88, keeping 10
+  MB (its stages were all alive together). Copying, pickling and
+  rendering a canvas that keeps paint past its edge take what they took
+  (0.4, 1.0 and 1.6 s at 2,000 px).
+
+  `tools/huile/bench.py --compare` against the states kept before is
+  identical for `round-small`, `dabs`, `stipple` and `knife-lift`, where
+  nothing reaches past an edge; every scene repeats exactly from one run
+  to the next, and all 16 scenes and `tests/huile` run clean with numba's
+  bounds checking on. In `liner`, `filbert-wet`, `blend`, `taper-curve`
+  and `spatter`, 5.5 to 7% of the pixels change, all within 96 px of an
+  edge, by 0.09 units of thickness at most and less than 1/255 in the lit
+  picture; in `flat-wide` 3.6%, within 96 px, by 0.11 units; in `fan`
+  7.2%, by 0.21 units within 32 px of an edge and 0.001 beyond; in `knife`
+  a few dozen pixels by 0.002. In `dry`, whose paint has dried, the dried
+  paint changes at 4.3% of the pixels, none further than 75 px from an
+  edge, the maps of the relief within 87 px and the lit picture within 86
+  px, by less than 1/255. (As first made, with the relief worked out again
+  all over once paint had dried past an edge, its tooth changed at 98% of
+  the pixels and its pictures as far as the middle of the canvas.)
+  `edges`, whose strokes all run off the canvas, changes in 12% of its
+  pixels, 98% of them within 96 px of an edge, by 1.4 units there and 0.06
+  further in. In `glass` and `painting` strokes carry the change inwards
+  as they paint over one another. In `glass` the wet paint is as thick as
+  it was at two thirds of the pixels and differs at 34%, by 0.11 units at
+  most within 32 px of an edge and 0.008 units 96 px and more from one
+  (under one pixel in a thousand near an edge by more than 0.01). `painting`
+  lets its ground dry and paints over it, so most of what changes in it
+  is dried paint: the wet paint differs at 60% of the pixels (by 0.07
+  units at most within 32 px of an edge, 0.03 from 32 to 96 px and 0.014
+  further in), the dried paint at 88% (by 0.40, 0.09 and 0.13 units at
+  most in those three zones; by more than 0.01 units at 6.6%, 0.8% and
+  0.09% of their pixels; 99 pixels in 100 by less than 0.11, 0.009 and
+  0.006 units), and the thickness of all its paint at 93%. Its lit
+  picture differs at 95% of the pixels, by more than 2/255 at 0.06% of
+  those within 32 px of an edge, 0.007% of those up to 96 px in and
+  0.005% of those further in.
+
+  Time, each scene timed in turn with the code before (best of 3, three
+  rounds; the best of each): `liner` -3%, `flat-wide` +10%, `filbert-wet`
+  0%, `blend` -1%, `fan` +7%, `knife` -4%, `knife-lift` +5%, `taper-curve`
+  -3%, `glass` +12%, `edges` -17% (4.5 s for 5.4), `spatter` +5%, `dry`
+  +5%, `painting` +14% (8.2 s for 7.2). The scenes of many small marks,
+  none of them at an edge, timed again (best of 9, four rounds):
+  `stipple` +4%, `round-small` +1%, `dabs` -2%. A stroke clear of the
+  edges finds that out from what it has already worked out (the box its
+  path lies in, its widest, its longest step) and asks nothing more:
+  before that it measured its steps again, and such marks took 2 to 5%
+  longer than on the code before, 0.04 to 0.08 ms a mark. What a stroke
+  at the edge costs more is the part of it past the edge, which is
+  painted now where a brush's was skipped, and its paint settling across
+  the edge: in `painting` 60 of the 527 strokes reach past an edge. (With
+  the paint settling as first made, the second review timed `flat-wide`
+  at +18%, `glass` at +14%, `taper-curve` at +13% and `painting` at
+  +26%.)
+
+  `examples/huile/bob_ross_style.py`, whose sky is brushed from outside
+  the canvas and whose evergreens are knifed over its sides, changes in
+  44% of its pixels, 10% by more than 2 of 255 (27% of those within 32 px
+  of an edge, 4% of those 96 px and more from one): the same picture, its
+  brushes arriving on the canvas with what they pick up over bare canvas
+  instead of over the edge pixel repeated. Every image of
+  `examples/huile/output/` is to be regenerated.
+
 - **Breaking, in huile's pictures:** a knife at the edge of the canvas no
   longer drains the wet paint there, and what it lays there no longer hangs
-  on its steps (murex-duo). The steps of a knife's stroke whose windows
-  reach past the edge are painted on a stage (`_knife._Stage`, `_Edge`):
-  the part of the canvas under them, and the canvas going on past its edge
-  as its own mirror image, wet paint, dried paint and weave, as it was
-  before the stroke, up to 128 px out. On the stage a step is a step like
-  any other, with canvas all round; when those steps are done the stage's
-  part of the canvas is put back, and the rest of the stroke is painted on
-  the canvas. A knife whose windows all lie on the canvas is painted on the
-  canvas itself and comes out as before, to the bit. Brushes are not
-  changed.
+  on its steps (murex-duo). This was the first step, and the entry above
+  has since replaced what it put past the edge: what follows is the record
+  of what was wrong before it, of what it did and of what was measured
+  then, not of how a canvas is now. The steps of a knife's stroke whose
+  windows reach past the edge were painted on a stage (`_knife._Stage`,
+  `_Edge`): the part of the canvas under them, and the canvas going on
+  past its edge as its own mirror image, wet paint, dried paint and weave,
+  as it was before the stroke, up to 128 px out. On the stage a step is a
+  step like any other, with canvas all round; when those steps are done
+  the stage's part of the canvas is put back, and the rest of the stroke
+  is painted on the canvas. A knife whose windows all lie on the canvas is
+  painted on the canvas itself and comes out as before, to the bit.
+  Brushes were not changed.
 
   What was wrong. The flow under a dragging blade
   (`_engine.flow_under_blade`, `flow_under_riding_blade`) was given the
@@ -110,9 +427,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   canvas, where it was 25% under to 175% over), and so do a second wet
   layer under the blade and a blade loaded ten times as much (within 0.3%;
   it was up to 107% over on two layers). On a canvas made to go on as the
-  stage has it, the mirror image of the first, the stroke leaves the paint
+  stage had it, the mirror image of the first, the stroke left the paint
   as on the stage, pixel by pixel, to rounding
-  (`tests/huile/test_knife_edge.py`).
+  (`tests/huile/test_knife_edge.py` then; `tests/huile/test_past_edge.py`
+  now, against a canvas that goes on as the entry above has it).
 
   Over bare canvas a blade drags nothing, and something else was wrong:
   past the edge the maps of the relief were read at the edge pixel, each
@@ -138,13 +456,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   neither, for steps further out than a stage reaches, whose paint is used
   up. (To 5e-8 of the largest channel in the strokes above: rounding.) It
   is not a store of paint and says nothing of where paint is. Paint
-  crosses the edge both ways under one blade, the canvas going on is no
-  store of the canvas's own, and its mirror image supplies paint that was
-  never on the canvas: a blade leaving over the edge at pressure 0.5 pushes
-  5,400 units of wet paint off (they were lost, 7,400 of them, uncounted)
-  and the figure rises by as much; one coming on brings 2,400 units on,
-  and it falls by as much, below nothing. Nothing is kept of what lies past
-  the edge once a stroke is over. (As first made, the figure was what a
+  crosses the edge both ways under one blade, and the mirror image
+  supplied paint that was never on the canvas: a blade leaving over the
+  edge at pressure 0.5 pushed 5,400 units of wet paint off (they were
+  lost, 7,400 of them, uncounted) and the figure rose by as much; one
+  coming on brought 2,400 units on, and it fell by as much, below nothing.
+  Nothing was kept of what lies past the edge once a stroke was over (the
+  canvas keeps it now: the entry above). (As first made, the figure was what a
   stage held past the edge after the stroke, less before. That failed for a
   stroke that went further out than the stage, or was on none: a blade
   ending 140 px out left 7,600 units unaccounted at pressure 0.5, 34,800
@@ -171,10 +489,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   2,000 px, 80 MB at its peak for 67 before the change, in 3.2 s for 3.2;
   across 4,000 by 4,000 px, 295 MB for 282, in 8.5 s for 8.3. (One stage
   for the whole stroke, as first done, held the stroke's bounding box: 1.0
-  GB and 4.1 GB, in up to twice the time.) The stages of a stroke are all
-  made before its first step, so that what lies past the edge is the mirror
+  GB and 4.1 GB, in up to twice the time.) The stages of a stroke were all
+  made before its first step, so that what lay past the edge was the mirror
   image of the canvas as it was, not of what the blade lays on its way to
-  the edge; they are alive together. A 3,000 px diagonal across 200 by 200
+  the edge; they were alive together. A 3,000 px diagonal across 200 by 200
   px, which comes on and leaves, peaks at 30 MB, two stages, where it
   peaked at 6 (`test_a_long_knife_stroke_off_the_canvas_keeps_little_memory`
   now bounds that, and checks that a stroke twice as long takes hardly
@@ -204,40 +522,41 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   `bob_ross_style.png` in 0.56% (0.06% by more than 2 of 255, along the
   left and right edges where its evergreens are knifed).
 
-  Known limits, not fixed here:
-  - Nothing is kept past the edge from one stroke to the next: every stroke
-    meets the mirror image of the canvas as it is then, so over repeated
-    strokes the edge is a source. Eight pulls of a clean knife onto the
-    canvas over one track at pressure 0.5 bring on 30,300 units of wet
-    paint where a larger canvas gets 18,400 (it was 25 units taken off);
-    the eighth pull alone 2,790 for 580 (murex-n6o).
-  - Where the paint near the edge is not even, its mirror image is paint
-    that does not exist. A band of red in rows 0 to 6 (2,900 units) gains
+  What this step left wrong, and the entry above has put right (the
+  figures are of this step, against larger canvases):
+  - Nothing was kept past the edge from one stroke to the next: every
+    stroke met the mirror image of the canvas as it was then, so over
+    repeated strokes the edge was a source. Eight pulls of a clean knife
+    onto the canvas over one track at pressure 0.5 brought on 30,300 units
+    of wet paint where a larger canvas gets 18,400 (it was 25 units taken
+    off); the eighth pull alone 2,790 for 580 (murex-n6o).
+  - Where the paint near the edge was not even, its mirror image was paint
+    that did not exist. A band of red in rows 0 to 6 (2,900 units) gained
     1,130 to 1,340 units of red from a blade coming on over it; a red
-    stripe in rows 4 to 14 gains up to 71% from one coming on through a
+    stripe in rows 4 to 14 gained up to 71% from one coming on through a
     corner (murex-6s6).
-  - A knife that starts further out than 128 px is cut off there: out to
-    there it lays its paint as it did and drags none, and what lands on
-    the canvas can be far from what a larger canvas gets (from 300 px out,
-    a blade 110 px long lays 54% less white at pressure 0.25, 145% more at
-    0.5 and 7% more at 0.9; of the wet paint a blade from 200 px out brings
-    on, the cut leaves it within 0.4% at 0.25 and 0.5, and 15% short at
-    0.9). The bound keeps a stroke's memory from growing with how far out
-    it goes (murex-uwl).
-  - Barely touching, through a corner, the white lands 8.5 to 10.5% short
-    of the larger canvas's, where the weave alone moves it by 2.5 to 6.8% (murex-6s6).
-  - The paint settles (levels out, after the stroke) on the canvas alone,
-    as before: no paint slumps over the edge or back, and thick paint left
-    near an edge piles against it (murex-w8r). A knife loaded with 4 that
-    stops 6 px from the top edge at pressure 0.9 leaves 16.9 units at the
-    worst pixel where a larger canvas has 13.3, and keeps 290 units that
-    slump off there. In the 32 strokes of
-    `tests/huile/test_knife_edge.py` it makes no difference beyond
-    rounding.
-  - What a knife lays in its own steps still differs from what it lays in
+  - A knife that started further out than 128 px was cut off there: out to
+    there it laid its paint as it did and dragged none, and what landed on
+    the canvas could be far from what a larger canvas gets (from 300 px
+    out, a blade 110 px long laid 54% less white at pressure 0.25, 145%
+    more at 0.5 and 7% more at 0.9; of the wet paint a blade from 200 px
+    out brought on, the cut left it within 0.4% at 0.25 and 0.5, and 15%
+    short at 0.9) (murex-uwl).
+  - Barely touching, through a corner, the white landed 8.5 to 10.5% short
+    of the larger canvas's, where the weave alone moves it by 2.5 to 6.8%
+    (murex-6s6; 2% short now).
+  - The paint settled (levelled out, after the stroke) on the canvas alone,
+    as before: no paint slumped over the edge or back, and thick paint
+    left near an edge piled against it (murex-w8r). A knife loaded with 4
+    that stops 6 px from the top edge at pressure 0.9 left 16.9 units at
+    the worst pixel where a larger canvas has 13.3, and kept 290 units
+    that slump off there.
+  - A brush past the edge still went on as over the edge pixel repeated.
+
+  Known limits, as they were before and still are:
+  - What a knife lays in its own steps differs from what it lays in
     shorter ones as it does anywhere on a canvas (murex-5gw, murex-h6u,
-    murex-dq0, murex-dl9 are as they were), and a brush past the edge still
-    goes on as over the edge pixel repeated.
+    murex-dq0, murex-dl9 are as they were).
   - The same knife stroke on two canvases that differ only in how far it
     lies from their edges, by 2 px, can differ by more than rounding (in
     one of 16 strokes tried, a blade leaving over an edge: 0.009 units of

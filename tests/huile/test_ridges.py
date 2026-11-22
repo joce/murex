@@ -272,6 +272,9 @@ def test_where_the_room_runs_out_the_ridge_stops_there():
 def _totals(c, brush):
     t = c.top.sum(axis=(0, 1), dtype=np.float64)
     t += c.und.sum(axis=(0, 1), dtype=np.float64)
+    for top, und, *_ in c._past_edge.values():  # (what it keeps past its edge)
+        t += top.sum(axis=(0, 1), dtype=np.float64)
+        t += und.sum(axis=(0, 1), dtype=np.float64)
     for a in (brush.tip, brush.reservoir, brush.heel):
         t += a.sum(axis=0, dtype=np.float64)
     return t
@@ -345,15 +348,16 @@ def test_a_wide_ridge_past_the_edge_lies_there():
 def test_a_ridge_past_the_edge_goes_off_the_canvas(path):
     """A wide flat run along the edge of the canvas, half off it, just
     inside it with its ridge reaching past the edge, or set down in a
-    corner: the paint on the canvas and the brush is at most what it was,
-    channel by channel (the rest went off the canvas), and none is
-    negative."""
+    corner: the paint on the canvas, past its edge (which the canvas keeps,
+    see _knife._Stage) and on the brush is what it was, channel by channel,
+    some of it now past the edge, and none is negative."""
     c = _bed(280)
     brush = Brush(brushes.FLAT_HOG.sized(70)).load(P.TITANIUM_WHITE, 45 * 70 / 36)
     start = _totals(c, brush)
     c.stroke(path, None, brush=brush, pressure=0.9, seed=3)
     after = _totals(c, brush)
-    assert np.all(after <= start * (1 + 1e-9) + 1e-9)
-    assert after[eng.IV] < start[eng.IV]
+    # (to the rounding of the single-precision paint: 1.3e-9 at most here)
+    np.testing.assert_allclose(after, start, rtol=3e-9, atol=1e-9)
+    assert any(tile[0][..., eng.IV].any() for tile in c._past_edge.values())
     assert c.top.min() > -1e-5 and c.und.min() > -1e-5
     assert np.isfinite(c.top).all() and np.isfinite(c.und).all()
