@@ -504,6 +504,7 @@ def _skimmed(
     c = _skim_base(base)
     knife = Brush(brushes.knife("straight", 60, flex=0.5)).load(P.TITANIUM_WHITE, load)
     held, before = knife.volume, float(np.asarray(c.top_v + c.und_v, float).sum())
+    gone = float(c.edge_loss[-2])  # (over the edge of the canvas: it is counted)
     longest = stm._MAX_STEP
     stm._MAX_STEP = longest if step is None else step
     try:
@@ -519,7 +520,8 @@ def _skimmed(
     finally:
         stm._MAX_STEP = longest
     laid = float(np.asarray(c.top_v + c.und_v, float).sum()) - before
-    return laid, laid + knife.volume == pytest.approx(held, rel=1e-6)
+    gone = float(c.edge_loss[-2]) - gone
+    return laid, laid + gone + knife.volume == pytest.approx(held, rel=1e-6)
 
 
 @pytest.mark.parametrize("base", [0.0, 4.0])

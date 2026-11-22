@@ -9,7 +9,7 @@ from itertools import pairwise
 import numpy as np
 import pytest
 
-from murex.huile import Brush, Canvas, brushes, surfaces
+from murex.huile import Brush, Canvas, _knife, brushes, surfaces
 from murex.huile import _engine as eng
 from murex.huile import palette as P
 
@@ -271,14 +271,27 @@ M = 60  # how far the larger canvas reaches past the smaller one
 def test_a_scumble_cut_by_the_edge_skips_as_on_a_larger_canvas(share):
     """A light stroke along the bottom edge, ``share`` of its width off the
     canvas, over furrows running down the canvas, uses up on its way what
-    the same stroke uses on a larger canvas, and lays what it lays there:
-    off the canvas its tips ride over the hollows as on it."""
+    the same stroke uses on a larger canvas, and lays what it lays there,
+    within 0.1%: off the canvas its tips ride over the hollows as on it.
+    (What is left, 0.04% and 0.03%, is that each canvas measures its tooth
+    against bounds of its own, the 1st and 99th percentiles of it: measured
+    against the same, the two strokes lay the same to rounding.)"""
     w = HOG.width
     y = H - w / 2 + share * w
     path = [(20.0, y), (W - 20.0, y)]
     out = []
     for off in (0, M):
         c = _furrowed(w=W + 2 * off, h=H + 2 * off, x0=off, texture=0)
+        if off == 0:
+            # (the furrows go on past the edge of the canvas, as they do on
+            # the larger one: dried there too, where the canvas keeps what
+            # lies past its edge, see _knife._Stage)
+            T = _knife._KEPT_TILE
+            for key, *_ in _knife._kept_tiles(H, W, -M, H + M, -M, W + M):
+                x = np.arange(key[1] * T, key[1] * T + T)
+                tile = c._past_edge[key] = _knife._bare_tile(c)
+                tile[-1][:] = 2.0 * (0.5 + 0.5 * np.cos(2 * np.pi * x / 9.0))
+            c._update_relief()
         base = c.copy()
         b = Brush(HOG).load(P.TITANIUM_WHITE, 3.0)
         v0 = b.volume
@@ -287,11 +300,11 @@ def test_a_scumble_cut_by_the_edge_skips_as_on_a_larger_canvas(share):
         rel = base.dry_height[off : off + H, off : off + W] - 1.0
         out.append((b.volume / v0, laid, rel))
     (cut, t_cut, rel), (big, t_big, _) = out
-    assert abs(cut - big) <= 0.02
+    assert abs(cut - big) <= 1e-3
     rows = slice(int(y - w / 2) + 2, H - 2)
     cols = slice(30, W - 30)
     a, b = t_cut[rows, cols], t_big[rows, cols]
-    assert abs(a.sum() / b.sum() - 1) <= 0.05
+    assert abs(a.sum() / b.sum() - 1) <= 1e-3
     # (and it does skip the hollows)
     r = rel[rows, cols]
     assert b[r > 0].sum() / b.sum() > 0.8

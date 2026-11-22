@@ -223,7 +223,7 @@ def _slab(met, fill, level=1.0):
     top = np.zeros((1, 1, PACKED), np.float32)
     d, surf = eng.blade_slab(
         top, top.copy(), np.zeros((1, 1), np.float32), 0, 0,
-        np.full((1, 1), level), np.zeros((0, 0)), np.full((1, 1), 10.0),
+        np.full((1, 1), level), np.full((1, 1), 10.0),
         np.full((1, 1), fill), np.asarray(met, np.float64).reshape(1, 1, -1),
     )  # fmt: skip
     return float(d[0, 0]), float(surf[0, 0])

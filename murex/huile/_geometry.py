@@ -147,12 +147,9 @@ class _Step:
     of the canvas (its planes are attributes, ``along`` to ``edge``; see
     :func:`_engine.footprint`). ``wsl`` crops them to the canvas part ``sl``.
     ``taps`` maps bristle columns to the pixels of that part, ``tables`` are
-    the footprint's chord tables. A knife's step not wholly on the canvas
-    also has ``taps_all``, over all of its window (see _knife._knife_taps);
-    a knife's step taken over all of its window, past the edge of the canvas
-    too (``gathered``), has no ``sl`` (see _knife._whole_window)."""
+    the footprint's chord tables."""
 
-    sl: tuple[slice, slice] | None
+    sl: tuple[slice, slice]
     wsl: tuple[slice, slice]
 
     along = _plane(eng.F_ALONG, "position along the motion (px)")
@@ -170,8 +167,6 @@ class _Step:
     between = _plane(eng.F_BETWEEN, "the gaps between clumps or teeth")
     edge = _plane(eng.F_EDGE, "how far in from the edge of the mark (px)")
 
-    def __init__(self, st, F, tables, taps, taps_all=None, gathered=False):
+    def __init__(self, st, F, tables, taps):
         self.st, self.F, self.tables, self.taps = st, F, tables, taps
-        self.taps_all: eng.Taps | None = taps_all
-        sl, self.wsl = _step_slices(st)
-        self.sl = None if gathered else sl
+        self.sl, self.wsl = _step_slices(st)

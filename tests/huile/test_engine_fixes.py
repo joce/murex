@@ -712,18 +712,23 @@ def _kernel_signatures() -> int:
 
 def test_a_long_knife_stroke_off_the_canvas_keeps_little_memory():
     """What a knife stroke takes hardly grows with how far out it goes: a
-    3,000 px diagonal stroke over a small canvas peaks at about 30 MB, and
-    one twice as long at 32 MB. The 30 MB are the two stages its steps near
-    the canvas are painted on, coming on and leaving (_knife._Stage: the
-    canvas going on past its edges, 128 px at most, at 0.25 KB a pixel: two
-    of about 200 px square here, where the canvas itself is 14 MB),
-    whatever the stroke's length; further out, what the knife has laid is
-    kept only where it laid it, in tiles, which grow with the stroke's
-    length. (Before there was a stage the stroke peaked at about 6 MB. A
+    3,000 px diagonal stroke over a small canvas peaks at about 26 MB, and
+    one twice as long at 26 MB too. Its whole way is painted, on stages one
+    after another (_knife._Stage: the canvas and what lies past its edge,
+    about 250 px square for this blade, 16 MB at 0.25 KB a pixel, and the
+    copies made putting it back; the canvas itself is 14 MB), each gone
+    when the next is made; what the stroke leaves further out than the
+    canvas keeps anything (128 px) is forgotten as soon as no later step
+    can reach it, and what it leaves nearer is kept, where there is paint:
+    3 MB of the 26; the paint then settles across the edge on one piece at
+    a time. (With no stage the stroke peaked at about 6 MB; with two stages
+    alive together and nothing kept, at 30 MB; with all a stage held kept
+    past the edge and the paint settling on two pieces at once, at 60 MB;
+    with every settled piece held till no later one read it, at 72 MB. A
     record of what was laid over the stroke's bounding box, 2,100 px
-    square, takes 18 MB in float32 alone, and the stroke with one peaked at
-    about 27 MB, growing with the square of the stroke: at 6,000 px that is
-    100 MB.)
+    square, takes 18 MB in float32 alone, and the stroke with one
+    peaked at about 27 MB, growing with the square of the stroke: at 6,000
+    px that is 100 MB.)
 
     A shorter knife stroke from far past the edge, across a throwaway canvas,
     runs through the same kernels with the same signatures first: compiling
@@ -747,7 +752,7 @@ def test_a_long_knife_stroke_off_the_canvas_keeps_little_memory():
         tracemalloc.stop()
         assert _kernel_signatures() == compiled, "a kernel compiled in the measurement"
         peaks.append(peak)
-    assert peaks[0] < 40e6
+    assert peaks[0] < 32e6
     assert peaks[1] < peaks[0] + 12e6
 
 

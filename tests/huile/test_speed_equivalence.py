@@ -91,7 +91,7 @@ def _bilinear_ref(grid, y, x):
     ) * fy
 
 
-def test_wandering_bands_and_cropped_taps():
+def test_wandering_bands():
     rng = np.random.default_rng(2)
     F = rng.normal(0.0, 30.0, (15, 23, 31))
     F[eng.F_U] = rng.uniform(-1.3, 1.3, (23, 31))
@@ -104,17 +104,6 @@ def test_wandering_bands_and_cropped_taps():
     assert got.tobytes() == want.tobytes()
     part = eng.wandering_bands(F, 3, 5, 10, 12, s0, period, bands, 0.12)
     assert part.tobytes() == np.ascontiguousarray(want[3:13, 5:17]).tobytes()
-    for ring, nsub in ((False, 1), (False, 5), (True, 2), (True, 8)):
-        whole = eng.bristle_taps(want, 0.3, nsub, ring, 0.7)
-        crop = eng.crop_taps(whole, 31, 3, 5, 10, 12)
-        sub = eng.bristle_taps(
-            np.ascontiguousarray(want[3:13, 5:17]), 0.3, nsub, ring, 0.7
-        )
-        assert (crop[2] == sub[2]).all()
-        for q in range(10 * 12):
-            n = sub[2][q]
-            assert (crop[0][q, :n] == sub[0][q, :n]).all()
-            assert crop[1][q, :n].tobytes() == sub[1][q, :n].tobytes()
 
 
 def _canvas(rng, H=40, W=50):
@@ -132,7 +121,6 @@ def _canvas(rng, H=40, W=50):
 def test_blade_slab_ends_excess_and_folds_match_numpy():
     rng = np.random.default_rng(3)
     top, und, floor = _canvas(rng)
-    H, W = floor.shape
     F = rng.normal(0.0, 5.0, (15, 30, 34))
     F[eng.F_EXPO] = np.where(rng.random((30, 34)) < 0.3, 0.0, rng.random((30, 34)))
     F[eng.F_HAIR] = rng.random((30, 34))
@@ -140,36 +128,27 @@ def test_blade_slab_ends_excess_and_folds_match_numpy():
     film = rng.uniform(0.0, 3.0, (30, 34))
     film[::4] = 0.0
     fill = 1.0 - np.exp(-4.0 * F[eng.F_EXPO])
-    # past the top left edge of the canvas: rows -6.., columns -4..
-    ys, xs = np.clip(np.arange(-6, 24), 0, H - 1), np.clip(np.arange(-4, 30), 0, W - 1)
-    sl = np.ix_(ys, xs)
-    surf_add = rng.normal(0.0, 1.0, (30, 34))
-    for add in (None, surf_add):
-        surf = floor[sl] + top[..., IV][sl] + und[..., IV][sl]
-        if add is not None:
-            surf = surf + add
-        gap_px = np.clip(level - surf, 0.0, None)
-        t = np.clip((gap_px / np.maximum(film, 1e-9) - 1.3) / (0.7 - 1.3), 0.0, 1.0)
-        want = gap_px * (t * t * (3.0 - 2.0 * t)) * fill
-        got, s = eng.blade_slab(
-            top, und, floor, -6, -4, level, np.zeros((0, 0)) if add is None else add,
-            film, fill, np.zeros((0, 0, 2)),
-        )  # fmt: skip
-        assert got.tobytes() == want.tobytes()
-        assert s.tobytes() == np.asarray(surf, np.float64).tobytes()
-        # where the blade met the gap as it dragged the paint under it along
-        # (see _engine.flow_under_blade), it fills that one, and the surface
-        # is the one its bead met; elsewhere (below 0), as above
-        gaps = rng.uniform(0.0, 2.0, (30, 34, 2))
-        gaps[rng.random((30, 34)) < 0.4, 0] = -1.0
-        met = gaps[..., 0] >= 0
-        got_met, s_met = eng.blade_slab(
-            top, und, floor, -6, -4, level, np.zeros((0, 0)) if add is None else add,
-            film, fill, gaps,
-        )  # fmt: skip
-        assert met.any() and not met.all()
-        assert got_met.tobytes() == np.where(met, gaps[..., 0] * fill, want).tobytes()
-        assert s_met.tobytes() == np.where(met, gaps[..., 1], s).tobytes()
+    # a part of the canvas: rows 6.., columns 4..
+    sl = (slice(6, 36), slice(4, 38))
+    surf = floor[sl] + top[..., IV][sl] + und[..., IV][sl]
+    gap_px = np.clip(level - surf, 0.0, None)
+    t = np.clip((gap_px / np.maximum(film, 1e-9) - 1.3) / (0.7 - 1.3), 0.0, 1.0)
+    want = gap_px * (t * t * (3.0 - 2.0 * t)) * fill
+    got, s = eng.blade_slab(
+        top, und, floor, 6, 4, level, film, fill, np.zeros((0, 0, 2))
+    )
+    assert got.tobytes() == want.tobytes()
+    assert s.tobytes() == np.asarray(surf, np.float64).tobytes()
+    # where the blade met the gap as it dragged the paint under it along
+    # (see _engine.flow_under_blade), it fills that one, and the surface
+    # is the one its bead met; elsewhere (below 0), as above
+    gaps = rng.uniform(0.0, 2.0, (30, 34, 2))
+    gaps[rng.random((30, 34)) < 0.4, 0] = -1.0
+    met = gaps[..., 0] >= 0
+    got_met, s_met = eng.blade_slab(top, und, floor, 6, 4, level, film, fill, gaps)
+    assert met.any() and not met.all()
+    assert got_met.tobytes() == np.where(met, gaps[..., 0] * fill, want).tobytes()
+    assert s_met.tobytes() == np.where(met, gaps[..., 1], s).tobytes()
     ride = rng.uniform(0.0, 3.0, (30, 34))
 
     def ss(e0, e1, x):
@@ -178,8 +157,7 @@ def test_blade_slab_ends_excess_and_folds_match_numpy():
 
     near = ss(5.0, 0.0, 7.5 - np.abs(F[eng.F_LAT]))
     want = ride * F[eng.F_EXPO] * 1.7 * near * ss(0.5, 2.0, ride)
-    want[4:14, 6:16] = 0.0
-    got = eng.blade_ends(ride, F, 0, 0, 7.5, 5.0, 1.7, 4, 6, 10, 10)
+    got = eng.blade_ends(ride, F, 0, 0, 7.5, 5.0, 1.7)
     assert got.tobytes() == want.tobytes()
     # on the canvas, from (5, 7)
     lv = np.ascontiguousarray(level[:20, :25])
@@ -282,14 +260,12 @@ def _along_blade_ref(lat, under, values, span):
     return np.where(cnt_s[b] > 0, prof[b], values)
 
 
-def _blade_rest_ref(run, s, at=None):
-    """(``at``: the canvas pixels to read, if not the step's ``sl``: past the
-    edge, the gathered nearest ones.)"""
+def _blade_rest_ref(run, s):
     from murex.huile._engine import IB
     from murex.huile._knife import _KNIFE_SINK
 
     canvas, bt, st = run.canvas, run.bt, s.st
-    p, sl, wsl = st.hold.p, s.sl if at is None else at, s.wsl
+    p, sl, wsl = st.hold.p, s.sl, s.wsl
     top, und, floor = canvas.top[sl], canvas.und[sl], run.relief.floor[sl]
     fine, wide = run.relief.peaks_fine[sl], run.relief.peaks_wide[sl]
     rest = fine + run.stiff_blade * (wide - fine)
@@ -315,14 +291,14 @@ def _blade_rest_ref(run, s, at=None):
     return rest
 
 
-def _blade_level_ref(run, s, gap, film, at=None):
+def _blade_level_ref(run, s, gap, film):
     """(and, skimming, the level the bead on its edge hangs from: the blade
     riding on no more paint than the bead, murex-iaa)"""
     from murex.filters import smoothstep
     from murex.huile._knife import _KNIFE_BEAD_HEIGHT, _KNIFE_FILM, _KNIFE_SKIM
 
     st, wsl = s.st, s.wsl
-    rest = _blade_rest_ref(run, s, at)
+    rest = _blade_rest_ref(run, s)
     hair = s.hair[wsl]
     skim = float(smoothstep(_KNIFE_SKIM, 0.05, st.hold.p))
     chat = 0.25 * (1.0 - skim)
@@ -345,19 +321,18 @@ def _blade_level_ref(run, s, gap, film, at=None):
 
 def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
     """Where a knife's blade rests and how high it rides (blade_rest,
-    blade_bins, blade_sink, blade_level), on its part of the canvas and over
-    all of its window past the edge of the canvas (gathered from the nearest
-    pixels), and what it adds to the surface out there (off_surface), as the
-    numpy code worked them out: every blade shape, a comb, lifted off, on
-    wet paint of earlier strokes; and a blade wider than 128 px on the
-    canvas, whose paint below is summed as numpy summed it (over a strided
-    view of the canvas, see _knife._blade_rest)."""
+    blade_bins, blade_sink, blade_level), on the canvas and on a stage (the
+    canvas and what lies past its edge, see _knife._Stage: the strokes here
+    run over the edges), as the numpy code worked them out: every blade
+    shape, a comb, lifted off, on wet paint of earlier strokes; and a blade
+    wider than 128 px on the canvas, whose paint below is summed as numpy
+    summed it (over a strided view of the canvas, see _knife._blade_rest)."""
     import murex.huile.stroke as stm
     from murex.huile import Brush, Canvas, brushes
     from murex.huile import _knife as kn
     from murex.huile import palette as P
 
-    checked = {"on": 0, "whole": 0, "wide": 0, "hang": 0}
+    checked = {"on": 0, "stage": 0, "wide": 0, "hang": 0}
     original = kn._knife_step
 
     def same(got, want):
@@ -368,42 +343,18 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
         st = s.st
         area = max(run.area_unit * st.hold.r * st.hold.r, 1e-9)
         gap, _ = kn._blade_gap(run, st.hold.p)
-        if st.win.ch and st.win.cw:
-            film = kn._film(run, s, area)
-            level, ride, hang = kn._blade_level(run, s, gap, film)
-            want_l, want_r, want_h = _blade_level_ref(run, s, gap, film)
-            assert same(level, want_l) and same(ride, want_r) and same(hang, want_h)
-            checked["on"] += 1
-            checked["hang"] += hang.tobytes() != level.tobytes()
-            checked["wide"] += st.win.cw > 128
-        if st.win.ch < st.win.hh or st.win.cw < st.win.ww:
-            whole = kn._whole_window(run, s)
-            sw = whole.s
-            H, W = run.canvas.height, run.canvas.width
-            ys = np.clip(np.arange(st.win.y0, st.win.y0 + st.win.hh), 0, H - 1)
-            xs = np.clip(np.arange(st.win.x0, st.win.x0 + st.win.ww), 0, W - 1)
-            at = np.ix_(ys, xs)
-            film = kn._film(run, sw, area)
-            level, ride, hang = kn._blade_level(run, sw, gap, film)
-            want_l, want_r, want_h = _blade_level_ref(run, sw, gap, film, at)
-            assert same(level, want_l) and same(ride, want_r) and same(hang, want_h)
-            canvas = run.canvas
-            own = np.where(
-                canvas.top_id[at] == run.stroke_id, canvas.top[at][..., IV], 0.0
-            )
-            on = np.zeros((st.win.hh, st.win.ww), bool)
-            on[s.wsl] = True
-            want = np.where(on, 0.0, kn._laid_off(run, st.win) - own)
-            assert whole.surf_add.tobytes() == want.tobytes()
-            checked["whole"] += 1
+        assert st.win.ch == st.win.hh and st.win.cw == st.win.ww
+        film = kn._film(run, s, area)
+        level, ride, hang = kn._blade_level(run, s, gap, film)
+        want_l, want_r, want_h = _blade_level_ref(run, s, gap, film)
+        assert same(level, want_l) and same(ride, want_r) and same(hang, want_h)
+        checked["on"] += 1
+        checked["stage"] += isinstance(run.canvas, kn._Stage)
+        checked["hang"] += hang.tobytes() != level.tobytes()
+        checked["wide"] += st.win.cw > 128
         original(run, s)
 
     monkeypatch.setattr(stm, "_knife_step", check)
-    # (A knife that reaches past the edge is painted on a stage, the canvas
-    # going on there, see _knife._Stage. Past the stage's own edge its blade
-    # goes on as it did past the canvas's: with a stage that ends where the
-    # canvas does, that is what these strokes do.)
-    monkeypatch.setattr(kn, "_STAGE_FAR", 0)
     rng = np.random.default_rng(7)
     c = Canvas(220, 160, seed=4)
     tools = (
@@ -423,7 +374,7 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
     for y in (90, 110):
         blade = Brush(brushes.SCRAPER.sized(260)).load(P.TITANIUM_WHITE, 3.0)
         wide.stroke([(200, y - 40), (205, y + 30)], brush=blade, pressure=0.6)
-    assert checked["on"] > 100 and checked["whole"] > 50 and checked["wide"] > 3
+    assert checked["on"] > 100 and checked["stage"] > 50 and checked["wide"] > 3
     assert checked["hang"] > 10  # (skimming, with more paint than a bead)
 
 

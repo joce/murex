@@ -82,8 +82,8 @@ edge the blade fills that hollow with paint that is then lost, in short
 steps more than in long ones. Set down across the edge, a knife leaves a
 sixth to a quarter more of its paint on the canvas in its own steps than in
 short ones (a twentieth to a tenth more before); coming onto the canvas over
-wet paint, up to twice as much, as before. This is left for a separate
-issue.
+wet paint, up to twice as much, as before. (Put right since: the canvas
+past its edge, below.)
 
 ## Breaking, in oil paintings: a loaded knife no longer drops lumps along an earlier ridge
 
@@ -116,43 +116,85 @@ there (and more of it gets there), and a heap gathered from a narrow ridge
 stays narrow (the paint under a blade moves along the pull, not along the
 blade).
 
-## Breaking, in oil paintings: a knife at the edge of the canvas
+## Breaking, in oil paintings: the canvas goes on past its edge
 
-A knife coming onto the canvas over its edge, or set down across it, found
-the wet paint there drained away and laid its own in its place: up to four
-times the paint that the same stroke leaves in the same place on a larger
-canvas, and more or less of it as the stroke was cut into steps. The flow
-under a blade let wet paint out over the edge and none in, and what a blade
-pushed off the canvas was lost without being counted.
+A stroke that ran over the edge of the canvas met nothing real out there. A
+knife coming onto the canvas over its edge, or set down across it, found
+the wet paint at the edge drained away and laid its own in its place: up to
+four times the paint that the same stroke leaves in the same place on a
+larger canvas, and more or less of it as the stroke was cut into steps. The
+flow under a blade let wet paint out over the edge and none in; what a
+blade pushed off the canvas was lost without being counted; thick paint
+left at the edge piled against it as against a wall; and the part of a
+brush past the edge laid nothing anywhere.
 
-The part of a knife's stroke that reaches past the edge is now painted on
-the canvas going on there as its own mirror image (wet paint, dried paint
-and weave, up to 128 px past each edge). A blade coming on brings with it
-the wet paint it has pushed along out there, one leaving takes some with
-it, and what lands on the canvas is what the same stroke leaves on a larger
-canvas: within 1.2% set down across the edge or leaving, 1.4% along the
-edge and 6% coming on at pressures 0.25 and above, at every step length,
-where it was 55% under to 310% over. `canvas.edge_loss` (new) is what the
-canvas and its knives have lost over the edge, less what they have gained
-there: a difference, which the canvas, the knife and it keep every pigment
-by; it is below nothing where knives have brought more on than they pushed
-off, and no store of paint.
+The canvas now goes on past its edge: bare at first (its ground, and its
+weave over again), then holding whatever strokes leave there, up to 128 px
+out. The part of a stroke that reaches past the edge, a brush's as well as
+a knife's, is painted out there as on the canvas; a knife is painted all
+its way, however far out it starts; after the stroke the paint settles
+across the edge; and when the paint dries, what lies out there dries too,
+and a later blade rests on it. So strokes at the edge, one after another,
+leave on the canvas what the same strokes leave on a larger canvas. Eight
+pulls of a clean knife onto the canvas over a brushed ground bring on 5,950
+units of wet paint where a larger canvas gets 5,980. Over a ground brushed
+only up to the edge they bring on nothing, as there is nothing out there. A
+knife pulled on from 300 px out at pressure 0.9, four times, brings on
+4,372, 1,224, 320 and 227 units where the larger canvas gets 4,371, 1,225,
+319 and 225. A loaded knife stopped 6 px short of the edge leaves 1,698
+units on the canvas where the larger canvas has 1,695 to 1,711: the rest
+has slumped over the edge. On a larger canvas whose weave is the canvas's
+own over again, the paint lies the same pixel by pixel after every stroke,
+to rounding.
 
-Knife strokes wholly on the canvas are unchanged, and so are brushes. Of
-the benchmark's 16 scenes, `edges` changes and `knife` barely (two
-strokes). Four of the README's images change: `knives.png` in 5.1% of its
-pixels, `knife_drag.png` in 1.1%, `dirty_brush.png` in 0.39% and
-`bob_ross_style.png` in 0.56%. The steps of a knife stroke past the edge
-take as long as steps on the canvas now, where they took a quarter (the
-three knife strokes of `edges`: 1.5 to 2.0 s for 0.8 to 1.1); memory is
-0.25 KB for each pixel those steps can reach, not for the whole stroke.
+What lies past the edge is not shown. It is copied and pickled with the
+canvas (a canvas pickled before loads with nothing out there) and takes
+0.23 KB a pixel where there is paint; a canvas no stroke is taken past the
+edge of keeps nothing. Paint written into a canvas's arrays by hand is on
+the canvas only.
 
-Limits: nothing is kept past the edge between strokes, so a knife pulled
-onto the canvas again and again over one track keeps bringing paint on;
-paint that is uneven near the edge is mirrored as it is (a band of colour
-along the edge is twice as wide to a knife coming on); and a knife that
-starts further out than 128 px lays its paint out there as before and
-drags none until it is that near.
+`canvas.edge_loss` (new) is what the canvas and its knives have lost over
+the edge, less what they have gained there: a difference, which the
+canvas, the knife and it keep every pigment by. It rises when a knife
+pushes paint off the canvas and falls when one brings paint on, below
+nothing where knives have brought on paint that brushes laid out there. It
+is no store of paint: what is out there is what the canvas keeps past its
+edge. What crosses the edge under a brush is not counted.
+
+Strokes that stay clear of the edges paint as before, to the bit. Every
+stroke that runs over an edge paints differently near that edge, and later
+strokes working over it carry the change inwards. Of the benchmark's 16
+scenes, four paint as before to the bit (`round-small`, `dabs`, `stipple`
+and `knife-lift`, where nothing reaches past an edge); in eight, 4 to 7% of
+the pixels change, nearly all of them within 100 px of an edge and hardly
+any by more than 1/255 in the picture, and in `knife` a few dozen pixels;
+`edges`, whose strokes all run off the canvas, changes in 12% of its
+pixels; and in `glass` and `painting`, where strokes work over one
+another, the change is carried all over. In `glass` the wet paint differs
+at a third of the pixels, by less than a hundredth of a unit away from the
+edges. `painting` lets its ground dry and paints over it: its wet paint
+differs at 60% of the pixels and its dried paint at 88%, by up to 0.40
+units within 32 px of an edge and 0.13 units further in than 96 px, where
+one pixel in a thousand differs by more than a hundredth of a unit. Every
+image of the README is regenerated. The one that shows it is
+`bob_ross_style.png`, whose sky is brushed from outside the canvas: 44% of
+its pixels change, 10% by more than 2 of 255.
+
+A stroke at the edge is painted past the edge too, so it costs what the
+same stroke costs on a canvas that much larger, and a little more. Along
+the whole top edge of a canvas 2,000 px square, a flat brush takes about
+10% longer than on the larger canvas (5 to 13% over the runs), which is 1.6
+times what it took when its half past the edge was skipped, and a knife 15%
+longer, which is what it took. Strokes that stay on the canvas take what they took, within a few
+percent.
+
+The limit: what a stroke leaves further out than 128 px is gone when the
+stroke is over. (Within the stroke a knife still drags it along, all the
+way; a brush that far out uses its paint up as before.) So strokes that
+work further out than that, one after another, do not find what the
+earlier ones left there: over a ground brushed 250 px over the edge, two
+knife pulls onto the canvas from 300 px out at pressure 0.9 bring on 9,682
+and 5,126 units where larger canvases get 11,820 and 10,045.
 
 ## Breaking: NumPy 2 is required
 
