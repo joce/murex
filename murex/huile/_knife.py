@@ -857,16 +857,24 @@ class _Edge:
         canvas = self.canvas
         H, W = canvas.height, canvas.width
         kept = canvas._past_edge
+        T = _KEPT_TILE
         on = _meet(reach, (0, H, 0, W))
         most = 0.0
         if _area(on) > 0:
             part = (slice(on[0], on[1]), slice(on[2], on[3]))
             most = float((canvas.top_v[part] + canvas.und_v[part]).max())
         for box in boxes:
-            for key, *_ in _kept_tiles(H, W, *box):
+            for key, ya, yb, xa, xb in _kept_tiles(H, W, *box):
                 if key in kept:
+                    # (only the part of the tile in the box: thick paint
+                    # beside it in the same tile is not what settles here)
+                    part = (
+                        slice(ya - key[0] * T, yb - key[0] * T),
+                        slice(xa - key[1] * T, xb - key[1] * T),
+                        IV,
+                    )
                     tile = kept[key]
-                    most = max(most, float((tile[0][..., IV] + tile[1][..., IV]).max()))
+                    most = max(most, float((tile[0][part] + tile[1][part]).max()))
         return not most < 0.3
 
     def _wet_in(self, box) -> bool:

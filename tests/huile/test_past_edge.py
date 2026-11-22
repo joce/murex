@@ -938,3 +938,18 @@ def test_a_long_stroke_takes_the_memory_of_a_stage_and_keeps_a_bounded_band():
             sum(a.size * a.itemsize for tile in c._past_edge.values() for a in tile)
         )
     assert 0 < sizes[0] < 3.0e6 and sizes[0] < sizes[1] < 4.5e6
+
+
+def test_thick_paint_beside_what_settles_does_not_make_it_level():
+    """Whether paint levels is asked of the paint in the boxes that settle,
+    not of the whole tiles those boxes touch: thick paint kept past the edge
+    in the same tile, but outside the box, is not what settles there."""
+    canvas = Canvas(64, 64, seed=1)
+    tile = canvas._past_edge[-1, 0] = _knife._bare_tile(canvas)
+    tile[0][:, 0, IV] = 2.0  # thick, in column 0 of the tile only
+    tile[0][:, 5:15, IV] = 0.1  # thin beside it
+    edge = _knife._Edge.__new__(_knife._Edge)
+    edge.canvas = canvas
+    nowhere = (0, 0, 0, 0)
+    assert not edge._thick(nowhere, [(-16, 0, 5, 15)])
+    assert edge._thick(nowhere, [(-16, 0, 0, 15)])
