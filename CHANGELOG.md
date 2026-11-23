@@ -49,6 +49,350 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** a knife's stroke no longer shows how it
+  is cut into steps (murex-5gw, murex-dl9, murex-dq0, murex-h6u). The same
+  pull at a stroke's own steps (8 px at most) and in steps of 4, 2, 1 and
+  half a pixel, with the same textures, now carries the wet paint as far
+  and lays as much within 1% as a rule, loaded or clean, skimming or
+  pressed hard, on wet paint, on dried paint or on the bare canvas. (This
+  is for blades. A comb's teeth do not flow, and what they carry still
+  depends on the cut as it did, by a factor of 2.5 between a stroke's own
+  steps and steps of half a pixel.) What was left after murex-kau and
+  murex-6fa had one cause in four places: a step read once what changes
+  while it lasts.
+
+  - *The blade was set down in the first step of its way* (murex-5gw). A
+    loaded blade lays the paint under all of it as it comes down, a third
+    of its load or more, and then rides lower, on what is left. That
+    happened in the same step as the first of its way, which was then laid
+    at the level the blade was set down at, the further the longer the
+    step: a knife loaded with 3 at pressure 0.25 used 54% of its paint in a
+    first step of 8 px and 39% in one of half a pixel, carried the wet
+    paint under it 12, 9 and 12% further at its own steps (blades 60, 110
+    and 160 px wide), and on the bare canvas laid a slab 18% thinner behind
+    it. A knife's stroke now begins with a step of its own that sets the
+    blade down, an eighth of a pixel long, and ends with one that lifts it
+    off (`stroke._SET_DOWN`, `_Run._parts`). And the film on the blade,
+    which a step read as it began, is taken as it will be midway through
+    the step: less what the step before used of each column's paint, in
+    proportion (`_knife._use_ahead`).
+  - *The flow's sub-steps were whole divisions of each step* (murex-h6u):
+    0.67 px of the paint's way in steps of 8 px down a slant of 45 degrees,
+    0.47 in steps of a pixel, 0.35 in steps of half a pixel. The flow
+    spreads the paint along its way the more the shorter its sub-steps, and
+    the blade answers to the wave it rides on: such a pull at pressure 0.5
+    rippled by 0.048, 0.030, 0.022, 0.015 and 0.013 units in steps of 8, 4,
+    2, 1 and 0.5 px, and a loaded knife pulled along x carried 7% further
+    in steps of 2 px and more than in shorter ones. The sub-steps are now
+    laid along the stroke, `RIDE_CFL` (0.7) px of the paint's way each,
+    wherever the stroke is cut (`_engine.flow_sub_steps`: a step takes
+    those that fall in it, and the stroke keeps how far into one it is).
+    The pull at 45 degrees ripples by 0.055 at every cut (to 1.1%): what
+    sub-steps of 0.7 px give. At a stroke's own steps that is more than it
+    was: 16% more with the same textures (0.056 against 0.048), 25% more
+    with each stroke's own (0.066 against 0.053).
+  - *What a blade spills and lays was read before the step began, or when
+    it was over.* Under a blade that rides on wet paint, each sub-step now
+    reads the blade's level off the paint as it then lies, spills what
+    stands above the blade near its ends (`_engine._spill_aside`: a clean
+    knife at pressure 0.7 left 16% less beside its mark at its own steps
+    than in steps of half a pixel, a loaded one at 0.9 25% less), drags,
+    and lays the blade's paint in the gap it then finds, the paint laid so
+    far in the step lying on the surface (`_lay_as_met`). The bead of a
+    skimming blade is laid sub-step by sub-step too, and the flow counts
+    what has been laid as the film the blade glides on: a lightly loaded
+    skim carried the wet paint 2% further at its own steps, the residue
+    murex-dl9 names. A blade on the solid surface alone fills a gap deeper
+    than its film reaches in parts (`_engine.filled_gap`), so that one step
+    fills what many do. And over dried paint with no wet paint on it that
+    would hold the blade up, where the blade rests on the relief itself
+    and where it rests is read once a step, a knife's steps are 2 px at
+    most (`stroke._DRY_STEP`): a small knife skimming dried ridges 12 px
+    apart laid 3.8% more at pressure 0.1, and 2.4% less at 0.3, in steps of
+    8 px than in steps of half a pixel, as its steps fell on the ridges;
+    now 0.2% more and the same (0.03%). Wet paint holds a blade up where
+    it is thicker than 0.05 units (`_knife._KNIFE_RIDES_ON`, what
+    `_blade_rest` asks), and only such paint keeps the steps long: with a
+    speck of wet paint 0.02 units thick on the ridges every 9 px the skim
+    lays 0.2% more at a stroke's own steps, as without them (any wet
+    paint at all first kept them long: 2.0% more), and with a thin glaze
+    across part of its way 0.3% more (1.3%). Dried paint thinner than 0.2
+    units everywhere under a step is no relief to take short steps over
+    (`stroke._DRY_RELIEF`; the weave is 0.7 deep): the same ridges made
+    that thin, the skim in long steps lays 0.18% more than in steps of half
+    a pixel, as over the bare canvas (0.16%; 0.25% at 0.5 units, 0.8% at
+    2).
+  - *What a stroke had laid passed for an earlier stroke's* (murex-dq0)
+    wherever it had joined an earlier layer of much the same paint: the
+    blade rested on it, the flow dragged it, and the bead of a skimming
+    blade took it for the surface. A knife loaded with 8 skimming at
+    pressure 0.03 over white knifed on wet dark laid 31, 16, 7 and 2% more
+    in steps of 8, 4, 2 and 1 px than in steps of half a pixel, where it
+    came to rest, a little more at each step, on what it had just laid. A
+    stroke now keeps count of its own paint in earlier layers
+    (`_knife._Mine`; `deposit` tells what joined): the blade rests on what
+    lay there before it, and glides on what it has laid there.
+  - *The heap a blade leaves where it stops hung on the cut* (murex-dl9).
+    The paint that stands above a blade is pushed on, and at the end of
+    the pull that heap stays where the blade stops, as it does under a
+    real knife stopped under pressure. Where three loaded pulls across the
+    ridges of four earlier ones stop on the canvas
+    (`tests/huile/test_knife_heaps.py`, `_crossed`), its tallest point
+    stood, with the same textures, 10.8, 9.8, 8.2, 5.7 and 5.8 units above
+    the paint 8 px around it in steps of 8, 4, 2, 1 and 0.5 px (66, 58, 60,
+    30 and 28 pixels more than 3 above that ring). It now stands 6.8, 6.8,
+    6.7, 6.6 and 6.6 units above it (37, 38, 36, 34 and 36 pixels): lower
+    than it was in long steps, higher than it was in short ones. With each
+    stroke's own textures, at a stroke's own steps, it is higher than it
+    was: 7.7 units (51 pixels) against 6.0 (49). Easing the pressure to
+    nothing over the last 30% of each pull makes the heap a third thinner
+    at its thickest (17.5 units to 11.9) and a sixth lower above what lies
+    around it (5.8 units, 26 pixels more than 3), in steps of 8 and 2 px
+    alike; it does not lay it off, and neither does `lift` (6.4 units, 48
+    pixels). (Two ways of laying it off were built, measured and taken
+    out. Spreading what stands in a blade's way across its way halved the
+    heap and rewrote what an ordinary pull does to a textured ground: over
+    brushed paint a clean blade moved a third more of it. Lifting a blade
+    that lays paint off what it carries over the last four lengths of the
+    blade left no point more than 3 units above its surroundings, and made
+    every loaded pull carry the paint under it 5 to 41% less far.)
+  - *The film a blade glides on had a threshold* (murex-dl9): under 0.29
+    units of its own fresh paint the blade dragged the paint below as if
+    there were none, under 0.30 not at all. It is a ramp now, from 0.15 to
+    0.45 (`_engine.glides`): a hundredth of a unit more film takes at most
+    a tenth of the drag away.
+
+  Measured, steps of 8, 4, 2 and 1 px against steps of half a pixel, the
+  textures the same at every cut, before and after
+  (`tests/huile/test_knife_cuts.py` has 19 tests of it; 17 of them fail
+  without the change). White knifed across 2.8 units of knifed wet
+  dark:
+  - loaded with 3, 60 px, pressure 0.25, how far the dark is carried:
+    +11.7, +5.3, +2.1 and +0.7% before; within 0.1% after. 110 and 160 px
+    at a stroke's own steps: +8.8 and +12.4% before, -0.4 and -1.1% after.
+    Pulled along x at pressure 0.7 (160 px): +7.6, +7.3, +6.5 and +0.8%
+    before, within 0.8% after.
+  - the same load on the bare canvas, the slab's thickness: -17.9, -7.8,
+    -3.3 and -1.1% before, within 0.4% after.
+  - loaded with 8, skimming at 0.03 over its own colour, the white laid:
+    +31.0, +15.7, +6.9 and +2.3% before, within 0.1% after (at pressures
+    0.05 and 0.08: +36.9 and +9.6% before, within 0.4% after).
+  - lightly loaded skims (pressures 0.03 to 0.10), carried: +2.1, +1.8 and
+    +2.5% at a stroke's own steps before, within 0.1% after.
+  - at 45 degrees, pressure 0.5: the white laid -2.3% at a stroke's own
+    steps before, within 0.1% after; the ripple of the surface along the
+    pull 0.048, 0.030, 0.022, 0.015 and 0.013 units in steps of 8, 4, 2, 1
+    and 0.5 px before, 0.055 at every cut after (to 1.1%).
+  - what is left beside the mark (60 px, loaded with 3, pressure 0.9): -25,
+    -15, -6 and -2% before, within 0.8% after.
+  - over the 52 pulls measured on that ground, the furthest any cut is
+    from the half-pixel one: 1.1% for what is carried (12.4% before), 1.5%
+    for the white laid (36.9%), 3.1% for what is left beside the mark
+    (44%; 4.9% for one skim that leaves next to nothing there).
+
+  Over thick brushed umber, a textured ground (a stroke's own steps
+  against half a pixel: how far the umber is carried, and how much of it
+  is moved in all):
+  - a 60 px blade loaded with 3 at pressure 0.25, square to its way: +9.2
+    and +6.7% before, +0.2 and 0.0% after; pulled along its own length:
+    +19.2 and +13.0% before, -1.3 and -1.9% after; an 80 px blade lifted
+    off thick paint (`lift=1`): +7.9 and +4.4% before, +0.4 and +0.1%
+    after;
+  - leaving the canvas over its edge: -44 and +10.8% before, -2.2 and
+    +0.3% after; coming onto it loaded, at pressure 0.9: +2.8 and -1.7%
+    before, +0.1 and +0.1% after; along the edge: +5.0 and +3.4% before,
+    +0.1 and 0.0% after;
+  - a trowel on a curve, a pear, a loaded scraper: +1.9, +5.0 and +13.5%
+    carried before, -0.1, -0.2 and -0.5% after.
+
+  A small knife skimming dried ridges at pressures 0.1 and 0.3: +3.8 and
+  -2.4% laid at a stroke's own steps before, +0.2 and 0.0% after (and
+  with specks of wet paint on the ridges).
+  Every channel is kept, on the canvas, on the blade and over the edge
+  (`edge_loss`) together, to 1e-7 of the largest (up to 9e-9 where
+  nothing crosses an edge).
+
+  The furthest a stroke's own steps were found from half-pixel ones, in a
+  second set of 34 pulls of blades through wet paint on four grounds
+  (brushed umber laid with its own textures, knifed dark, wet paint on
+  dried ridges, and thin brushed paint that covers the canvas in
+  patches): within 2.0% for what is carried and 3.5% for what is moved,
+  but for
+  - a 60 px blade loaded with 3 at pressure 0.4, square to its way over
+    the thin paint in patches: carried 13.1% less far (5.7, 4.4 and 1.1%
+    less in steps of 4, 2 and 1 px; before, 7.6% further at its own steps
+    and 34% less far in steps of 4 px);
+  - a 160 px blade loaded with 4 leaving over the bottom edge at pressure
+    0.7: carried 10.3% further (33% before);
+  - a 60 px blade loaded with 2 pulled along its own length over the
+    right edge: carried 4.3% less far (3.6% further before, and 9.8% less
+    far in steps of 4 px).
+  The white laid is within 0.8%, but for a 110 px blade loaded with 8 at
+  pressure 0.9 (2.1% more; 10.5% before) and a 60 px blade coming on over
+  a corner of the canvas (3.2% less; 12.4% before).
+
+  What else changes, and why. Measured in short steps, where the cut does
+  not come into it:
+  - *A clean blade square to its way does what it did.* Over the brushed
+    umber a clean 60 px blade at pressure 0.3 carries the umber 0.4% less
+    far and moves 0.3% more of it than before; a clean scraper 1.1% and
+    0.1% less; a clean blade coming onto the canvas over its edge 0.1% and
+    1.1% more; over the knifed dark at pressure 0.7, 0.3% less far. Pulled
+    along its own length it does not: a clean scraper at pressure 0.8
+    carries the umber 26% less far than it did in half-pixel steps, and 8%
+    less far than it did at a stroke's own steps (and moves 3.8% less of
+    it).
+  - *A loaded blade carries what it did in short steps.* Over the brushed
+    umber: 0.6% less far for a 60 px blade loaded with 3 at pressure 0.25,
+    1.3% less for one loaded with 1 at 0.5, 0.1% further for an 80 px
+    blade loaded with 4 at 0.7, 0.5% less for a 110 px blade at 0.9, 1.2%
+    less lifted off thick paint; a trowel on a curve, a pear and a loaded
+    scraper 0.9, 0.9 and 1.4% less. Over the knifed dark: within 2.1% for
+    all but the pulls along x, which carry 5 to 6% further than they did
+    in half-pixel steps (and as far as they did in steps of 2 px and
+    more, the old sub-steps being longer there). The white laid is what it
+    was within 1.6%, but for a 60 px blade at pressure 0.9 (4.5% less), a
+    loaded blade coming onto the canvas over its edge at that pressure
+    (9.5% more), and the loaded skim below. A stroke whose pressure falls
+    from 0.8 to 0.1 along it, the blade along its way, carries 3 to 12%
+    further than it did in half-pixel steps (the ground laid with its own
+    textures or with plain ones; before, at a stroke's own steps, 11%
+    further than in half-pixel ones).
+  - *What a blade that rides on wet paint spills past its ends is the
+    paint that lay there.* The spill took the top layer first
+    (`_engine.take`), which under a loaded blade is the blade's own fresh
+    film: of what a 60 px blade loaded with 3 spilt, 89% was its own
+    white, square to its way or along its own length. Under a blade that
+    rides on wet paint it now takes the earlier strokes' paint first
+    (`_engine._take_aside`). That is a reading of the model, not forced by
+    it: the lips are "some of the paint that was lying there", and the
+    spill is capped by how much lay there; but taking the top layer first
+    at every sub-step was tried too, and on grounds evenly covered it
+    hangs on the cut as little (within 3%) and leaves pulls along the
+    blade's length doing what they did in short steps (within 3%); over
+    thin paint in patches it hangs on the cut more (36% against 13%). The
+    volume spilt is the same (59 units against 58 square to the way, 517
+    against 560 along the blade's length); what it is made of is not. For
+    a blade square to its way that is up to 3.8% more of the paint under
+    it moved, and more of it left beside the mark of a loaded blade at a
+    light pressure: on a slanted pull over the knifed dark, 19% more
+    beside a 60 px blade loaded with 3 at pressure 0.25, 25% beside a 160
+    px one, 31% beside a 110 px blade loaded with 1 at 0.1, 7 to 13%
+    beside blades loaded with 0.3, and 1% less beside a clean one. (On a
+    larger ground, 520 by 420 px, a 160 px blade loaded with 3 at pressure
+    0.25 pulled 230 px leaves 110% more beside it than it did.) For a
+    loaded blade pulled along its own length, where every pixel under it
+    is near an end, it is most of what the pull does, and how much hangs
+    on the ground. A 60 px blade loaded with 3 at pressure 0.25, in
+    half-pixel steps, against what it did: over the knifed dark it
+    carries the paint 13% further and moves 16% more of it; over the
+    brushed umber 37 to 46% further and 46 to 54% more (the ground laid
+    with its own textures or with plain ones); over wet paint on dried
+    ridges 108% further and 80% more; over thin paint in patches 4% less
+    far and 99% more.
+
+    A blade that does not ride (no wet paint of earlier strokes thicker
+    than 0.05 units under it) still spills through `_knife._push_aside`
+    and `_engine.take`, the top layer first. It is left so because it
+    has next to nothing to spill: what it spills is no more than lay
+    there before the stroke, and no such paint lies under it now. Over 44
+    pulls on five grounds blades that rode spilt 19,066 units in 1,486
+    steps, and blades that did not, none (the most any pixel would have
+    spilt, 0.0002 units, is under the 0.001 at which a step spills at
+    all); in the benchmark's `knife` and `knife-lift`, 0.05 units against
+    637, of which 0.02 would have come from the layer below.
+  - a loaded skim over its own colour lays 24 to 34% more than it did in
+    short steps: it no longer rests on its own fresh paint.
+
+  Three things found on the way and put right, because the change exposed
+  them:
+  - *A speck decided where five units of paint went.* The flow leaves a
+    trace of the paint it pushes on, a millionth of a unit, under the paint
+    ahead of it, and what the blade spills beside it lands there: the very
+    paint of the layer below, which `_join_top_if_alike` holds to rounding
+    (1e-5). A hundredth of that trace of dust lying there beforehand made
+    it another paint, and the shoved paint joined the top layer instead of
+    covering it. For what a blade shoves, a layer below that is a trace is
+    now the shoved paint as far as the speck of dust it may hold tells
+    (`SPECK` over its volume); what a brush shoves is held to rounding as
+    before. Of 30 runs of 15 knife strokes through wet paint with a
+    hundred-millionth of a unit more or less in every empty layer, the
+    coverage of pixels whose paint came out the same differed in 5 before
+    this change (by up to 0.77), and in none now.
+  - *A speck of paint was pushed at the blade's speed.* Under the blade's
+    own film, what is in the way is pushed on as a share of the earlier
+    paint there; where that paint was a speck (1e-15), the share was all
+    of it, and the smoothing of the flow's speeds took the paint around it
+    along. That was one way a knife's stroke hung on a last bit of where it
+    lies (murex-088): the end point of one moved by 1e-12 px changed the
+    wet paint by 0.17 units at the worst pixel, over 5,700 pixels. Less
+    than `EMPTY` is now no paint in the blade's way; moved by 1e-6 and 1e-3
+    px, that stroke changes by 4e-6 and 2e-3 units.
+  - *A stroke moved by whole pixels was not the same stroke to the bit*
+    once a step did a dozen times the arithmetic: the points of a path
+    given 50 px further on come out a few units in the last place off. A
+    knife's path now lies on a grid of 2^-20 px (`stroke._PATH_GRID`), and
+    so do the points its steps are cut at. A knife stroke through wet
+    paint moved by (37, 53), (51, 70) and (128, 256) px is the same to the
+    bit; before this change it was for path points on whole pixels, and
+    not otherwise.
+
+  `flow_under_riding_blade` takes the sub-steps, what the blade lays and
+  spills and the stroke's own paint in earlier layers, and returns what it
+  laid, the level the step ends at, what it
+  spilt to either side and whether the paint reached the blade; `deposit`
+  and `lay_off` take `joined`; `blade_rest` takes the stroke's own paint;
+  `blade_slab` takes the gaps as the flow met them, whole.
+
+  Of the benchmark's 16 scenes, 12 paint as before to the bit: every scene
+  without a knife (`round-small`, `liner`, `flat-wide`, `filbert-wet`,
+  `blend`, `fan`, `dabs`, `taper-curve`, `glass`, `stipple`, `spatter`,
+  `dry`). The four with knives change: in `knife` the paint is more than
+  0.01 units thicker or thinner at 12% of the pixels (0.1 at 7%, 1 at
+  0.6%) and the lit picture differs by more than 1/255 at 11% (8/255 at
+  4%); `knife-lift` 10% (6%, 0.4%) and 9% (3%); `edges` 2% (under 0.5%, 0.1%)
+  and 1% (1%); `painting`, whose lights are knifed on, 5% (3%, 0.5%) and
+  5% (2%). As much paint is on each canvas as before, to three figures.
+
+  Knife strokes take about as long as they did, except over dried paint.
+  Timed in turn with what it replaces, three rounds of five runs (on the
+  code before its last correction, which leaves these scenes the same to
+  the bit): `knife` 7% less, `knife-lift` 4% less, `edges` 2.3% more
+  (slower in all three rounds), `painting` 4% less, on a machine whose
+  noise is about 7% either way. So: no cost that can be measured, except
+  perhaps a few percent where strokes run over the edge of the canvas.
+  Over dried paint with no wet paint on it to ride on, where a knife's
+  steps are 2 px at most, a pull does cost more: 2.3 to 2.7 times the
+  processor time loaded, 1.7 to 2.5 times skimming, 1.1 to 1.6 times
+  clean (a 60 px blade along knifed ridges, dried: 387 ms against 167
+  loaded with 2 at pressure 0.3, 401 against 161 skimming at 0.05, 231
+  against 146 clean at 0.6; over dried paint thinner than 0.2 units,
+  nothing more). (The spill at every
+  sub-step first cost half as much again, `knife` 1,650 ms: handed to a
+  helper called for every pixel, each of 22 arrays was counted a
+  reference to and released, for every pixel. Its loops are in its
+  helpers now.) Halving `RIDE_CFL` to 0.35, which spreads the wave a
+  blade rides on further, was measured and not done: `knife` and
+  `knife-lift` take 31% and 30% longer.
+
+  Not done, or still so:
+  - what a blade carries to the end of its pull it leaves where it stops
+    (see above): that is what a knife does;
+  - the surface behind a blade ripples as sub-steps of 0.7 px make it
+    (murex-h6u): the same at every cut, 0.055 units along a pull at 45
+    degrees where it was 0.048 in a stroke's own steps and 0.013 in steps
+    of half a pixel. So at a stroke's own steps a blade ripples the
+    surface more than it did (by 16% with the same textures, 25% with
+    each stroke's own). Halving the sub-steps smooths it further and
+    costs 30% more time on knife scenes: `RIDE_CFL` stays 0.7;
+  - `_Mine` only grows: the stroke's own paint in an earlier layer is not
+    taken off the count when that layer is spilt, buried or folded, and
+    what a blade squeezes or presses out is not counted when it joins an
+    earlier layer;
+  - the step that sets a blade down reads the chatter and the lip of the
+    blade at the first point along the path after it, which lies where
+    the cut puts it (under 1% of what the step lays).
+
 - **Breaking, in huile's pictures:** the canvas goes on past its edge, and
   strokes are painted there (murex-n6o, murex-6s6, murex-w8r, murex-uwl).
   Past its edge a canvas is bare at first (its ground, and its weave over
@@ -563,7 +907,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
     thickness at the worst pixel, a few thousand values): some decision of
     a knife's step hangs on a last bit of where the stroke lies. That was
     so before, and a stage moves its steps by a whole number of pixels, so
-    a stroke at the edge can show it (murex-088).
+    a stroke at the edge can show it (murex-088). (One such decision was
+    found and put right since: see a knife's stroke at every cut, above.)
 
 - **Breaking, in huile's pictures:** a loaded knife pulled along the end
   ridge of an earlier pull no longer drops tall lumps (murex-6fa). A blade

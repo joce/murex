@@ -10,12 +10,14 @@ met over the step, which is less than it lays, step after step, in a gap
 that opens as it passes.
 
 - the flow under a blade riding on wet paint (_engine.flow_under_riding_blade)
-  works its level out again as it goes, about every pixel of its way, from
-  the paint under where it is then, and takes sub-steps of one length
-  whatever the step;
-- the blade fills the gap under it sub-step by sub-step (_engine.blade_slab,
-  filled_as_met).
+  works its level out again as it goes, at every sub-step, from the paint
+  under where it is then, and takes sub-steps of one length whatever the
+  step, laid along the stroke (_engine.flow_sub_steps);
+- the blade fills the gap under it sub-step by sub-step, the paint it has
+  laid there in the step lying on the surface (_engine._lay_as_met).
 """
+
+from typing import Any
 
 import numpy as np
 
@@ -91,10 +93,12 @@ def _riding(sunk, span=3):
     )
 
 
-def _step(cv, end, ds, half, riding=True):
+def _step(cv, end, ds, half, riding=None, phase=0.0, fill=None):
     """One step of ``ds`` px along +x of a blade over every row, ending
     with its middle at ``end``, its level read under where the step takes
-    it. Returns what the flow returns."""
+    it: ``riding`` on the paint (the ``riding_flow`` fixture, which see for
+    ``phase`` and ``fill``), or, None, at that level throughout. Returns
+    what the flow returns."""
     sunk = _rest_under(cv, end, half)
     full = np.ones((H, W))
     along = np.tile(np.arange(W) + 0.5 - end, (H, 1))
@@ -104,55 +108,57 @@ def _step(cv, end, ds, half, riding=True):
         0.0 * full, half * full, ds, 1.0, 0.0, 0.6 * full, 3, FILM * full,
         level, FILM * full, _BEFORE,
     )  # fmt: skip
-    if riding:
-        return eng.flow_under_riding_blade(*args, _riding(sunk))
+    if riding is not None:
+        return riding(args, _riding(sunk), phase, fill)
     return eng.flow_under_blade(*args), level
 
 
-def _pushed(ds, half, riding=True, travel=64.0):
+def _pushed(ds, half, riding=None, travel=64.0):
     """A blade pushed ``travel`` px along a flat bed in steps of ``ds``.
     Returns how far it carried the paint (volume times distance, a row) and
     the heap it left ahead of where it stopped."""
     cv = _bed()
-    end = 40.0
+    end, phase = 40.0, 0.0
     for _ in range(round(travel / ds)):
         end += ds
-        _step(cv, end, ds, half, riding)
+        phase = _step(cv, end, ds, half, riding, phase)[-1]
     moved = _old_paint(cv) - BED
     x = np.arange(W) + 0.5
     return float((moved * x).sum()), float(moved[x > end].sum())
 
 
-def test_a_blade_riding_on_its_wave_carries_as_far_in_long_steps_as_in_short():
+def test_a_blade_riding_on_its_wave_carries_as_far_in_long_steps_as_in_short(
+    riding_flow,
+):
     """A blade 12 px wide pushed 64 px along 2.4 units of wet paint, its
     level read for each step under where the step takes it: in steps of 8
-    px it carries the paint as far as in steps of 1 px (0.4% further, its
-    heap 2.2% smaller; steps of 4 and 2 px give what steps of 8 do within
-    0.2%), and a blade 22 px wide too. With the level held at what was read (as it was:
-    flow_under_blade), where the step takes it the wave it pushes is not
-    there yet: the narrow blade rode too low all along a long step and
-    carried a third further, its heap 88% bigger."""
+    px it carries the paint as far as in steps of 4, 2 and 1 px and of half
+    a pixel, and leaves the same heap, and a blade 22 px wide too. With
+    the level held at what was read (as it was: flow_under_blade), where
+    the step takes it the wave it pushes is not there yet: the narrow blade
+    rode too low all along a long step and carried a third further, its
+    heap 88% bigger."""
     for half in (6.0, 11.0):
-        long, short = _pushed(8.0, half), _pushed(1.0, half)
-        assert abs(long[0] / short[0] - 1.0) < 0.04, half
-        assert abs(long[1] / short[1] - 1.0) < 0.06, half
-        for ds in (4.0, 2.0):
-            np.testing.assert_allclose(_pushed(ds, half), long, rtol=0.02)
+        long = _pushed(8.0, half, riding_flow)
+        for ds in (4.0, 2.0, 1.0, 0.5):
+            short = _pushed(ds, half, riding_flow)
+            assert abs(long[0] / short[0] - 1.0) < 0.02, (half, ds)
+            assert abs(long[1] / short[1] - 1.0) < 0.03, (half, ds)
     # (what the level held over the step made of it)
-    held_long, held_short = _pushed(8.0, 6.0, False), _pushed(1.0, 6.0, False)
+    held_long, held_short = _pushed(8.0, 6.0), _pushed(1.0, 6.0)
     assert held_long[0] / held_short[0] > 1.2
     assert held_long[1] / held_short[1] > 1.5
 
 
-def test_a_riding_blade_rests_on_the_paint_under_where_it_is():
+def test_a_riding_blade_rests_on_the_paint_under_where_it_is(riding_flow):
     """At a sub-step the blade rests as _knife._blade_rest has it for a
     step, on the paint under where it is then: on the high points of the
     paint, each pixel counting by how much of it the blade is over, sunk
     ``depth`` of the way to the canvas. Over a bed with 1.5 units more
-    paint on 8 columns under the blade, a sub-step that ends over them
-    finds the blade that much higher than the level read where there was
-    none; over the rows it does not reach, the level stays the step's."""
-    half, end, ds = 11.0, 80.0, 0.5  # (one sub-step)
+    paint on 8 columns under the blade, a step that ends over them finds
+    the blade that much higher than the level read where there was none;
+    over the rows it does not reach, the level stays the step's."""
+    half, end, ds = 11.0, 80.0, 0.5  # (too short for a sub-step: where it ends)
     bump = (slice(76, 84), 1.5)
     cv = _bed(bump)
     before = _old_paint(cv)
@@ -161,11 +167,13 @@ def test_a_riding_blade_rests_on_the_paint_under_where_it_is():
     aa = np.zeros((H, W))
     aa[:16] = 1.0  # (the blade is over the first 16 rows only)
     sunk, level = 1.9, 2.0  # (as read where the bed is flat, and some film)
-    met, got = eng.flow_under_riding_blade(
+    args = (
         cv, 0, 0, SID, np.zeros((H, W), np.float32), level * full, aa, along,
         0.0 * full, half * full, ds, 1.0, 0.0, 0.6 * full, 3, FILM * full,
-        (level - 0.05) * full, FILM * full, _BEFORE, _riding(sunk, span=2),
+        (level - 0.05) * full, FILM * full, _BEFORE,
     )  # fmt: skip
+    laid, got, _sides, reached, _phase = riding_flow(args, _riding(sunk, span=2))
+    assert reached
     over = np.clip(half - np.abs(np.arange(W) + 0.5 - end) + 0.5, 0.0, 1.0)
     high = np.maximum(np.maximum(np.roll(before, 1), before), np.roll(before, -1))
     want = level + ((1.0 - DEPTH) * (over * high).sum() / over.sum() - sunk)
@@ -173,104 +181,154 @@ def test_a_riding_blade_rests_on_the_paint_under_where_it_is():
     # (rows 0..15 under the blade, and those within 2 of them along it)
     np.testing.assert_allclose(got[:18], want, rtol=0, atol=1e-9)
     np.testing.assert_array_equal(got[18:], level)
-    # (The level its bead hangs from moves with it: the bead, hanging 0.05
-    # below the blade and so still in the paint, finds the surface at the
-    # level it hangs from where the step ends.)
-    assert (met[:16, over > 0, 0] == 1.0).all() and (met[16:, :, 0] == 0.0).all()
-    np.testing.assert_allclose(met[:16, 74:86, 1], want - 0.05, rtol=0, atol=1e-9)
+    # (what it laid is told where it was over the pixel, and nowhere else:
+    # nothing here, a blade with no paint to lay)
+    assert (laid[:16, over > 0] == 0.0).all()
+    assert (laid[16:] < 0).all() and (laid[:, over == 0] < 0).all()
 
 
-def test_the_flow_under_a_riding_blade_keeps_every_channel():
+def test_the_flow_under_a_riding_blade_keeps_every_channel(riding_flow):
     """Nothing is made or lost, band by band, and nothing is left below
     zero."""
     cv = _bed((slice(60, 70), 1.0))
     before = (cv.top.astype(np.float64) + cv.und).sum(axis=(0, 1))
-    end = 50.0
+    end, phase = 50.0, 0.0
     for _ in range(5):
         end += 8.0
-        met, _level = _step(cv, end, 8.0, 11.0)
-        assert met.shape[:2] == (H, W) and met.shape[2] > 2
+        out: Any = _step(cv, end, 8.0, 11.0, riding_flow, phase)
+        laid, _level, _sides, reached, phase = out
+        assert laid.shape == (H, W) and reached
     after = (cv.top.astype(np.float64) + cv.und).sum(axis=(0, 1))
     assert np.abs(_old_paint(cv) - BED).max() > 0.5  # (it did drag it)
     np.testing.assert_allclose(after, before, rtol=2e-6)
     assert cv.top.min() >= 0.0 and cv.und.min() >= 0.0
 
 
-def test_a_riding_blade_far_above_the_paint_drags_nothing():
-    """A blade the paint does not reach moves none, tells nothing of what
-    it met, and keeps the step's level."""
+def test_a_riding_blade_far_above_the_paint_drags_nothing(riding_flow):
+    """A blade the paint does not reach moves none, works nothing out of
+    what it lays, and keeps the step's level."""
     cv = _bed()
     full = np.ones((H, W))
     along = np.tile(np.arange(W) + 0.5 - 80.0, (H, 1))
     level, hang = (BED + 2.0) * full, (BED + 1.5) * full
     top = cv.top.copy()
-    met, got = eng.flow_under_riding_blade(
+    args = (
         cv, 0, 0, SID, np.zeros((H, W), np.float32), level, full, along,
         0.0 * full, 11.0 * full, 8.0, 1.0, 0.0, 0.6 * full, 3, FILM * full, hang,
-        FILM * full, _BEFORE, _riding(BED),
+        FILM * full, _BEFORE,
     )  # fmt: skip
-    assert met.shape == (0, 0, 2) and got.tobytes() == level.tobytes()
+    laid, got, sides, reached, _phase = riding_flow(args, _riding(BED), 0.0, full)
+    assert laid.shape == (0, 0) and not reached
+    assert got.tobytes() == level.tobytes()
+    assert not sides[0].any() and not sides[1].any()
     assert cv.top.tobytes() == top.tobytes()
 
 
-# --- the slab, filled as the gap was met ---------------------------------------
+# --- what the blade lays as it goes -------------------------------------------------
 
 
-def _slab(met, fill, level=1.0):
-    """What a blade at ``level`` over an empty flat canvas lays on one pixel
-    where it met ``met`` (see _engine.flow_under_riding_blade), filling
-    ``fill`` of the gap over the step."""
-    top = np.zeros((1, 1, PACKED), np.float32)
-    d, surf = eng.blade_slab(
-        top, top.copy(), np.zeros((1, 1), np.float32), 0, 0,
-        np.full((1, 1), level), np.full((1, 1), 10.0),
-        np.full((1, 1), fill), np.asarray(met, np.float64).reshape(1, 1, -1),
-    )  # fmt: skip
-    return float(d[0, 0]), float(surf[0, 0])
+def _laying(cv, level, steps, riding, fill=0.3, end=60.0, slip=0.6):
+    """A blade 22 px along its way, over every row, held ``level`` above
+    the canvas where the bed lies flat (it rides on the paint: see
+    :func:`_riding`), pushed along +x in ``steps`` (px each) to end with
+    its middle at ``end``, filling the share ``fill`` of the gap under it
+    over a pixel while it goes 8 px over it (and over a shorter way, its
+    share of that: 1 - (1 - fill)^(way / 8)). After each step what it laid
+    is laid on the canvas, as _engine.deposit lays a knife's paint: on
+    top, the paint there before going under. Returns what it laid in all,
+    pixel by pixel."""
+    full = np.ones((H, W))
+    sunk = (1.0 - DEPTH) * float(np.float32(BED))  # (as the bed lies)
+    at, phase = end - sum(steps), 0.0
+    total = np.zeros((H, W))
+    for ds in steps:
+        at += ds
+        along = np.tile(np.arange(W) + 0.5 - at, (H, 1))
+        # (how far the blade goes over each pixel in this step)
+        way = np.clip(
+            np.minimum(0.0, along + 11.0) - np.maximum(-ds, along - 11.0), 0, ds
+        )
+        share = 1.0 - (1.0 - fill) ** (way / 8.0)
+        args = (
+            cv, 0, 0, SID, np.zeros((H, W), np.float32), level * full, full, along,
+            0.0 * full, 11.0 * full, ds, 1.0, 0.0, slip * full, 3, FILM * full,
+            level * full, FILM * full, _BEFORE,
+        )  # fmt: skip
+        laid, _level, _sides, _reached, phase = riding(
+            args, _riding(sunk), phase, share
+        )
+        laid = np.maximum(laid, 0.0)
+        new = (laid > 0) & (cv.top_id != SID)
+        cv.und[new] += cv.top[new]
+        cv.top[new] = 0.0
+        cv.top_id[new] = SID
+        cv.top[..., IV] += laid.astype(np.float32)
+        total += laid
+    return total
 
 
-def test_a_blade_fills_a_gap_that_does_not_change_as_it_always_did():
-    """Over a gap that stays the same through the step the blade lays the
-    step's share of it, however many sub-steps it was met at and however
-    much of the pixel the blade was over at each."""
-    g, fill = 0.4, 0.7
-    for weights in ((1.0, 1.0, 1.0, 1.0), (0.0, 0.3, 1.0, 1.0, 1.0, 0.6), (0.25,)):
-        pairs = []
-        for i in range(0, len(weights), 2):
-            w = sum(weights[i : i + 2])
-            pairs += [g * w, w]
-        d, surf = _slab([1, 0.6, *pairs], fill)
-        np.testing.assert_allclose(d, g * fill, rtol=1e-12)
-        assert surf == 0.6  # (the surface as the bead found it)
-    # (never under the blade: the gap the canvas shows, here up to the level)
-    assert _slab([0.0, 0.6, 0.0, 0.0], fill, level=0.5) == (0.5 * fill, 0.0)
+def test_a_blade_fills_a_gap_that_does_not_change_as_it_always_did(riding_flow):
+    """Over a gap that stays the same through the step (a blade that does
+    not grip the paint under it, 0.1 units above it) the blade lays the
+    step's share of it on every pixel it is over for the whole step,
+    whatever sub-steps the step falls on: a step of 8 px, and one of half a
+    pixel or less, with a sub-step in it or none."""
+    fill = 0.3
+    gap = (BED + 0.1) - float(np.float32(BED))  # (the bed is single precision)
+    for ds in (8.0, 0.5, 0.2):
+        cv = _bed()
+        laid = _laying(cv, BED + 0.1, [ds], riding_flow, fill, slip=0.0)
+        whole = slice(60 - 10, 60 + 10 - int(np.ceil(ds)))
+        want = gap * (1.0 - (1.0 - fill) ** (ds / 8.0))
+        np.testing.assert_allclose(laid[H // 2, whole], want, rtol=1e-9)
+        earlier = cv.und[..., IV] + np.where(cv.top_id == SID, 0.0, cv.top[..., IV])
+        assert (earlier == np.float32(BED)).all()  # (nothing moved)
 
 
-def test_a_blade_fills_a_gap_that_opens_as_it_passes_sub_step_by_sub_step():
-    """Each pair of sub-steps fills its share of what is left of the gap it
-    finds. A gap that opens half way through the step (behind the paint the
-    blade pushes) is filled by the share of half a step, 1 - (1 - fill)^½ of
-    it, where the step's share of the mean gap is fill / 2: half as much
-    again at fill 0.75. A gap that closes half way keeps what was laid in
-    it; one that grows is topped up."""
-    g, fill = 0.4, 0.75
-    half = 1.0 - (1.0 - fill) ** 0.5
-    opens, _ = _slab([1, 0.0, 0.0, 2.0, g * 2.0, 2.0], fill)
-    np.testing.assert_allclose(opens, g * half, rtol=1e-12)
-    assert opens > 1.3 * (0.5 * g * fill)
-    closes, _ = _slab([1, 0.0, g * 2.0, 2.0, 0.0, 2.0], fill)
-    np.testing.assert_allclose(closes, g * half, rtol=1e-12)
-    grows, _ = _slab([1, 0.0, 0.5 * g * 2.0, 2.0, g * 2.0, 2.0], fill)
-    first = 0.5 * g * half
-    np.testing.assert_allclose(grows, first + (g - first) * half, rtol=1e-12)
-    # (the blade over the pixel for a fifth of its way only, at the end, and
-    # not at all over the middle pair of sub-steps)
-    late, _ = _slab([1, 0.0, 0.0, 2.0, 0.0, 0.0, g * 0.5, 0.5], fill)
-    np.testing.assert_allclose(late, g * (1.0 - (1.0 - fill) ** 0.2), rtol=1e-12)
-    # (and over hardly any of it at one sub-step: that changes nothing)
-    np.testing.assert_allclose(
-        _slab([1, 0.0, 1e-15 * g, 1e-15, g * 2.0, 2.0], fill)[0], g * fill, rtol=1e-12
-    )
+def test_a_blade_lays_as_much_in_one_step_as_in_many(riding_flow):
+    """What a blade pushed 64 px over wet paint that it drags lays as it
+    goes, 0.05 and 0.1 units above where the paint lay: in steps of 8 px
+    what it lays in steps of 4 and 1 px and of half a pixel, within 4% in
+    all (2.6% at most here). The gap under it opens as it passes, as it
+    draws the paint away, and each sub-step fills its share of the gap it
+    finds, the paint laid earlier in the step lying on the surface as it
+    does once it is laid.
+
+    (Filling the step's share of the mean gap, it laid 8% less at a
+    stroke's own steps, murex-kau; taking what it had laid in the step off
+    what the film could fill of the gap without it, 2 to 4% less: a gap
+    out of the film's reach stayed out of it till the step was over.)"""
+    for above in (0.05, 0.1):
+        laid = {}
+        for ds in (8.0, 4.0, 1.0, 0.5):
+            cv = _bed()
+            steps = [ds] * round(64.0 / ds)
+            row = _laying(cv, BED + above, steps, riding_flow, end=104.0)[H // 2]
+            laid[ds] = float(row.sum())
+            assert laid[ds] > 0.3  # (it does lay)
+            assert np.abs(_old_paint(cv) - BED).max() > 0.1  # (and drag)
+        for ds in (4.0, 1.0, 0.5):
+            assert abs(laid[8.0] / laid[ds] - 1.0) < 0.04, (above, ds, laid)
+
+
+def test_a_film_reaches_further_down_on_the_paint_it_has_laid(riding_flow):
+    """A film 0.17 thick reaches a surface 0.18 below the blade poorly (see
+    _engine.film_gap) and one 0.1 below it altogether. Over a gap of 0.18
+    that does not change, a step of 8 px lays what eight steps of 1 px and
+    sixteen of half a pixel lay (to 2%): what it has laid in the step
+    brings the surface within its reach, as it does from one step to the
+    next. That is over twice the step's share of what the film could fill
+    as the step began."""
+    fill = 0.9
+    gap = (BED + 0.18) - float(np.float32(BED))
+    got = []
+    for steps in ([8.0], [1.0] * 8, [0.5] * 16):
+        cv = _bed()
+        laid = _laying(cv, BED + 0.18, steps, riding_flow, fill, slip=0.0)
+        got.append(float(laid[H // 2, 51:62].mean()))
+    assert abs(got[0] / got[1] - 1.0) < 0.02 and abs(got[0] / got[2] - 1.0) < 0.02, got
+    at_first = gap * float(eng.smoothstep(1.3, 0.7, gap / FILM)) * fill
+    assert got[0] > 2.0 * at_first
 
 
 # --- a knife pull over wet paint, at its own steps and in shorter ones -----------
@@ -398,11 +456,11 @@ def test_a_blade_coming_onto_the_canvas_is_over_every_pixel_it_covers(
     monkeypatch, by_name
 ):
     """The flow under a riding blade looks for the blade, at each of its
-    sub-steps, only where the step can take it (_engine._swept_rows): what
-    it notes of how much of each pixel the blade was over is what looking
-    all over the window gives, to the last bit, for a blade coming onto
-    the canvas over its top edge and over its left one, its own edge 2 and
-    5 degrees off the canvas's. (Looking within 2 px of where the blade
+    sub-steps, only where the step can take it (_engine._swept_rows): the
+    pixels it tells what the blade laid on are those the blade is over at
+    one of them, as looking all over the window finds them, for a blade
+    coming onto the canvas over its top edge and over its left one, its own
+    edge 2 and 5 degrees off the canvas's. (Looking within 2 px of where the blade
     was a sub-step before, it missed the pixels of the canvas's edge rows
     that the blade's edge came over further along: in the steps that
     brought these three strokes' blades onto the canvas, 268, 207 and 199
@@ -413,12 +471,13 @@ def test_a_blade_coming_onto_the_canvas_is_over_every_pixel_it_covers(
     flow = eng.flow_under_riding_blade
 
     def spy(*args):
-        met, level = flow(*args)
-        if met.size:
+        out = flow(*args)
+        if out[0].size:
             given = by_name(flow, args)
             names = ("aa", "along", "c", "chord_half", "ds", "tx", "ty")
-            seen.append((*(np.copy(given[name]) for name in names), met))
-        return met, level
+            got = (*(np.copy(given[name]) for name in names), given["subs"], out[0])
+            seen.append(got)
+        return out
 
     monkeypatch.setattr(eng, "flow_under_riding_blade", spy)
     top, left = [(130.0, -40.0), (130.0, 120.0)], [(-40.0, 110.0), (120.0, 110.0)]
@@ -436,16 +495,16 @@ def test_a_blade_coming_onto_the_canvas_is_over_every_pixel_it_covers(
             seed=3,
         )
         assert len(seen) > 8
-        for aa, along, c, half, ds, tx, ty, met in seen:
-            n = max(eng.whole_ceil(ds * (abs(tx) + abs(ty)) / eng.RIDE_CFL), 1)
-            over = np.zeros((*aa.shape, (n + 1) // 2))
-            for k in range(1, n + 1):
-                pos = -ds + k * (ds / n)
-                reach = np.clip(half - np.abs(along - pos - c) + 0.5, 0.0, 1.0)
-                over[..., (k - 1) // 2] += aa * reach
-            ever = over.sum(axis=2) > 0
-            assert np.array_equal(met[..., 0] == 1.0, ever), (angle, int(ever.sum()))
-            np.testing.assert_array_equal(met[ever][:, 3::2], over[ever])
+        for aa, along, c, half, ds, tx, ty, (n, first), laid in seen:
+            per = eng.RIDE_CFL / (abs(tx) + abs(ty))
+            # (where the blade stands at the sub-steps that fall in the
+            # step; with none, where the step ends)
+            places = [min(-ds + first + k * per, 0.0) for k in range(n)] or [0.0]
+            over = np.zeros(aa.shape)
+            for pos in places:
+                over += aa * np.clip(half - np.abs(along - pos - c) + 0.5, 0.0, 1.0)
+            ever = over > 0
+            assert np.array_equal(laid >= 0, ever), (angle, int(ever.sum()))
 
 
 def test_the_bead_hangs_from_the_blade_not_from_the_paint_it_has_laid(monkeypatch):
@@ -459,9 +518,9 @@ def test_the_bead_hangs_from_the_blade_not_from_the_paint_it_has_laid(monkeypatc
     seen = []
     drag = _knife._drag_film
 
-    def spy(run, s, level, hang, film, riding=None):
-        met = drag(run, s, level, hang, film, riding)
-        if met is not None and riding is not None:
+    def spy(run, s, level, hang, film, riding=None, ridges=None):
+        met = drag(run, s, level, hang, film, riding, ridges)
+        if met is not None and met.laid is not None:
             seen.append(
                 (
                     float(np.abs((met.hang - met.level) - (hang - level)).max()),

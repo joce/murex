@@ -611,7 +611,7 @@ def test_paint_shoved_onto_its_own_kind_does_not_tie_with_the_film_over_it():
         noise = 1.0 + rng.uniform(-1, 1, PACKED) * 2.0**-21
         pk = und[0, 0].astype(np.float64) * 0.37 * noise
         t = top.copy()
-        joined.add(bool(eng._join_top_if_alike(t, und, pk, 0, 0)))
+        joined.add(bool(eng._join_top_if_alike(t, und, pk, 0, 0, False)))
     assert joined == {False}
 
 
@@ -654,4 +654,31 @@ def test_paint_shoved_with_a_trace_of_the_film_in_it_joins_the_film():
     top[0, 0] = _pack(Paint.mix((P.YELLOW_OCHRE, 4), (P.BURNT_UMBER, 1)), 0.2)
     und[0, 0] = _pack(P.YELLOW_OCHRE, 2.0)
     pk = und[0, 0].astype(np.float64) * 0.37 + top[0, 0].astype(np.float64) * 1e-3
-    assert eng._join_top_if_alike(top.copy(), und, pk, 0, 0)
+    assert eng._join_top_if_alike(top.copy(), und, pk, 0, 0, False)
+
+
+def test_a_speck_under_wet_paint_does_not_decide_where_shoved_paint_goes():
+    """The flow under a knife leaves a trace of the paint it pushes on
+    under the paint ahead of it, a millionth of a unit; what the blade
+    spills beside it then lands there, the very same paint. A hundredth of
+    that trace of dust of no colour, lying in the pixel beforehand, makes
+    the trace another paint by half a percent: held to rounding (1e-5), it
+    decided whether the shoved paint joined the five units on top or went
+    over them (and, with that, how much of the pixels around their paint
+    covers). For what a blade shoves a trace is the shoved paint as far as
+    the dust it may hold tells, with dust or without."""
+    red = _pack(P.CADMIUM_RED, 1.0)
+    top = np.zeros((1, 1, PACKED), np.float32)
+    top[0, 0] = red * np.float32(5.0)
+    pk = red.astype(np.float64) * 0.04
+    for dust in (0.0, 1e-8, -1e-8):
+        und = np.zeros((1, 1, PACKED), np.float32)
+        und[0, 0] = red * np.float32(2e-6)
+        und[0, 0, eng.IV] += np.float32(dust)
+        assert not eng._join_top_if_alike(top.copy(), und, pk, 0, 0, True), dust
+    # (held to rounding, as what a brush shoves still is, the dust decided)
+    assert not eng._join_top_if_alike(top.copy(), und * 0 + red * 2e-6, pk, 0, 0, False)
+    assert eng._join_top_if_alike(top.copy(), und, pk, 0, 0, False)
+    # (a layer below that is more than a trace is held to rounding)
+    und[0, 0] = _pack(Paint.mix((P.CADMIUM_RED, 200), (P.TITANIUM_WHITE, 1)), 0.5)
+    assert eng._join_top_if_alike(top.copy(), und, pk, 0, 0, True)

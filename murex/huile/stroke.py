@@ -21,6 +21,7 @@ tool is compiled (numba), in :mod:`huile._engine`.
 
 from __future__ import annotations
 
+import itertools
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -45,10 +46,12 @@ from ._geometry import (
 )
 from ._hair import _NICK_WANDER, _NO_TEX, _NO_TEX2, _hair_field
 from ._knife import (
+    _KNIFE_RIDES_ON,
     _STAGE_AREA,
     _before_the_blade,
     _BladeStart,
     _Edge,
+    _flow_subs,
     _kept_band,
     _knife_step,
     _knife_taps,
@@ -91,6 +94,36 @@ _SOFTEN_PASSES = 2
 # width long, no longer than this. (Tests and tools/huile/knife_probe.py
 # set it lower, to see whether what a stroke lays depends on its steps.)
 _MAX_STEP = 8.0
+# How far (px) a knife moves in the step that sets its blade down and in the
+# one that lifts it off (see _Run._parts): next to nothing, and less than
+# the shortest step a stroke is cut into.
+_SET_DOWN = 0.125
+# The longest step (px) of a knife over dried paint with no wet paint on it
+# that would hold the blade up (see _Run._on_dried_relief): the blade rests
+# on the relief itself, and where it rests is read once a step. (In steps
+# of 8 px over dried ridges 12 px apart, a knife skimming at pressure 0.1
+# laid 2.0% more than in steps of half a pixel, and 0.6% more in steps of
+# 4 px: more or less as its steps fell on the ridges.)
+_DRY_STEP = 2.0
+# Dried paint thinner than this everywhere under a step is no relief to
+# take short steps over (paint thickness units; the weave of a canvas,
+# which a knife crosses in long steps, is 0.7 deep: canvas.WEAVE_DEPTH).
+# (The same ridges made thinner, a knife skimming them at pressure 0.1 in
+# steps of 8 px laid more than in steps of half a pixel by 0.18% where they
+# were 0.2 units at their thickest, as over the bare canvas (0.16%); by
+# 0.25% at 0.5 units, 0.45% at 1, 0.8% at 2 and 2.0% at 5.8, as brushed.
+# Any dried paint at all once made the steps short: up to four times the
+# steps over the dust of a dried glaze.)
+_DRY_RELIEF = 0.2
+# The points of a knife's path lie on a grid this fine (px): a millionth of
+# a pixel. A path given a whole number of pixels further on is sampled at
+# points a few units in the last place off, and the steps between them were
+# as far off in length and heading; on the grid they are the same steps, to
+# the bit, wherever the stroke is. (What a blade riding on wet paint does in
+# a step it works out in a dozen sub-steps, each from the difference between
+# the paint's surface and the blade's level: enough arithmetic for those
+# last places to show in a last bit of a pixel or two of the picture.)
+_PATH_GRID = 2.0**-20
 
 
 def _check_profile(name: str, profile, size: bool = False) -> None:
@@ -400,8 +433,10 @@ def apply_stroke(canvas: _Canvas, stroke: Stroke) -> Brush:
     staged = edge if edge.runs else None  # (most strokes: no step is)
     if run.bt.rigid:
         for st, tables in run.steps(staged):
+            subs = _flow_subs(run, st)
             s = run.footprint(st, tables)
             if s is not None:
+                s.subs = subs
                 _knife_step(run, s)
     else:
         y0, y1, x0, x1 = run.bounds()
@@ -692,6 +727,8 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         pressure = np.repeat(pressure, 2)
         angles = np.repeat(angles, 2)
         rolls = np.repeat(rolls, 2)
+    if bt.rigid:
+        pts = _on_grid(pts)
     return _Samples(pts, widths, pressure, angles, rolls, spacing, w_typ, is_dab)
 
 
@@ -782,6 +819,9 @@ class _Segment(NamedTuple):
     Wd: float  # its width
     phi: float  # its long side from the cross direction (radians)
     side: float  # -1 for a brush turned past 90 degrees: its sides swapped
+    first: bool  # the tool is set down in it
+    last: bool  # the tool is lifted off in it
+    arc: float  # how far along the stroke it ends (px)
 
 
 def _sides(phi: float) -> tuple[float, float]:
@@ -815,6 +855,22 @@ class _Window(NamedTuple):
     @property
     def on_canvas(self) -> bool:
         return self.cx0 < self.cx1 and self.cy0 < self.cy1
+
+    @property
+    def ch(self) -> int:
+        """How many rows of the canvas it holds."""
+        return max(self.cy1 - self.cy0, 0)
+
+    @property
+    def cw(self) -> int:
+        """How many columns of the canvas it holds."""
+        return max(self.cx1 - self.cx0, 0)
+
+
+def _on_grid(x):
+    """The nearest point to ``x`` (px; a number or an array) on the grid a
+    knife's path lies on (see _PATH_GRID)."""
+    return np.round(x / _PATH_GRID) * _PATH_GRID
 
 
 def _arc_length(pts: np.ndarray) -> np.ndarray:
@@ -965,6 +1021,17 @@ class _Run:
     one, a stage (see :meth:`paint_on` and _knife._Edge)."""
 
     blade: _BladeStart  # (knives only)
+    # (knives only) how far into a sub-step of the flow under the blade the
+    # stroke is (see _engine.flow_sub_steps), and the stroke's own paint in
+    # earlier strokes' layers, once there is any (see _knife._Mine)
+    flow_phase: float = 0.0
+    mine: Any = None
+    # (knives only) what each column of the blade used in its last step
+    # along the stroke, and how long that step was (see _knife._knife_step)
+    last_use: Any = None
+    # where what the stroke is being painted on begins on its own canvas
+    # (y, x: see paint_on)
+    at: tuple[int, int] = (0, 0)
     # how far from the path the windows of its steps reach
     pad: float = 0.0
     # (brushes only) where on the stroke's own canvas the paint it holds
@@ -1106,6 +1173,7 @@ class _Run:
         where it lies on the canvas. (A knife's ``blade`` is its caller's to
         change with it.)"""
         self.canvas = canvas
+        self.at = (y0, x0)
         self._pts = (
             self._path
             if x0 == 0 and y0 == 0
@@ -1184,10 +1252,11 @@ class _Run:
             seg = self._segment(i)
             if seg is None:
                 continue
-            win = self._window(seg)
-            # (off the canvas, the tool goes on as on a canvas large enough
-            # to hold it: see _engine.off_canvas)
-            yield self._step(seg, win)
+            for part in self._parts(seg):
+                win = self._window(part)
+                # (off the canvas, the tool goes on as on a canvas large
+                # enough to hold it: see _engine.off_canvas)
+                yield self._step(part, win)
 
     def step(self, i: int):
         """Step ``i`` of the stroke, from point i-1 to point i: its scalars (an
@@ -1222,7 +1291,94 @@ class _Run:
         ang = 0.5 * (angles[i] + angles[i - 1])
         phi = ang if self.eff["follow_path"] else ang - math.atan2(tx, -ty)
         side, phi = _sides(phi)
-        return _Segment(i, ax, ay, cx, cy, tx, ty, ds, p, r0, r1, r, 2.0 * r, phi, side)
+        first, last = i == 1, i == len(pts) - 1
+        return _Segment(
+            i, ax, ay, cx, cy, tx, ty, ds, p, r0, r1, r, 2.0 * r, phi, side,
+            first, last, self._arc[i],
+        )  # fmt: skip
+
+    def _parts(self, seg: _Segment) -> tuple[_Segment, ...]:
+        """The steps that step ``seg`` of the stroke is painted in: itself;
+        or, for a knife's first and last, the step that sets the blade down
+        (_SET_DOWN px long), the way between, and the step that lifts it off.
+
+        Setting a loaded blade down lays the paint under all of it at once,
+        a third of what it carries or more, and lifting it off does again:
+        the blade then rides lower, on what is left (see _knife._blade_level).
+        In one step with the way to the next point, that way was laid at the
+        level the blade was set down at, the further the longer the step: a
+        knife loaded with 3 and pulled at pressure 0.25 used 54% of its paint
+        in a first step of 8 px and 39% in one of half a pixel (murex-5gw)."""
+        if not (self.bt.rigid and not self.is_dab):
+            return (seg,)
+        ds = seg.ds
+        e = min(_SET_DOWN, 0.25 * ds)
+        lo, hi = (e if seg.first else 0.0), (ds - e if seg.last else ds)
+        # (over dried paint and nothing wet, the way between in short steps)
+        n = eng.whole_ceil((hi - lo) / _DRY_STEP) if self._on_dried_relief(seg) else 1
+        if n == 1 and not (seg.first or seg.last):
+            return (seg,)
+        cuts = [0.0] if seg.first else []
+        cuts += [lo + (hi - lo) * (j / n) for j in range(n)] + [hi]
+        cuts += [ds] if seg.last else []
+        parts = []
+        for a, b in itertools.pairwise(cuts):
+            # (the blade is set down as wide as the step begins and lifted
+            # off as wide as it ends; the way between takes it from the one
+            # width to the other)
+            r0, r1 = (
+                seg.r0 + (seg.r1 - seg.r0) * ((min(max(c, lo), hi) - lo) / (hi - lo))
+                for c in (a, b)
+            )
+            r = 0.5 * (r0 + r1)
+            parts.append(
+                seg._replace(
+                    ax=seg.ax if a == 0.0 else _on_grid(seg.ax + seg.tx * a),
+                    ay=seg.ay if a == 0.0 else _on_grid(seg.ay + seg.ty * a),
+                    cx=seg.cx if b == ds else _on_grid(seg.ax + seg.tx * b),
+                    cy=seg.cy if b == ds else _on_grid(seg.ay + seg.ty * b),
+                    ds=b - a,
+                    r0=r0,
+                    r1=r1,
+                    r=r,
+                    Wd=2.0 * r,
+                    first=seg.first and a == 0.0,
+                    last=seg.last and b == ds,
+                    arc=seg.arc - (ds - b),
+                )
+            )
+        return tuple(parts)
+
+    def _on_dried_relief(self, seg: _Segment) -> bool:
+        """Whether step ``seg`` of a knife goes over dried paint with no wet
+        paint of earlier strokes anywhere under it that would hold the
+        blade up (_knife._KNIFE_RIDES_ON: what _knife._blade_rest asks of
+        the paint under the blade, asked here of all the step goes over):
+        the blade then rests on the dried relief itself, which it follows
+        as it goes, and the step is cut into short ones (_DRY_STEP). (Where
+        it rides on wet paint, the flow under it reads where it rests every
+        sub-step.)
+
+        (Any wet paint at all there once kept the steps long: over dried
+        ridges with a speck of wet paint 0.02 units thick every 9 px, too
+        thin to ride on, a knife skimming at pressure 0.1 laid 2.0% more at
+        a stroke's own steps than in steps of half a pixel, as if nothing
+        had been done for it; 0.2% without the specks, and now with them.)"""
+        win = self._window(seg)
+        if not win.on_canvas:
+            return False
+        canvas = self.canvas
+        box = (slice(win.cy0, win.cy1), slice(win.cx0, win.cx1))
+        if not (canvas.dry_height[box] > _DRY_RELIEF).any():
+            return False
+        earlier = canvas.top_id[box] != self.stroke_id
+        top = np.where(earlier, canvas.top[box][..., IV], np.float32(0.0))
+        if self.mine is not None:
+            # (the stroke's own paint in an earlier stroke's top layer is
+            # none of theirs: see _knife._Mine)
+            top = np.maximum(top - self.mine.over(self, win), np.float32(0.0))
+        wet = (canvas.und[box][..., IV] + top).astype(np.float64)
+        return not (wet > _KNIFE_RIDES_ON).any()
 
     def _window(self, seg: _Segment) -> _Window:
         """The window around the swept segment, and its part on the canvas."""
@@ -1253,7 +1409,6 @@ class _Run:
         # strokes would run long).
         span = 1.0 / max(r * across, 1e-6)
         span_cols = span * COLUMNS * (0.25 if self.brush.ring else 0.5)
-        n = len(self._pts)
         lift_len, lift_amp = (
             self._lift(i, p, Wd, seg.ds)
             if self.lift_reach > 0 and self._arc[i] >= self._lift_from
@@ -1277,15 +1432,15 @@ class _Run:
             ),
             motion=eng.Motion(
                 i=i,
-                first=i == 1,
-                last=i == n - 1,
-                touchdown=i == 1 or self.is_dab,
+                first=seg.first,
+                last=seg.last,
+                touchdown=seg.first or self.is_dab,
                 cx=seg.cx,
                 cy=seg.cy,
                 tx=seg.tx,
                 ty=seg.ty,
                 ds=seg.ds,
-                arc_i=self._arc[i],
+                arc_i=seg.arc,
                 lip=self._lip[i],
             ),
             hold=eng.Hold(

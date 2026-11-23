@@ -140,23 +140,27 @@ def test_old_paint_dragged_in_goes_under_the_blades_own_film():
 
 
 def test_the_flow_tells_the_gap_the_blade_met_under_it():
-    """The flow returns the gap the blade's film could fill over each pixel
-    while the blade was over it (below 0 where it never was; nothing at all
-    if the blade touches no wet paint), and the surface as its bead found
-    it. A blade 0.1 above a flat bed: behind it, where it has drawn paint
-    away, the surface lies deeper than its bead reaches (the film on it,
-    0.17), and is taken to lie that far down; ahead, the paint it pushes
-    stands against it, and leaves no gap."""
+    """The flow returns the gap under the blade over each pixel while the
+    blade was over it, all of it (how much of it the film fills is the
+    slab's to say, part by part: _engine.filled_gap), below 0 where the
+    blade never was (nothing at all if it touches no wet paint), and the
+    surface as its bead found it. A blade 0.1 above a flat bed: behind it,
+    where it has drawn paint away, the surface lies deeper than its bead
+    reaches (the film on it, 0.17), and the bead finds it that far down;
+    ahead, the paint it pushes stands against it, and leaves no gap."""
     level = BED + 0.1
     gaps = _sweep(_bed(slice(0, 0)), level)
     assert gaps.shape == (H, W, 2)
-    fill, bead = gaps[H // 2, :, 0], level - gaps[H // 2, :, 1]
+    gap, bead = gaps[H // 2, :, 0], level - gaps[H // 2, :, 1]
     # (the blade went from over columns 41..63 to over 49..71)
     assert (gaps[:, :41, 0] == -1.0).all() and (gaps[:, 72:, 0] == -1.0).all()
-    assert (fill[42:71] >= 0).all() and (fill[42:71] <= bead[42:71] + 1e-12).all()
+    assert (bead[42:71] >= 0).all() and (bead[42:71] <= gap[42:71] + 1e-12).all()
+    # (behind: a gap deeper than the bead reaches)
+    assert gap[42:46].min() > FILM + 0.01
     np.testing.assert_allclose(bead[42:46], FILM, atol=1e-6)
-    assert fill[48:60].min() > 0.03 and fill[48:60].max() < 0.13
-    assert fill[66:71].max() == 0.0 and np.abs(bead[66:71]).max() < 1e-12
+    assert gap[48:60].min() > 0.09 and gap[48:60].max() < 0.3
+    np.testing.assert_allclose(bead[55:60], gap[55:60], atol=1e-12)
+    assert gap[66:71].max() == 0.0 and np.abs(bead[66:71]).max() < 1e-12
     # (the blade far above the paint: it touches none, and tells nothing)
     assert _sweep(_bed(slice(0, 0)), BED + 2.0).shape == (0, 0, 2)
 

@@ -42,8 +42,9 @@ def _base():
 # row of pixels (at half a pixel, or at 45 degrees between whole-number
 # points), a curve with a segment a whole even number of pixels long, a
 # knife riding on wet paint in steps a whole number of the flow's sub-steps
-# long (7 px along x, ten sub-steps of _engine.RIDE_CFL: the ratio comes
-# out at 10.000000000000012, see the test of it below).
+# long (7 px along x, ten sub-steps of _engine.RIDE_CFL: the stroke comes
+# to the end of each within 2e-13 of a whole number of sub-steps, see the
+# test of it below).
 MARKS = {
     "flat along a half-pixel axis": (
         [(20.0, 40.5), (140.0, 40.5)],
@@ -161,31 +162,73 @@ def test_a_mark_nudged_by_an_ulp_paints_the_same_to_rounding(name):
         assert _scaled_difference(plain, nudged) < 1e-3, seed
 
 
-def test_the_knife_in_steps_of_ten_sub_steps_sits_on_the_line(monkeypatch, by_name):
-    """The flow under a blade riding on wet paint takes as many sub-steps as
-    the step is long in sub-steps of _engine.RIDE_CFL, rounded up
-    (whole_ceil). That mark's steps are a whole number of them long in
-    exact arithmetic, and that or a hair more as computed (10 or
-    10.000000000000012): counted with a plain ceil, a step took 11
-    sub-steps or 10 as its inputs fell, and the paint it dragged and laid
-    went with them."""
+def test_the_knife_in_steps_of_ten_sub_steps_sits_on_the_line(monkeypatch):
+    """The sub-steps of the flow under a blade are laid along the stroke,
+    one every _engine.RIDE_CFL px of the paint's way, and a step takes those
+    that fall in it (_engine.flow_sub_steps). That mark's steps end a whole
+    number of sub-steps along the stroke in exact arithmetic (its first and
+    last, cut for the blade to be set down and lifted off, see
+    stroke._SET_DOWN, a seventh of one more or less), and that or a hair
+    off as computed (10.000000000000092, where the hair adds up along the
+    stroke): the sub-step at the end of each is counted in it, to the same
+    count however the inputs fall (whole_floor), and the stroke is then at
+    the start of a sub-step, not a hair before its end."""
     from murex.huile import _engine as eng
 
-    ratios = []
-    flow = eng.flow_under_riding_blade
+    def steps(rng):
+        seen = []
+        sub_steps = eng.flow_sub_steps
 
-    def spy(*args):
-        given = by_name(flow, args)
-        way = abs(given["tx"]) + abs(given["ty"])
-        ratios.append(given["ds"] * way / eng.RIDE_CFL)
-        return flow(*args)
+        def spy(phase, ds, tx, ty):
+            out = sub_steps(phase, ds, tx, ty)
+            reach = phase + ds * (abs(tx) + abs(ty)) / eng.RIDE_CFL
+            seen.append((reach, *out))
+            return out
 
-    monkeypatch.setattr(eng, "flow_under_riding_blade", spy)
-    _paint("knife in steps of ten sub-steps")
-    assert len(ratios) >= 8  # (the steps in which the blade rides on the paint)
-    assert all(abs(r - 10.0) < 1e-12 for r in ratios), ratios
-    assert {eng.whole_ceil(r) for r in ratios} == {10}
-    assert 11 in {int(np.ceil(r)) for r in ratios}  # (a hair over, some of them)
+        monkeypatch.setattr(eng, "flow_sub_steps", spy)
+        _paint("knife in steps of ten sub-steps", rng)
+        monkeypatch.setattr(eng, "flow_sub_steps", sub_steps)
+        return seen
+
+    plain = steps(None)
+    counts = [n for _reach, n, _first, _phase in plain]
+    assert counts == [0, *([10] * (len(counts) - 3)), 9, 1] and len(counts) >= 10
+    whole = [(reach, phase) for reach, n, _first, phase in plain if n in (10, 1)]
+    assert all(abs(reach - round(reach)) < 2e-13 for reach, _ in whole), whole
+    assert any(reach != round(reach) for reach, _ in whole)  # (a hair off, some)
+    assert all(phase < 2e-13 for _, phase in whole)
+    for seed in range(3):
+        nudged = steps(np.random.default_rng(seed))
+        assert [n for _reach, n, _first, _phase in nudged] == counts, seed
+
+
+def test_a_step_takes_the_sub_steps_that_fall_in_it():
+    """A stroke along x cut into steps of any lengths takes the same
+    sub-steps of the flow, at the same places along it: one every
+    RIDE_CFL px. A step that ends within rounding of a sub-step takes it,
+    whether it ends a hair before it or after."""
+    from murex.huile import _engine as eng
+
+    def places(steps):
+        at, phase, found = 0.0, 0.0, []
+        for ds in steps:
+            n, first, phase = eng.flow_sub_steps(phase, ds, 1.0, 0.0)
+            found += [at + first + k * eng.RIDE_CFL for k in range(n)]
+            at += ds
+        return np.array(found), phase
+
+    want = eng.RIDE_CFL * np.arange(1, 81)
+    rng = np.random.default_rng(3)
+    for steps in ([8.0] * 7, [1.0] * 56, [0.5] * 112, rng.uniform(0.1, 3.0, 400)):
+        steps = np.asarray(steps)[np.cumsum(steps) <= 56.0]
+        found, phase = places(steps)
+        np.testing.assert_allclose(found, want[: len(found)], rtol=0, atol=1e-9)
+        assert len(found) == int((steps.sum() + 1e-9) / eng.RIDE_CFL)
+        assert 0.0 <= phase < 1.0
+    # (a step that ends a hair before a sub-step, or after: it takes it)
+    for hair in (-1e-13, 0.0, 1e-13):
+        n, _first, phase = eng.flow_sub_steps(0.0, 3 * eng.RIDE_CFL + hair, 1.0, 0.0)
+        assert n == 3 and phase < 1e-12
 
 
 def test_the_engine_is_compiled_with_the_slack_the_shared_modules_use():

@@ -73,7 +73,8 @@ ones; a heavily loaded knife skimming over two wet layers, the upper one of
 its own paint, which lays up to a quarter less in short steps (it comes to
 rest on its own fresh paint, which the earlier layer has taken in); and a
 pull down a slant of 45 degrees at a middling pressure, which wavers twice
-as much in its own steps as in short ones.
+as much in its own steps as in short ones. (Put right since: a knife's stroke at
+every cut, below.)
 
 Not fixed, and in some cases more dependent on the step than it was: a knife
 partly past the edge of the canvas over wet paint. The paint it drags flows
@@ -114,7 +115,8 @@ as before, to the bit.
 Still as it was: what a blade carries to the end of its pull it leaves
 there (and more of it gets there), and a heap gathered from a narrow ridge
 stays narrow (the paint under a blade moves along the pull, not along the
-blade).
+blade). (The heap is the same at every cut since: a knife's stroke at
+every cut, below.)
 
 ## Breaking, in oil paintings: the canvas goes on past its edge
 
@@ -195,6 +197,86 @@ work further out than that, one after another, do not find what the
 earlier ones left there: over a ground brushed 250 px over the edge, two
 knife pulls onto the canvas from 300 px out at pressure 0.9 bring on 9,682
 and 5,126 units where larger canvases get 11,820 and 10,045.
+
+## Breaking, in oil paintings: a knife's stroke is the same stroke however it is cut
+
+A stroke is painted in steps, a quarter of the tool's width long and 8 px at
+most. What a knife did still depended on them in four ways, which had one
+cause: a step read once something that changes while it lasts. A heavily
+loaded knife carried wet paint 7 to 15% further in its own steps than in
+short ones, and laid a slab up to 18% thinner on the bare canvas; a loaded
+knife skimming over wet paint of its own colour laid up to a third more; a
+pull down a slant rippled the surface more; what a blade left beside its
+mark was up to 44% less; and over dried ridges a skimming knife laid 2 to
+4% more or less as its steps fell on them.
+
+Now the same pull of a blade in its own steps and in steps of 4, 2, 1 and
+half a pixel carries the wet paint as far and lays as much within 1% as a
+rule: loaded and clean knives, skimming to pressed hard, 60 to 160 px wide,
+over knifed and brushed wet paint, dried paint and the bare canvas, lifted
+off or not (2 to 4% for a blade pulled along its own length, or leaving
+over the edge of the canvas; the furthest found: 10% for a 160 px blade
+leaving over the edge, where it was 33%, and 13% for a blade over thin
+paint that covers the canvas in patches, where it was up to 34%). The
+blade is set down in a step of its own
+before it moves, and lifted off in another; under a blade that rides on wet
+paint, its level, what it spills at its ends, what it drags and what it
+lays are worked out every 0.7 px of the paint's way, wherever the stroke is
+cut; a stroke knows its own paint from an earlier stroke's where the two
+have joined; and over dried paint with no wet paint on it thick enough
+to hold the blade up, a knife's steps are 2 px at most. Combs are not
+covered: what a comb's teeth carry depends on the cut as before.
+
+Two things a blade does are new:
+
+- **It comes to glide on its own fresh paint little by little,** between
+  0.15 and 0.45 units of it, where it switched at 0.3.
+- **What it spills past its ends is the paint that lay there,** not the
+  top layer, which under a loaded blade is the blade's own fresh film (85
+  to 89% of what such a blade spilt was its own white). The model says
+  the lips are paint that was lying there; it does not force the order,
+  and this is one reading of it. For a blade square to its way it changes
+  little (what it moves of the paint under it: up to 4% more; what a
+  loaded blade at a light pressure leaves beside its mark: 19 to 31%
+  more). For a loaded blade pulled along its own length, where every
+  pixel under it is near an end, it is most of what the pull does, and
+  how much hangs on the ground: it moves 16% more of the paint under it
+  over knifed paint, about half as much again over thick brushed paint,
+  80% more over wet paint on dried ridges and twice as much over thin
+  paint in patches, and carries it from 4% less far to twice as far (13%
+  further over knifed paint, 37 to 46% over brushed).
+
+Otherwise knife work is what it was in short steps: over brushed paint a
+clean blade square to its way carries and moves what it did within 1%, and
+a loaded one carries as far within 2% as a rule. (A clean scraper pulled
+along its own length carries a quarter less far than it did in short
+steps, and 8% less far than it did at a stroke's own steps.)
+
+What a blade carries to the end of its pull it still leaves where it
+stops, as a knife stopped under pressure does: but the heap no longer
+depends on how the stroke is cut. Where loaded pulls across the ridges of
+earlier ones stop, its tallest point stood 10.8, 8.2 and 5.7 units above
+the paint around it in steps of 8, 2 and 1 px with the same textures; it
+now stands 6.8, 6.7 and 6.6. (With each stroke's own textures, at a
+stroke's own steps: 7.7 where it was 6.0.) And the surface behind a blade
+pulled down a slant ripples the same at every cut, by what sub-steps of
+0.7 px give: at a stroke's own steps a sixth to a quarter more than it
+did, in short steps four times as much; halving the sub-steps would
+smooth it further, and cost 30% more time on knife work. Brush strokes
+are painted as before, to the bit: of the benchmark's 16 scenes the 12
+without a knife are unchanged. Knife strokes take about as long as they
+did: no difference could be measured on the benchmark's knife scenes
+within the machine's noise (7%), except perhaps a few percent more where
+strokes run over the edge of the canvas. The exception is a knife over
+dried paint with no wet paint on it to ride on: its steps are 2 px at
+most there, and such a pull takes about two and a half times as long
+loaded or skimming, and up to 1.6 times clean.
+
+A knife's stroke is also the same stroke, to the bit, wherever on the
+canvas it is painted: its path is taken on a grid of a millionth of a
+pixel. And it no longer hangs on a last bit of its path in the one way that
+was traced: a stroke whose end moved by a million-millionth of a pixel had
+changed over thousands of pixels.
 
 ## Breaking: NumPy 2 is required
 

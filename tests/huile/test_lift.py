@@ -110,7 +110,10 @@ def test_a_multi_colour_knife_lifted_off_keeps_every_pigment(name):
 
 def _spread(paint, whole):
     """The mean distance (by volume) of what is in a unit of each of
-    ``paint`` (m, PACKED) from ``whole``, relative to it."""
+    ``paint`` (m, PACKED) from ``whole``, relative to it. (A speck too small
+    for its volume to change in single precision counts for nothing, and is
+    left out: it has no unit.)"""
+    paint = paint[paint[:, IV] > 0]
     unit = paint[:, :N] / paint[:, IV : IV + 1]
     dist = np.abs(unit - whole).sum(axis=1) / np.abs(whole).sum()
     return float((dist * paint[:, IV]).sum() / paint[:, IV].sum())
@@ -166,8 +169,10 @@ def _locality(calls):
     num = den = 0.0
     for before, after, fac in calls:
         b64, a64 = before.astype(np.float64), after.astype(np.float64)
-        rise = (fac > 1.0) & (b64[..., IV] > 0)
-        fall = (fac < 1.0) & (b64[..., IV] > 0)
+        # (a factor within PULL_STILL of 1 leaves its pixel alone: no pixel
+        # that rises or falls, see _engine.pull_up)
+        rise = (fac > 1.0 + eng.PULL_STILL) & (b64[..., IV] > 0)
+        fall = (fac < 1.0 - eng.PULL_STILL) & (b64[..., IV] > 0)
         took = a64[rise] - b64[rise]
         gave = b64[fall] - a64[fall]
         whole = gave.sum(axis=0)
