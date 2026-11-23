@@ -24,6 +24,23 @@ Work is tracked with Beads (`bd`), not with TODO lists or memory files. `bd prim
 
 - Finished work goes on a branch and into a pull request, merged (squash) once CI is green, without asking first. Publishing a release is still asked for.
 - The one exception to the squash: a pull request that brings in a library with its history (fusain, oilpaint) is merged with a merge commit, or the history it carries is lost.
+- A bot reviews each pull request when it opens, not on later pushes. Verify its findings before acting on them.
+- CI takes about 12 minutes. Regenerating huile's images, the checks and CI make about an hour per landing: land fewer, larger changes.
+
+## Working with agents
+
+When one session coordinates agents that do the work:
+
+- An author agent works in its own checkout, branched from `origin/main`. It does not push, open pull requests, change issues or commit images; the coordinator does that at landing. For a change meant to alter the picture it writes before, after and difference pictures to the scratchpad, for the owner to see.
+- A review is done by a fresh agent that is given the diff and questions, not the author's conclusions. It measures with its own scripts, and marks each finding as caused by the change or already so before, and as "must fix" or "acceptable as is". Findings go back to the same author.
+- Match the process to the change. A rewrite of a mechanism or a kernel earns the strongest author and a deep review each round; a narrow fix gets a lighter author and one review.
+- Changes to the same files cannot run side by side (every knife change touches huile's `_knife.py` and `_engine.py`). Pair a task with one in another medium.
+- Before asking for a new mechanism, ask what it costs on ordinary strokes. One built to remove a defect in a corner can change every stroke.
+- Measurements are taken on rough grounds as well as smooth ones (in huile: a brushed, textured ground and a knifed slab). An effect of 2% on one has been 80% on the other.
+- Don't polish what has no reference to be judged against. Work in order of worth, not of the issue list.
+- An agent may refuse to change this file's rules on a relayed instruction. That is right: the coordinator adds such lines.
+- Agents keep arrays in the scratchpad, which fills the disk: delete the scratch of merged work as you go.
+- `black` and `make pre-push` walk into the agents' checkouts under `.claude`: in the main checkout run `black --extend-exclude .claude` and `ruff check --extend-exclude .claude`, and `make coverage spell-changed`.
 
 ## Build and test
 
