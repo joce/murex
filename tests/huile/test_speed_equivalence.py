@@ -131,13 +131,30 @@ def test_blade_slab_ends_excess_and_folds_match_numpy():
     # a part of the canvas: rows 6.., columns 4..
     sl = (slice(6, 36), slice(4, 38))
     surf = floor[sl] + top[..., IV][sl] + und[..., IV][sl]
+
+    def filled(gap):
+        """_engine.filled_gap: of a gap the film reaches all of, the step's
+        share, as it always was; of a deeper one, part by part (returns
+        that, and which gaps are of the first kind)."""
+        gap = np.clip(gap, 0.0, None)
+        reach = np.maximum(film, 1e-9)
+        part = -np.expm1(np.log1p(-fill) / eng.FILL_PARTS)
+        laid = np.zeros_like(gap)
+        for _ in range(eng.FILL_PARTS):
+            left = gap - laid
+            t = np.clip((left / reach - 1.3) / (0.7 - 1.3), 0.0, 1.0)
+            laid += part * left * (t * t * (3.0 - 2.0 * t))
+        within = gap <= 0.7 * reach
+        return np.where(within, gap * fill, laid), within
+
+    none = (np.zeros((0, 0, 2)), np.zeros((0, 0)))
+    want, within = filled(level - surf)
+    got, s = eng.blade_slab(top, und, floor, 6, 4, level, film, fill, *none)
+    assert within.sum() > 100 and (~within).sum() > 100
+    # (as it was, to the bit, where the film reaches all of the gap)
     gap_px = np.clip(level - surf, 0.0, None)
-    t = np.clip((gap_px / np.maximum(film, 1e-9) - 1.3) / (0.7 - 1.3), 0.0, 1.0)
-    want = gap_px * (t * t * (3.0 - 2.0 * t)) * fill
-    got, s = eng.blade_slab(
-        top, und, floor, 6, 4, level, film, fill, np.zeros((0, 0, 2))
-    )
-    assert got.tobytes() == want.tobytes()
+    assert got[within].tobytes() == (gap_px * fill)[within].tobytes()
+    np.testing.assert_allclose(got, want, rtol=1e-12, atol=1e-300)
     assert s.tobytes() == np.asarray(surf, np.float64).tobytes()
     # where the blade met the gap as it dragged the paint under it along
     # (see _engine.flow_under_blade), it fills that one, and the surface
@@ -145,10 +162,23 @@ def test_blade_slab_ends_excess_and_folds_match_numpy():
     gaps = rng.uniform(0.0, 2.0, (30, 34, 2))
     gaps[rng.random((30, 34)) < 0.4, 0] = -1.0
     met = gaps[..., 0] >= 0
-    got_met, s_met = eng.blade_slab(top, und, floor, 6, 4, level, film, fill, gaps)
+    got_met, s_met = eng.blade_slab(
+        top, und, floor, 6, 4, level, film, fill, gaps, none[1]
+    )
     assert met.any() and not met.all()
-    assert got_met.tobytes() == np.where(met, gaps[..., 0] * fill, want).tobytes()
+    want_met = np.where(met, filled(gaps[..., 0])[0], want)
+    np.testing.assert_allclose(got_met, want_met, rtol=1e-12, atol=1e-300)
     assert s_met.tobytes() == np.where(met, gaps[..., 1], s).tobytes()
+    # where it rode on wet paint (see _engine.flow_under_riding_blade), what
+    # it laid as it went; elsewhere (below 0), as above
+    laid = rng.uniform(0.0, 2.0, (30, 34))
+    laid[rng.random((30, 34)) < 0.4] = -1.0
+    got_laid, s_laid = eng.blade_slab(
+        top, und, floor, 6, 4, level, film, fill, none[0], laid
+    )
+    assert got_laid[laid >= 0].tobytes() == laid[laid >= 0].tobytes()
+    assert got_laid[laid < 0].tobytes() == got[laid < 0].tobytes()
+    assert s_laid.tobytes() == s.tobytes()
     ride = rng.uniform(0.0, 3.0, (30, 34))
 
     def ss(e0, e1, x):
@@ -244,8 +274,10 @@ def test_a_brush_footprint_is_the_same_where_it_is_read():
 
 
 # --- a knife's blade, as it was worked out before the stages were compiled
-# (verbatim from the base, ac672aa: _knife._along_blade, _blade_rest and
-# _blade_level; ``s.ucoord`` read as the F_U plane, the film passed in)
+# (from the base, ac672aa: _knife._along_blade, _blade_rest and
+# _blade_level; ``s.ucoord`` read as the F_U plane, the film passed in; and,
+# since, the stroke's own paint in an earlier stroke's top layer left out of
+# what the blade rests on: see _knife._Mine)
 
 
 def _along_blade_ref(lat, under, values, span):
@@ -262,7 +294,7 @@ def _along_blade_ref(lat, under, values, span):
 
 def _blade_rest_ref(run, s):
     from murex.huile._engine import IB
-    from murex.huile._knife import _KNIFE_SINK
+    from murex.huile._knife import _KNIFE_SINK, _mine
 
     canvas, bt, st = run.canvas, run.bt, s.st
     p, sl, wsl = st.hold.p, s.sl, s.wsl
@@ -270,10 +302,18 @@ def _blade_rest_ref(run, s):
     fine, wide = run.relief.peaks_fine[sl], run.relief.peaks_wide[sl]
     rest = fine + run.stiff_blade * (wide - fine)
     earlier = canvas.top_id[sl] != run.stroke_id
-    old_v = und[..., IV] + np.where(earlier, top[..., IV], 0.0)
+    held, held_ib = top[..., IV], top[..., IB]
+    mine = _mine(run, s)
+    if mine.size:
+        theirs = np.where(mine > 0, np.maximum(held - mine, np.float32(0.0)), held)
+        share = np.where(
+            (mine > 0) & (held > 0), theirs / np.where(held > 0, held, 1), 1
+        )
+        held, held_ib = theirs, (held_ib * share.astype(np.float32))
+    old_v = und[..., IV] + np.where(earlier, held, 0.0)
     if old_v.max() > 0.05:
         old_body = float(
-            (und[..., IB].sum() + np.where(earlier, top[..., IB], 0.0).sum())
+            (und[..., IB].sum() + np.where(earlier, held_ib, 0.0).sum())
             / max(float(old_v.sum()), 1e-9)
         )
         depth = float(
@@ -332,7 +372,7 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
     from murex.huile import _knife as kn
     from murex.huile import palette as P
 
-    checked = {"on": 0, "stage": 0, "wide": 0, "hang": 0}
+    checked = {"on": 0, "stage": 0, "wide": 0, "hang": 0, "mine": 0}
     original = kn._knife_step
 
     def same(got, want):
@@ -352,6 +392,7 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
         checked["stage"] += isinstance(run.canvas, kn._Stage)
         checked["hang"] += hang.tobytes() != level.tobytes()
         checked["wide"] += st.win.cw > 128
+        checked["mine"] += bool(kn._mine(run, s).any())
         original(run, s)
 
     monkeypatch.setattr(stm, "_knife_step", check)
@@ -376,6 +417,7 @@ def test_a_knife_rests_and_rides_as_it_did(monkeypatch):
         wide.stroke([(200, y - 40), (205, y + 30)], brush=blade, pressure=0.6)
     assert checked["on"] > 100 and checked["stage"] > 50 and checked["wide"] > 3
     assert checked["hang"] > 10  # (skimming, with more paint than a bead)
+    assert checked["mine"] > 10  # (its own paint in an earlier stroke's layer)
 
 
 def test_a_strided_sum_is_not_that_of_its_copy():

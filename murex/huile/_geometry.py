@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import functools
 import math
+from typing import Any
 
 import numpy as np
 
@@ -151,6 +152,9 @@ class _Step:
 
     sl: tuple[slice, slice]
     wsl: tuple[slice, slice]
+    subs: Any
+    fill: Any
+    mine: Any
 
     along = _plane(eng.F_ALONG, "position along the motion (px)")
     lat_px = _plane(eng.F_LAT, "position across the motion (px)")
@@ -170,3 +174,10 @@ class _Step:
     def __init__(self, st, F, tables, taps):
         self.st, self.F, self.tables, self.taps = st, F, tables, taps
         self.sl, self.wsl = _step_slices(st)
+        # (a knife's: the sub-steps of the flow under its blade that fall in
+        # the step, the share of the gap under it that the step fills, and
+        # the stroke's own paint in earlier strokes' layers over the step's
+        # part of the canvas; see _knife._flow_subs, _fill_share and _mine)
+        self.subs = None
+        self.fill = None
+        self.mine = None

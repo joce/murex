@@ -127,12 +127,13 @@ def _old_paint(cv):
 
 def _pushed(cv, level, ds, riding, travel=120.0):
     """A blade over every row, at ``level`` over the canvas, pushed
-    ``travel`` px along +x in steps of ``ds`` from column 40 (riding on the
-    paint, see _engine.flow_under_riding_blade, or at that level
-    throughout). Returns where its middle stops."""
+    ``travel`` px along +x in steps of ``ds`` from column 40 (``riding`` on
+    the paint, see _engine.flow_under_riding_blade and the ``riding_flow``
+    fixture, or, None, at that level throughout). Returns where its middle
+    stops."""
     full = np.ones((H, W))
     before = np.full((H, W), BED, np.float32)  # (as the bed lay)
-    end = 40.0
+    end, phase = 40.0, 0.0
     for _ in range(round(travel / ds)):
         end += ds
         along = np.tile(np.arange(W) + 0.5 - end, (H, 1))
@@ -141,7 +142,7 @@ def _pushed(cv, level, ds, riding, travel=120.0):
             0.0 * full, HALF * full, ds, 1.0, 0.0, 0.6 * full, 3, 0.17 * full,
             level * full, 0.17 * full, before,
         )  # fmt: skip
-        if riding:
+        if riding is not None:
             # (it rests 0.27 of the way into the paint: on the flat bed,
             # that leaves it at ``level``)
             ride = eng.Riding(
@@ -151,14 +152,16 @@ def _pushed(cv, level, ds, riding, travel=120.0):
                 depth=0.27,
                 span=3,
             )
-            eng.flow_under_riding_blade(*args, ride)
+            phase = riding(args, ride, phase)[-1]
         else:
             eng.flow_under_blade(*args)
     return end
 
 
 @pytest.mark.parametrize("riding", [False, True])
-def test_a_heap_pushed_under_the_blades_own_film_goes_on_with_the_blade(riding):
+def test_a_heap_pushed_under_the_blades_own_film_goes_on_with_the_blade(
+    riding, riding_flow
+):
     """A blade pushing a ridge of 12 units of paint (a row) along 2.4 units
     of wet paint comes to where its own film lies on that paint, half a
     unit thick and up to the blade.
@@ -180,7 +183,7 @@ def test_a_heap_pushed_under_the_blades_own_film_goes_on_with_the_blade(riding):
         cv = _bed(film=0.5)
         total = (cv.top.astype(np.float64) + cv.und).sum(axis=(0, 1))
         film = cv.top[:, FILM_FROM:].copy()
-        end = _pushed(cv, BED + 0.5, ds, riding)
+        end = _pushed(cv, BED + 0.5, ds, riding_flow if riding else None)
         old = _old_paint(cv)
         behind = x < end - HALF - 1.0
         assert old[behind].max() < BED + 2.0, (ds, old[behind].max())
@@ -199,7 +202,9 @@ def test_a_heap_pushed_under_the_blades_own_film_goes_on_with_the_blade(riding):
 
 
 @pytest.mark.parametrize("riding", [False, True])
-def test_paint_lying_as_it_lay_under_the_strokes_own_paint_is_left_alone(riding):
+def test_paint_lying_as_it_lay_under_the_strokes_own_paint_is_left_alone(
+    riding, riding_flow
+):
     """The blade glides on its own fresh paint: where 3 units of it stand
     on the bed, 2.5 above the blade (as a bead does at the blade's ends),
     the paint under them, which lies as it lay before the stroke and under
@@ -209,8 +214,41 @@ def test_paint_lying_as_it_lay_under_the_strokes_own_paint_is_left_alone(riding)
     further, where this carries it 1% further than before.)"""
     cv = _bed(film=3.0, bump=0.0, film_from=0)
     top, und = cv.top.copy(), cv.und.copy()
-    _pushed(cv, BED + 0.5, 8.0, riding, travel=96.0)
+    _pushed(cv, BED + 0.5, 8.0, riding_flow if riding else None, travel=96.0)
     assert cv.top.tobytes() == top.tobytes() and cv.und.tobytes() == und.tobytes()
+
+
+def _carried_under_a_film(film, lift, riding):
+    """How far a blade ``lift`` above a flat bed, pushed 64 px in steps of 8
+    px, carries the bed's paint (volume times distance, a row) from under a
+    ``film`` of the stroke's own paint lying all over it."""
+    cv = _bed(film=film, bump=0.0, film_from=0)
+    _pushed(cv, BED + lift, 8.0, riding, travel=64.0)
+    return float(((_old_paint(cv) - BED) * (np.arange(W) + 0.5)).sum())
+
+
+@pytest.mark.parametrize("riding", [False, True])
+@pytest.mark.parametrize("lift", [0.5, 0.2])
+def test_a_blade_comes_to_glide_on_its_own_film_little_by_little(
+    lift, riding, riding_flow
+):
+    """A blade drags the paint under a thin film of its own as if the film
+    were not there, and glides on a thick one: from a film 0.15 thick to
+    one 0.45 thick it drags less and less, a hundredth of a unit more film
+    taking no more than a tenth of the drag away. (It dragged all of it
+    under a film of 0.29 and none of it under 0.30: murex-dl9. So two
+    places where the film a knife had laid differed by a hundredth of a
+    unit were dragged quite differently by its next pass.)"""
+    flow = riding_flow if riding else None
+    films = np.arange(0.10, 0.505, 0.01)
+    carried = np.array([_carried_under_a_film(f, lift, flow) for f in films])
+    bare = _carried_under_a_film(0.0, lift, flow)
+    assert bare > 100.0
+    assert carried[0] == pytest.approx(bare, rel=1e-6)  # (0.10: as with none)
+    assert abs(carried[-1]) < 1e-4 * bare  # (0.50: it glides)
+    steps = np.diff(carried)
+    assert (steps <= 1e-9 * bare).all()
+    assert -steps.min() < 0.1 * bare, steps.min() / bare
 
 
 # --- loaded pulls, each along the end ridge of the one before -----------------------
@@ -255,6 +293,52 @@ def test_a_pull_along_a_ridge_drops_no_lump_in_shorter_steps_either(
     same_textures()
     alone = probe.standing_alone(_ground(step))
     assert alone.max() < 3.5, (step, alone.max())
+
+
+def _crossed(step=None):
+    """A ground of loaded dark pulls side by side, 500 by 400 px, and three
+    pulls of a knife loaded with 5 of white across them, each stopped on
+    the canvas; the strokes cut into steps of ``step`` px at most (a
+    stroke's: 8). Returns how thick the wet paint lies."""
+    longest = stm._MAX_STEP
+    stm._MAX_STEP = longest if step is None else step
+    try:
+        c = Canvas(500, 400, seed=1)
+        dark = Paint(probe.DARK, body=0.7)
+        blade = {"follow_path": False, "pressure": 0.7, "lift": 0.0}
+        for x in range(10, 500, 120):
+            knife = Brush(probe.BASE_KNIFE).load(dark, 5.0)
+            c.stroke([(x, 10), (x, 390)], None, brush=knife, angle=0, **blade)
+        for y in (80, 200, 320):
+            knife = Brush(probe.BASE_KNIFE).load(P.TITANIUM_WHITE, 5.0)
+            c.stroke([(450, y), (50, y)], None, brush=knife, angle=90, **blade)
+    finally:
+        stm._MAX_STEP = longest
+    return c.wet_thickness.astype(np.float64)
+
+
+def test_the_heap_where_a_loaded_pull_stops_does_not_hang_on_its_steps(same_textures):
+    """Loaded pulls across the ridges of earlier ones gather each ridge
+    into a heap and leave it where they stop, as a knife stopped under
+    pressure does (easing the pressure makes it thinner; neither that nor
+    ``lift`` lays it off). The heap is the same however the strokes are
+    cut: with the same textures, in steps of 8 and of 2 px, the tallest
+    point stands 6.8 and 6.7 units above all that lies on a ring 8 px
+    around it, and 37 and 36 pixels more than 3 (6.6 and 6.6, 34 and 36,
+    in steps of 1 px and half a pixel; the test allows 7.5 units). It hung
+    on the cut: 10.8, 8.2, 5.7 and 5.8 units above the ring in steps of 8,
+    2, 1 and 0.5 px, and 66, 60, 30 and 28 pixels more than 3 above it
+    (murex-dl9). (With each stroke's own textures, at a stroke's own
+    steps: 7.7 and 51 now, 6.0 and 49 before.)"""
+    same_textures()
+    alone = [
+        probe.standing_alone(_crossed(step))[10:-10, 10:-10] for step in (8.0, 2.0)
+    ]
+    tall = [a.max() for a in alone]
+    many = [int((a > 3.0).sum()) for a in alone]
+    assert abs(tall[0] / tall[1] - 1.0) < 0.1, tall
+    assert abs(many[0] - many[1]) <= 0.15 * many[1] + 3, many
+    assert tall[0] < 7.5, tall
 
 
 def test_pulls_along_a_ridge_keep_every_channel():

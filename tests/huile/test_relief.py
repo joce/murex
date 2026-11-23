@@ -505,7 +505,11 @@ def test_a_skimming_knife_lays_what_it_did():
     # before the sawtooth fix; these ridges (painted by this engine) stand a
     # little higher than they did, so it lays some 10-17% more here than the
     # old engine did on its own (167, 194 and 231 units). It was 50% more.
-    assert 155 < _skim([0.1, 0.05, 0.02]) < 225
+    # (150, 194 and 256 now. At a stroke's own steps these laid 4% more, 4%
+    # more and 3% less than in steps of half a pixel, which lay 150, 194
+    # and 255 with the same textures; they are now within 0.2% of that:
+    # murex-5gw, and steps of 2 px at most over a dried relief.)
+    assert 145 < _skim([0.1, 0.05, 0.02]) < 225
     assert 185 < _skim(0.1) < 255
     assert 215 < _skim(0.3) < 285
 

@@ -992,18 +992,43 @@ knife lifts.
   smoothly.
 * **Small steps.** The paint is moved by fluxes between neighbouring pixels in
   steps of under a pixel, so nothing is lost and the pile in front of the
-  blade travels smoothly.
+  blade travels smoothly. Those small steps are laid along the stroke, the
+  same wherever the stroke is cut into its own steps; at each of them the
+  blade's level is read off the paint as it then lies, the blade spills
+  what stands above it at its ends, drags, and lays its own paint in the
+  gap it then finds.
 * **Resting level.** The blade rests on the high points under it, bends to
   follow the surface over a span set by its stiffness, and sinks into the
   paint by a share of its thickness that grows with pressure.
-* **Its own load.** The blade glides on the fresh paint it lays.
+* **Its own load.** The blade glides on the fresh paint it lays: the thicker
+  the film of it on the wet paint below (from 0.15 to 0.45 units), the less
+  it drags that paint. What a stroke lays stays its own where it joins an
+  earlier layer of the same paint: the blade rests on what lay there
+  before it, not on what it has just laid.
+* **Set down, lifted off.** A knife's stroke begins with a step of its own
+  that sets the blade down, an eighth of a pixel long, and ends with one
+  that lifts it off: a loaded blade lays much of its paint as it comes
+  down, and then rides lower.
 
 Paint volume is conserved throughout. Each step integrates the
 brush's exact sweep over each pixel, so the result doesn't depend on the step
 size: a stroke cut into finer steps (a gentle curve) lays about the same
 paint as a straight one, also from an overloaded brush, whose glob feeds what
 it lays directly. (A tight wiggle of a wide brush still lays somewhat more:
-the inside of each turn is passed over twice.) The footprint is swept at its current angle and size (both can change
+the inside of each turn is passed over twice.) A blade's stroke in its own
+steps (8 px at most) and in steps of 4, 2, 1 and half a pixel carries the
+wet paint as far and lays as much, within 1% as a rule, loaded or clean,
+skimming or pressed hard, square to its way or not, on the canvas or over
+its edge; pulled along its own length, or leaving over the edge, within 2
+to 4%. (The furthest found: a 160 px blade leaving over the edge carries
+10% further at its own steps, and over thin paint that covers the canvas
+in patches a blade carries 13% less far.) Over dried
+paint with no wet paint on it thick enough to hold the blade up (0.05
+units), a knife's steps are 2 px at most: the blade follows the relief.
+Such a pull takes about two and a half times as long loaded or skimming,
+and up to 1.6 times clean. A comb is not a blade in this: what
+its teeth carry still depends on the cut, by a factor of 2.5 between a
+stroke's own steps and steps of half a pixel. The footprint is swept at its current angle and size (both can change
 along the stroke), which is what makes a flat's square ends, its thin edge
 and its twisted ribbons.
 
@@ -1044,6 +1069,24 @@ off towards white rather than clip.
   travel only, and brushes still move paint by simpler rules (pickup, smear,
   bow wave). Paint folding over itself or swirling sideways (marbling) isn't
   simulated.
+* What a blade carries to the end of its pull it leaves where it stops, as
+  a knife stopped under pressure does: a heap, the same however the stroke
+  is cut, 7 to 8 units above the paint around it where a loaded pull has
+  gathered the ridges of earlier ones. Easing the pressure to nothing over
+  the last third of the pull makes it a third thinner at its thickest; it
+  does not lay it off, and neither does `lift`, which pulls the paint up
+  as the blade leaves.
+* What a blade riding on wet paint spills past its ends is the paint that
+  lay there before the stroke, not its own fresh film (which leaves at the
+  edges by being squeezed and pressed out). That order is a reading of
+  the model, not forced by it. Under a loaded blade pulled along its own
+  length it is most of what the pull does: over knifed paint it moves 16%
+  more of the paint under it than it did when the spill took the top
+  layer, which there was the blade's own white; over thick brushed paint
+  about half as much again, and over thin paint in patches twice as
+  much. (A blade that does not ride, with no wet paint thicker than 0.05
+  units under it, still spills the top layer first: it has next to
+  nothing to spill.)
 * Knives lie flat on the canvas (or, with a tiny `aspect`, on their edge);
   the tilt of the blade (spreading with the trailing edge down vs scraping
   with the leading edge) is folded into pressure.

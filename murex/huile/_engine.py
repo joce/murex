@@ -79,6 +79,21 @@ SAME_PAINT = 0.6
 # the film or covered it. Decisions near this line can still go either way
 # with rounding: over the bench scenes 15 of 210 684 such decisions lay
 # within 10% of it, and 70 of 9676 over marks made to sit on such lines.
+#
+# A layer below that is itself no more than a trace is that paint less
+# surely: what lay in the pixel before it, a speck of dust (SPECK) of
+# whatever colour, is the more of it the thinner it is, and for what a
+# blade shoves the line is drawn that much further out (see
+# _join_top_if_alike; what a brush shoves is held to 1e-5 as it always
+# was: its strokes leave no such traces). (The flow under a
+# knife leaves such traces all along its front, a millionth of a unit of
+# the paint it pushes on under paint it has not reached yet, and what the
+# blade spills beside it lands there, the very same paint. Held to 1e-5, a
+# hundredth of a speck there beforehand decided whether the five units on
+# top stayed on top or went under, and with that how much of the pixels
+# beside it their paint covers: in 4 of 30 runs of 15 knife strokes through
+# wet paint, with a hundred-millionth of a unit more or less in every empty
+# layer, by a quarter of a pixel; with this in none.)
 SAME_TO_ROUNDING = 1e-5
 # A new film of paint this thick covers the wet paint under it about two-thirds
 # of the way: it buries that much of it (see deposit) ...
@@ -1650,7 +1665,19 @@ def touched(st, F):
 
 @njit(cache=True, error_model="numpy")
 def deposit(
-    cv, pend, sy0, sx0, dep, d, cover, stroke_id, moved, by_film, reach, has_reach
+    cv,
+    pend,
+    sy0,
+    sx0,
+    dep,
+    d,
+    cover,
+    stroke_id,
+    moved,
+    by_film,
+    reach,
+    has_reach,
+    joined,
 ):
     """Lay paint ``dep`` (packed, per pixel; volume ``d``) on top of the canvas
     window at (sy0, sx0), covering ``cover`` more of each pixel.
@@ -1671,9 +1698,14 @@ def deposit(
     over wet paint. (Where the two old layers are much the same paint it goes
     under anyway.) During a brushstroke this waits until the stroke has passed
     (``pend``, see Pending): a pixel first grazed by the edge of a
-    looping stroke may later get its body."""
+    looping stroke may later get its body.
+
+    ``joined`` (single precision, as large as ``d``, or empty: not asked
+    for): the volume of what joined an earlier stroke's top layer is added
+    to it, pixel by pixel (see _knife._Mine)."""
     top, und, top_a, und_a, ids = cv.top, cv.und, cv.top_a, cv.und_a, cv.top_id
     holding = pend.where[PEND_ON] != 0 and by_film and not moved
+    rigid = not by_film
     hh, ww = d.shape
     for y in range(hh):
         Y = sy0 + y
@@ -1684,8 +1716,13 @@ def deposit(
             touched = dd > SPECK
             old = touched and ids[Y, X] != stroke_id
             laid = False  # nothing more to lay here in this step
-            if moved and old and _join_top_if_alike(top, und, dep[y, x], Y, X):
+            # (shoved by a blade, which buries what it covers whole: its
+            # flow leaves traces under the paint around it, see
+            # SAME_TO_ROUNDING)
+            if moved and old and _join_top_if_alike(top, und, dep[y, x], Y, X, rigid):
                 laid, touched, old = True, False, False
+                if joined.shape[0] > 0:
+                    joined[y, x] += np.float32(dd)
             # an earlier top layer worth keeping out of the layer below: hold the new
             # paint back until we know how well the stroke covers it
             known_harmless = False  # (as worked out here: it is the same below)
@@ -1724,19 +1761,25 @@ def deposit(
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _join_top_if_alike(top, und, pk, Y, X):
+def _join_top_if_alike(top, und, pk, Y, X, traces):
     """Paint ``pk`` shoved onto pixel (Y, X) that holds two wet layers makes
     three layers in two places: merge the two most alike. The new paint joins
     the top layer only if it really is much the same paint (white pushed onto
-    white); a different colour stays on top of the others. Adds it to the top
-    layer if so, and returns whether it did."""
+    white); a different colour stays on top of the others, and so does the
+    very paint of the layer below (see SAME_TO_ROUNDING: the same to
+    rounding, or, with ``traces``, where that layer is a trace, as far as
+    the speck of dust it may hold tells). Adds it to the top layer if so,
+    and returns whether it did."""
     if not (top[Y, X, IV] > EMPTY and und[Y, X, IV] > EMPTY):
         return False
     near = alike_upto(top[Y, X], pk, SAME_PAINT)
+    same = SAME_TO_ROUNDING
+    if traces:
+        same = max(same, SPECK / und[Y, X, IV])
     if (
         near < SAME_PAINT
         and near < alike(und[Y, X], top[Y, X])
-        and not alike_below(pk, und[Y, X], SAME_TO_ROUNDING)
+        and not alike_below(pk, und[Y, X], same)
     ):
         for c in range(PACKED):
             top[Y, X, c] += np.float32(pk[c])
@@ -2113,12 +2156,13 @@ def lay_off(
     reach,
     has_reach,
     extra,
+    joined,
 ):
     """Lay volume ``d`` per pixel from the tips of the columns above it (see
-    deposit for ``cover`` to ``has_reach``); each column can only give what
-    it holds. The columns are also asked for ``extra`` volume each (empty:
-    nothing) that they lay off the canvas: they give their share of it as
-    of the rest, and it is gone."""
+    deposit for ``cover`` to ``has_reach``, and for ``joined``); each column
+    can only give what it holds. The columns are also asked for ``extra``
+    volume each (empty: nothing) that they lay off the canvas: they give
+    their share of it as of the rest, and it is gone."""
     tip = br.tip
     give, comp = _give(tip, demand_with(taps, d, extra))
     used = np.zeros(COLUMNS)
@@ -2150,6 +2194,7 @@ def lay_off(
         by_film,
         reach,
         has_reach,
+        joined,
     )
     if total > 0 or gone > 0:
         for b in range(COLUMNS):
@@ -2360,6 +2405,7 @@ def spread_part(cv, pend, br, sy0, sx0, w, pk, cover, stroke_id, by_film, w_off)
         by_film,
         d,
         False,
+        np.zeros((0, 0), np.float32),
     )
 
 
@@ -2463,8 +2509,21 @@ def place(cv, pend, pk, x0, y0, sx, sy, stroke_id):
     if dmax <= 0:
         return
     # moved paint doesn't change how much of each pixel is covered
+    none = np.zeros((0, 0), np.float32)  # (what joins an earlier layer: not asked)
     deposit(
-        cv, pend, ry0, rx0, moved, d, np.zeros_like(d), stroke_id, True, True, d, False
+        cv,
+        pend,
+        ry0,
+        rx0,
+        moved,
+        d,
+        np.zeros_like(d),
+        stroke_id,
+        True,
+        True,
+        d,
+        False,
+        none,
     )
 
 
@@ -2595,15 +2654,19 @@ def fold_up(cv, sy0, sx0, f):
 
 
 @njit(cache=True, error_model="numpy")
-def merge_same(cv, sy0, sx0, own, thr):
+def merge_same(cv, sy0, sx0, own, mine, thr):
     """Where both wet layers of the window are much the same paint (not the
-    stroke's own), merge them into the lower one."""
+    stroke's own, on top or in the top layer: ``mine``, see
+    flow_under_riding_blade), merge them into the lower one."""
     top, und, top_a, und_a = cv.top, cv.und, cv.top_a, cv.und_a
     hh, ww = own.shape
+    has_mine = mine.shape[0] > 0
     for y in range(hh):
         for x in range(ww):
             Y, X = sy0 + y, sx0 + x
             if own[y, x] or not (top[Y, X, IV] > EMPTY and und[Y, X, IV] > EMPTY):
+                continue
+            if has_mine and mine[y, x] > 0:
                 continue
             if alike_below(top[Y, X], und[Y, X], thr):
                 # (the top layer holds paint here, so bury_top always passes
@@ -3455,6 +3518,7 @@ def brush_step_on(
             np.ascontiguousarray(F[F_EXPO, wy0 : wy0 + ch, wx0 : wx0 + cw]),
             brush,
             extra,
+            np.zeros((0, 0), np.float32),
         )
     overflow(tip, belly, capacity)
 
@@ -5344,7 +5408,7 @@ def grown(lo, hi, r, w):
 # arithmetic, in the same order and precision, as numpy works them out there.
 # (numpy's exp and log differ from the C library's in the last bit, so those
 # stay in numpy: the kernels take them worked out. What numpy never worked
-# out, filled_as_met's shares, has nothing of it to repeat, and takes them
+# out, filled_gap's shares, has nothing of it to repeat, and takes them
 # from the C library as the kernels of the other sections do.) A stage works
 # on the (h, w) pixels from (oy, ox) of the canvas, the part of the step's
 # footprint ``F`` at (wy0, wx0): its part of the canvas (of a stage, where
@@ -5364,13 +5428,18 @@ def np_min(a, b):
 
 
 @njit(cache=True, error_model="numpy")
-def blade_rest(top, und, ids, fine, wide, oy, ox, h, w, stroke_id, stiff, F, wy0, wx0):
+def blade_rest(
+    top, und, ids, mine, fine, wide, oy, ox, h, w, stroke_id, stiff, F, wy0, wx0
+):
     """Where a blade of stiffness ``stiff`` rests on the solid surface (from
     the thread tops, ``fine``, to the highest ridges around, ``wide``); the
     wet paint of earlier strokes (single precision, as the paint) and the
     most of it; which pixels lie under the blade (mostly covered by its
     chord); whether any do; and the IB plane of the top layer where it is an
-    earlier stroke's (0 elsewhere). See _knife._blade_rest."""
+    earlier stroke's (0 elsewhere). See _knife._blade_rest. (``mine``: the
+    stroke's own paint in an earlier stroke's top layer over each pixel,
+    which is none of the earlier strokes' paint, see _knife._Mine; empty:
+    none anywhere.)"""
     rest = np.empty((h, w), np.float32)
     old_v = np.empty((h, w), np.float32)
     top_ib = np.empty((h, w), np.float32)
@@ -5385,10 +5454,17 @@ def blade_rest(top, und, ids, fine, wide, oy, ox, h, w, stroke_id, stiff, F, wy0
             X = ox + x
             rest[y, x] = fine[Y, X] + k * (wide[Y, X] - fine[Y, X])
             earlier = ids[Y, X] != stroke_id
-            v = und[Y, X, IV] + (top[Y, X, IV] if earlier else zero)
+            t = top[Y, X, IV] if earlier else zero
+            tb = top[Y, X, IB] if earlier else zero
+            if earlier and mine.shape[0] > 0 and mine[y, x] > 0:
+                # (the stroke's own paint in that layer is not theirs)
+                theirs = max(t - mine[y, x], zero)
+                tb = tb * (theirs / t) if t > 0 else tb
+                t = theirs
+            v = und[Y, X, IV] + t
             old_v[y, x] = v
             vmax = max(vmax, v)
-            top_ib[y, x] = top[Y, X, IB] if earlier else zero
+            top_ib[y, x] = tb
             wy, wx = wy0 + y, wx0 + x
             ub = (
                 F[F_AA, wy, wx]
@@ -5497,28 +5573,25 @@ def bead_gap(hang, surface, bead):
 
 
 @njit(cache=True, error_model="numpy")
-def blade_slab(top, und, floor, oy, ox, level, film, fill, gaps):
+def blade_slab(top, und, floor, oy, ox, level, film, fill, gaps, laid):
     """How much paint the blade lays under it over each pixel (see
     _knife._slab): it fills the share ``fill`` (1 - e^(-k exposure), worked
     out in numpy) of the gap between its ``level`` and the surface (the
     solid surface and the wet paint), where the ``film`` on it reaches (see
-    film_gap). Returns that and the surface.
+    filled_gap). Returns that and the surface.
 
     Where the blade has dragged the wet paint under it along in this step,
     the gap is the one it met as it went, not the one the canvas shows now:
-    ``gaps`` (see flow_under_blade: over the pixels of ``level``, the gap its
-    film could fill, below 0 where it met none, and the surface as its bead
-    found it; empty: none anywhere). The surface returned there is that
-    one.
+    ``gaps`` (see flow_under_blade: over the pixels of ``level``, the gap
+    under it, below 0 where it met none, and the surface as its bead found
+    it; empty: none anywhere). The surface returned there is that one.
 
-    Where it rode on that paint as it went (see flow_under_riding_blade:
-    ``gaps`` then holds, for each pixel, whether the blade was ever over
-    it, the surface as its bead found it, and what its film could fill
-    there at the flow's sub-steps, two by two), it fills the gap as it met
-    it, part by part (see filled_as_met)."""
+    Where it rode on wet paint as it went, it has laid its paint as it
+    went: ``laid`` (see flow_under_riding_blade: what it laid on each
+    pixel, below 0 where it never was; empty: it did not ride)."""
     h, w = level.shape
     met = gaps.shape[0] > 0
-    stepped = gaps.shape[2] > 2
+    rode = laid.shape[0] > 0
     d = np.empty((h, w))
     surf = np.empty((h, w))
     for y in range(h):
@@ -5527,50 +5600,43 @@ def blade_slab(top, und, floor, oy, ox, level, film, fill, gaps):
             X = ox + x
             s = np.float64(floor[Y, X] + top[Y, X, IV] + und[Y, X, IV])
             surf[y, x] = s
-            g = film_gap(level[y, x], s, film[y, x])
-            if stepped:
-                if gaps[y, x, 0] > 0:
-                    surf[y, x] = gaps[y, x, 1]
-                    d[y, x] = filled_as_met(gaps, y, x, fill[y, x])
-                    continue
+            if rode and laid[y, x] >= 0:
+                d[y, x] = laid[y, x]
             elif met and gaps[y, x, 0] >= 0:
-                g = gaps[y, x, 0]
+                d[y, x] = filled_gap(gaps[y, x, 0], film[y, x], fill[y, x])
                 surf[y, x] = gaps[y, x, 1]
-            d[y, x] = g * fill[y, x]
+            else:
+                d[y, x] = filled_gap(level[y, x] - s, film[y, x], fill[y, x])
     return d, surf
 
 
-@njit(cache=True, error_model="numpy", inline="always")
-def filled_as_met(met, y, x, fill):
-    """How much paint a blade lays on pixel (y, x) in a step over which it
-    is to fill the share ``fill`` of the gap under it, where that gap
-    changed as it went: ``met[y, x]`` holds, from [2] on, for the flow's
-    sub-steps two by two (about a pixel of the blade's way, see
-    flow_under_riding_blade), the gap the blade's film could fill there,
-    times how much of the pixel it was over, and how much of the pixel it
-    was over, added up.
+# In how many parts a step fills a gap that its film does not reach all of
+# (see filled_gap).
+FILL_PARTS = 8
 
-    Each of these fills its share of what is left of the gap it finds, the
-    shares making up ``fill`` over the step, in proportion to how much of
-    the pixel the blade is over: under a gap that does not change that is
-    ``fill`` of it, as for a blade that drags nothing. (Filling ``fill`` of
-    the mean gap instead, a blade laid less the longer its steps where the
-    gap opens as it passes, behind the paint it pushes: at pressure 0.7, 8%
-    less in a stroke's steps than in steps eight times shorter.)"""
-    n = (met.shape[2] - 2) // 2
-    over = 0.0
-    for j in range(n):
-        over += met[y, x, 3 + 2 * j]
-    # (the share of a part over w of the pixel: 1 - (1 - fill)^(w / over))
-    rate = math.log1p(-fill) / over
-    laid, w_last, share = 0.0, -1.0, 0.0
-    for j in range(n):
-        w = met[y, x, 3 + 2 * j]
-        if not w > 0:
-            continue
-        if w != w_last:
-            share, w_last = -math.expm1(rate * w), w
-        laid += max(met[y, x, 2 + 2 * j] / w - laid, 0.0) * share
+
+@njit(cache=True, error_model="numpy", inline="always")
+def filled_gap(gap, film, fill):
+    """How much paint a blade lays in a step in which it fills the share
+    ``fill`` of the gap under it, ``gap`` deep (below 0: none), with a film
+    ``film`` thick: of a gap the film reaches all of, that share. Of a
+    deeper one (see film_gap) it fills the more the more it has filled, the
+    paint it has laid bringing the surface within reach: FILL_PARTS parts
+    of the step each fill their share of what the film can then fill of
+    what is left, as so many shorter steps would. (Filling the step's share
+    of what the film could fill as the step began, a blade laid less the
+    longer its steps wherever its film did not reach all the way down: a
+    knife 40 px long at pressure 0.3 over dried ridges, 4% less at a
+    stroke's own steps than in steps of half a pixel.)"""
+    gap = np_max(gap, 0.0)
+    reach = np_max(film, 1e-9)
+    if gap <= 0.7 * reach:
+        return gap * fill
+    part = -math.expm1(math.log1p(-fill) / FILL_PARTS)
+    laid = 0.0
+    for _ in range(FILL_PARTS):
+        left = gap - laid
+        laid += part * left * smoothstep(1.3, 0.7, left / reach)
     return laid
 
 
@@ -5696,9 +5762,10 @@ def flow_under_blade(
     top from a pixel the film is not on yet goes under the film too (see
     _upwind).
 
-    The blade glides on its own fresh paint: where it has laid more than a
-    film of it, it drags none of the paint below. What is in its way there
-    it pushes on all the same (see pushed_under_film; ``before``: how thick
+    The blade glides on its own fresh paint: where it has laid a film of
+    it, it drags the less of the paint below the thicker the film, and
+    none under a thick one (see glides). What is in its way there it
+    pushes on all the same (see pushed_under_film; ``before``: how thick
     the wet paint lay on each pixel before the stroke).
 
     The paint under the blade travels with it, so the gap left under the
@@ -5707,14 +5774,16 @@ def flow_under_blade(
     step, printed the shape of the paint under the blade at every step, a
     rib across the stroke. Returns what the blade met over each pixel as
     it went, the mean over the sub-steps it was over it, as (h, w, 2): the
-    gap under its ``level`` that the ``film`` on it can fill (film_gap;
-    below 0 where the blade never was), and the surface as the bead on its
-    edge found it, hanging from ``hang`` and ``bead`` tall (see
-    _knife._blade_level and _slab): that level less how far below it the
-    surface lay, as far as the bead reaches (bead_gap). (Each is worked out
-    sub-step by sub-step: what the blade lays is not in proportion to the
-    gap, so the mean gap would not do.) Or an empty array if the blade
-    touches no wet paint, and nothing moved.
+    gap under its ``level`` (below 0 where the blade never was), and the
+    surface as the bead on its edge found it, hanging from ``hang`` and
+    ``bead`` tall (see _knife._blade_level and _slab): that level less how
+    far below it the surface lay, as far as the bead reaches (bead_gap,
+    worked out sub-step by sub-step: it is not in proportion to the gap).
+    Or an empty array if the blade touches no wet paint, and nothing moved.
+    (This blade rests on the solid surface alone: the wet paint under it is
+    a film too thin to hold it up, see _knife._blade_rest, and the gap
+    hardly changes as it goes. A blade that rides on wet paint lays its
+    paint as it goes: see flow_under_riding_blade.)
 
     The per-pixel arrays (``floor``, ``level``, ``aa``, ``along``,
     ``c``, ``chord_half``, ``slip``, ``film``, ``hang``, ``bead``,
@@ -5722,12 +5791,16 @@ def flow_under_blade(
     # (the helpers below take that shape from whichever of them they are given)
     hh, ww = level.shape
     own, gap = _blade_gap(cv, level, floor, sy0, sx0, stroke_id)
+    # (no paint of the stroke's own in an earlier layer, and none laid as it
+    # goes: see flow_under_riding_blade)
+    mine = np.zeros((0, 0), np.float32)
     # the paint under the blade must reach it somewhere for anything to happen
-    if not _paint_reaches(cv, own, gap, aa, sy0, sx0):
+    if not _paint_reaches(cv, own, mine, gap, aa, sy0, sx0):
         return np.empty((0, 0, 2))
+    laid = np.zeros((hh, ww))
     # two wet layers of the same paint can merge without any visible change:
     # do so, so that paint dragged in from elsewhere lands on top of them
-    merge_same(cv, sy0, sx0, own, 0.25)
+    merge_same(cv, sy0, sx0, own, mine, 0.25)
     ax, ay = abs(tx), abs(ty)
     n_sub = max(whole_ceil(ds * (ax + ay)), 1)
     step = ds / n_sub
@@ -5757,7 +5830,7 @@ def flow_under_blade(
             cv,
             own,
             inside,
-            (gap, slip, (level, floor, before)),
+            (gap, slip, (level, floor, before), (laid, mine)),
             viscous,
             (step * ax, step * ay),
             (in_rows, c_rows),
@@ -5766,9 +5839,7 @@ def flow_under_blade(
             (xdir, ydir, False),
             room,
         )
-        _note_gaps(
-            cv, floor, (level, film), (hang, bead), inside, in_rows, sy0, sx0, met
-        )
+        _note_gaps(cv, floor, level, (hang, bead), inside, in_rows, sy0, sx0, met)
     return _mean_gaps(met, hang)
 
 
@@ -5794,23 +5865,25 @@ def _drag_paint(cv, own, inside, riding, viscous, moves, rows, heights, at, dirs
     blade, over ``inside`` of each pixel of the window at ``at`` (sy0, sx0)
     (``rows``: the columns of each row where it is over any, and room for
     those where it moves any paint), ``riding`` (gap, slip) above the
-    surface (and what tells the paint in its way under the stroke's own
-    film: its level, the solid surface and how thick the wet paint lay
-    before the stroke, see _contact_speed), moves the earlier strokes' wet
-    paint (``heights``: see _smoothed_heights) by ``moves`` (px along x,
-    along y) at most,
+    surface (and what tells the paint in its way and the film of the
+    stroke's own paint it glides on: its level, the solid surface and how
+    thick the wet paint lay before the stroke; what it has laid in this
+    step so far and the stroke's own paint in an earlier layer: see
+    _contact_speed), moves the earlier strokes' wet paint (``heights``: see
+    _smoothed_heights) by ``moves`` (px along x, along y) at most,
     downstream (``dirs``: +1 or -1 along x, along y, and whether to leave
     alone the pixels whose paint does not move, see _upwind). ``room``: see
     _drag_room; it is left all zeros again. (Made afresh at every sub-step,
-    that room took a twentieth of the flow's time.)"""
+    that room took a twentieth of the flow's time.) Returns whether it
+    moved any."""
     top, und = cv.top, cv.und
-    gap, slip = riding[0], riding[1]
     in_rows, c_rows = rows
     sy0, sx0 = at
     xdir, ydir, lean = dirs
     speed, frac, below, above, pushed = room
     ww = own.shape[1]
-    if _contact_speed(cv, own, inside, riding, at, rows, heights, (speed, pushed)):
+    moved = _contact_speed(cv, own, inside, riding, at, rows, heights, (speed, pushed))
+    if moved:
         # viscosity: neighbouring paint drags each other along, so the speed
         # varies smoothly (without it, the paint tears into foam)
         f_rows = grown(c_rows[0], c_rows[1], viscous, ww)
@@ -5818,7 +5891,15 @@ def _drag_paint(cv, own, inside, riding, viscous, moves, rows, heights, at, dirs
         # (and the pixels next to those, which they pass paint on to)
         g_rows = grown(f_rows[0], f_rows[1], 1, ww)
         _shares_moved(
-            cv, own, (frac, pushed), gap, slip, moves, f_rows, sy0, sx0, below, above
+            cv,
+            own,
+            riding[3][1],
+            (frac, pushed),
+            (riding[0], riding[1]),
+            moves,
+            f_rows,
+            at,
+            (below, above),
         )
         # (the layer below first: what the top layer passes on to a pixel
         # under the stroke's own film joins it there)
@@ -5826,6 +5907,7 @@ def _drag_paint(cv, own, inside, riding, viscous, moves, rows, heights, at, dirs
         _upwind(top, und, own, True, above, g_rows, sy0, sx0, xdir, ydir, lean)
         _wipe_rows(frac, below, above, f_rows)
     _wipe_speed(speed, pushed, in_rows)
+    return moved
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -5872,7 +5954,7 @@ def _blade_gap(cv, level, floor, sy0, sx0, stroke_id):
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _paint_reaches(cv, own, gap, aa, sy0, sx0):
+def _paint_reaches(cv, own, mine, gap, aa, sy0, sx0):
     """Whether the earlier strokes' wet paint reaches up to within a px of
     the blade (``gap`` above the surface) anywhere the blade covers any of
     the pixel (``aa`` > 0) in the window at (sy0, sx0)."""
@@ -5882,6 +5964,8 @@ def _paint_reaches(cv, own, gap, aa, sy0, sx0):
         for x in range(ww):
             Y, X = sy0 + y, sx0 + x
             reach = und[Y, X, IV] + (0.0 if own[y, x] else top[Y, X, IV])
+            if mine.shape[0] > 0 and mine[y, x] > 0 and not own[y, x]:
+                reach = und[Y, X, IV] + max(top[Y, X, IV] - mine[y, x], 0.0)
             if reach > gap[y, x] - 1.0 and aa[y, x] > 0:
                 return True
     return False
@@ -5995,17 +6079,34 @@ def pushed_under_film(old, film, gap, before):
     lifts it past the blade has to go on. (The paint that lay there before
     the stroke, under the blade, is none of the blade's business, however
     much of the stroke's own paint stands on it, a bead at the blade's end
-    for one: the blade glides on that.)
+    for one: the blade glides on that.) With no film on it, that is the
+    paint standing above the blade, which a blade pushes on anyway (see
+    layer_speed).
 
     Without this a blade dropped what it bulldozed as soon as that came
     under a film of its own more than 0.3 thick, which stopped it dead, in
     a heap two to three times as thick as the paint around it (murex-6fa).
     Nothing here is a threshold: the push grows from nothing with what is
-    in the way. (Whether the blade glides on the film still is one, see
-    _contact_speed: it now decides how the paint under the film is moved,
-    no longer whether what the blade pushes is let go.)"""
+    in the way."""
     in_the_way = min(old + film - gap, old - min(gap, before))
     return min(max(in_the_way, 0.0), old)
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def glides(film):
+    """How far a blade glides on its own fresh paint, ``film`` thick between
+    it and the earlier strokes' paint: not at all (0) on less than
+    GLIDE_FROM, altogether (1) on GLIDE_ON or more, and in between by as
+    much as the film is thick. Gliding, it does not drag the paint below
+    (see _contact_speed).
+
+    (It glided altogether or not at all, on more or less than 0.3 units: a
+    blade over a film 0.29 thick dragged the paint under it and over one
+    0.31 thick did not, 78 units carried against 46 in the flow alone; and
+    where a blade lays about that much, a knife loaded with 3 at pressure
+    0.25 for one, the paint under one pixel was dragged and that under the
+    next left: murex-dl9.)"""
+    return smoothstep(GLIDE_FROM, GLIDE_ON, film)
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -6018,16 +6119,19 @@ def _contact_speed(cv, own, inside, riding, at, rows, heights, room):
     returns whether it moves any. Sets in ``rows[1]`` the columns of each
     row where it does, c_lo..c_hi (``rows[0]``: those where the blade is).
 
-    The blade glides on its own fresh paint: under more than a film of it,
-    it drags nothing. What is in its way there it pushes on with it, at its
-    own speed (see pushed_under_film; the rest of ``riding``: the blade's
-    level, the solid surface, and how thick the wet paint lay before the
-    stroke): the share of the pixel's earlier paint that is, which is that
-    paint's speed, and goes into ``room[1]`` too (zeros). The speeds are
-    smoothed afterwards (see _drag_paint), and this one with them, so that
-    the paint next to it goes along as next to any paint that moves; but
-    the pixel itself passes on no less than this share (see _shares_moved).
-    Both matter:
+    The blade glides on its own fresh paint: the thicker the film of it on
+    a pixel, the less it drags the paint below, and under a thick one
+    nothing (see glides). What is in its way there it pushes on
+    with it, at its own speed (see pushed_under_film; the rest of
+    ``riding``: the blade's level, the solid surface, and how thick the wet
+    paint lay before the stroke; what it has laid in this step so far and
+    the stroke's own paint in an earlier layer): the share of the pixel's
+    earlier paint that is, which is that paint's speed as far as the blade
+    glides, and goes into ``room[1]`` too (zeros). The speeds are smoothed
+    afterwards (see _drag_paint), and this one with them, so that the paint
+    next to it goes along as next to any paint that moves; but the pixel
+    itself passes on no less than this share (see _shares_moved). Both
+    matter:
 
     - passing on the smoothed share alone evens the thickness of the paint
       out from pixel to pixel, where it is the surface that a blade levels:
@@ -6040,13 +6144,14 @@ def _contact_speed(cv, own, inside, riding, at, rows, heights, room):
       could not get through fast enough, and what did not was left there
       (a lump 7.6 units high on 3, where it was 13)."""
     top, und = cv.top, cv.und
-    gap, slip, (level, floor, before) = riding
+    gap, slip, (level, floor, before), (laid, mine) = riding
     sy0, sx0 = at
     in_lo, in_hi = rows[0]
     c_lo, c_hi = rows[1]
     u, t = heights
     speed, pushed = room
     hh, ww = own.shape
+    has_mine = mine.shape[0] > 0
     any_c = False
     for y in range(hh):
         c_lo[y], c_hi[y] = ww, 0
@@ -6055,70 +6160,90 @@ def _contact_speed(cv, own, inside, riding, at, rows, heights, room):
             # change the height of the paint below has no thickness, and no speed of
             # its own)
             z = np.float32(u[y, x]) + np.float32(t[y, x])
-            # the blade glides on its own fresh paint
-            shielded = own[y, x] and top[sy0 + y, sx0 + x, IV] > 0.3
-            contact = (
-                0.0 if shielded else inside[y, x] * clip(z - gap[y, x] + 1.0, 0.0, 1.0)
-            )
-            speed[y, x] = contact * layer_speed(
+            o = own[y, x]
+            film = laid[y, x]
+            if o:
+                film += np.float64(top[sy0 + y, sx0 + x, IV])
+            elif has_mine:
+                film += np.float64(mine[y, x])
+            g = glides(film)
+            contact = inside[y, x] * clip(z - gap[y, x] + 1.0, 0.0, 1.0)
+            speed[y, x] = ((1.0 - g) * contact) * layer_speed(
                 np.float32(0.0), z, gap[y, x], slip[y, x]
             )
-            moves = contact != 0
-            if shielded:
+            if g > 0:
                 old = np.float64(und[sy0 + y, sx0 + x, IV])
+                if not o:
+                    held = np.float64(top[sy0 + y, sx0 + x, IV])
+                    if has_mine:
+                        held = max(held - np.float64(mine[y, x]), 0.0)
+                    old += held
                 push = pushed_under_film(
-                    old,
-                    np.float64(top[sy0 + y, sx0 + x, IV]),
-                    level[y, x] - floor[y, x],
-                    np.float64(before[y, x]),
+                    old, film, level[y, x] - floor[y, x], np.float64(before[y, x])
                 )
-                if push > 0:  # (so old > 0)
-                    pushed[y, x] = inside[y, x] * (push / old)
-                    speed[y, x] = pushed[y, x]
-                    moves = moves or pushed[y, x] != 0
-            if moves:
+                # (a speck of dust is no paint in the blade's way: it would
+                # go on at the blade's speed and take the paint around it
+                # along, see _drag_paint)
+                if push > 0 and old > EMPTY:
+                    pushed[y, x] = g * (inside[y, x] * (push / old))
+                    speed[y, x] += pushed[y, x]
+            if speed[y, x] != 0:
                 any_c = True
                 c_lo[y], c_hi[y] = min(c_lo[y], x), x + 1
     return any_c
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _shares_moved(cv, own, speeds, gap, slip, moves, f_rows, sy0, sx0, below, above):
-    """The share of each pixel's paint in the layer below (``below``: (fx,
-    fy)) and in the top layer (``above``) that moves on to its neighbour
-    downstream in x and in y in a sub-step of ``moves`` (px along x, along
-    y), its column of earlier strokes' paint moving at ``speeds[0]`` of the
-    blade's speed (``f_rows``: columns f_lo..f_hi of each row), and no less
-    than the share ``speeds[1]`` of what lies under the stroke's own film
-    going with the blade (see _contact_speed).
+def _shares_moved(cv, own, mine, speeds, riding, moves, f_rows, at, shares):
+    """The share of each pixel's paint in the layer below (``shares[0]``:
+    (fx, fy)) and in the top layer (``shares[1]``) that moves on to its
+    neighbour downstream in x and in y in a sub-step of ``moves`` (px along
+    x, along y), its column of earlier strokes' paint moving at
+    ``speeds[0]`` of the blade's speed (``f_rows``: columns f_lo..f_hi of
+    each row of the window at ``at``), and no less than the share
+    ``speeds[1]`` of what lies under the stroke's own film going with the
+    blade (see _contact_speed).
 
     Each layer moves at its own speed, the one above faster (see
     layer_speed), so their order is kept; the two together carry what the
     column does, however it is divided between them: ``frac`` times each
     layer's speed over the column's, as they would be under the blade
-    (``gap``, ``slip``). (Smoothed layer by layer instead, the speeds fell
-    to about half along the line where the old top layer has gone under the
-    stroke's own film, the layer below slowed by the pixels ahead where it
-    is empty, the top layer ahead by those behind where it is this stroke's:
-    paint heaped up behind that line and was drained ahead of it, at every
-    step of the stroke.) The stroke's own paint on top stays."""
+    (``riding``: gap, slip). (Smoothed layer by layer instead, the speeds
+    fell to about half along the line where the old top layer has gone
+    under the stroke's own film, the layer below slowed by the pixels ahead
+    where it is empty, the top layer ahead by those behind where it is this
+    stroke's: paint heaped up behind that line and was drained ahead of it,
+    at every step of the stroke.) The stroke's own paint stays: on top, all
+    of the top layer; in an earlier stroke's top layer (``mine``), its
+    share of that layer."""
     top, und = cv.top, cv.und
     frac, pushed = speeds
+    gap, slip = riding
     f_lo, f_hi = f_rows
     move_x, move_y = moves
+    sy0, sx0 = at
+    below, above = shares
     hh = frac.shape[0]
     zero = np.float32(0.0)
+    has_mine = mine.shape[0] > 0
     for y in range(hh):
         for x in range(f_lo[y], f_hi[y]):
             Y, X = sy0 + y, sx0 + x
             zu = und[Y, X, IV]
-            z = zu + (zero if own[y, x] else top[Y, X, IV])
+            t = zero if own[y, x] else top[Y, X, IV]
+            # (the share of the top layer that is earlier strokes' paint)
+            earlier = 1.0
+            if has_mine and mine[y, x] > 0 and t > 0:
+                t_old = max(t - mine[y, x], zero)
+                earlier = np.float64(t_old) / np.float64(t)
+                t = t_old
+            z = zu + t
             g, k = gap[y, x], slip[y, x]
             column = layer_speed(zero, z, g, k)
             if not column > 0:  # (no paint, or none that the blade moves)
                 continue
-            # (what is pushed on from under the stroke's own film is all in
-            # the layer below: none anywhere else)
+            # (what is pushed on is pushed on from both layers: under the
+            # stroke's own film on top, all of it is in the layer below)
             f = clip(
                 max(frac[y, x] * (layer_speed(zero, zu, g, k) / column), pushed[y, x]),
                 0.0,
@@ -6126,7 +6251,12 @@ def _shares_moved(cv, own, speeds, gap, slip, moves, f_rows, sy0, sx0, below, ab
             )
             below[0][y, x] = f * move_x
             below[1][y, x] = f * move_y
-            f = clip(frac[y, x] * (layer_speed(zu, z, g, k) / column), 0.0, 1.0)
+            f = frac[y, x] * (layer_speed(zu, z, g, k) / column)
+            if pushed[y, x] > 0 and t > 0:
+                f = max(f, pushed[y, x])
+            f = clip(f, 0.0, 1.0)
+            if earlier != 1.0:
+                f *= earlier
             above[0][y, x] = f * move_x
             above[1][y, x] = f * move_y
 
@@ -6164,16 +6294,21 @@ def _upwind(layer, und, own, under, shares, g_rows, sy0, sx0, xdir, ydir, lean):
             ):
                 continue
             sinks = under and own[y, x]
+            # (the shares, read once: not again for every channel)
+            out_x, out_y = fx[y, x], fy[y, x]
+            from_x, from_y = 0 <= xs < ww, 0 <= ys < hh
+            in_x = fx[y, xs] if from_x else np.float32(0.0)
+            in_y = fy[ys, x] if from_y else np.float32(0.0)
             for ch in range(PACKED):
                 if sinks:
                     nv = und[Y, X, ch]
                 else:
                     v = layer[Y, X, ch]
-                    nv = v - (v * fx[y, x] + v * fy[y, x])
-                if 0 <= xs < ww:
-                    nv += layer[Y, sx0 + xs, ch] * fx[y, xs]
-                if 0 <= ys < hh:
-                    nv += layer[sy0 + ys, X, ch] * fy[ys, x]
+                    nv = v - (v * out_x + v * out_y)
+                if from_x:
+                    nv += layer[Y, sx0 + xs, ch] * in_x
+                if from_y:
+                    nv += layer[sy0 + ys, X, ch] * in_y
                 # (rounding doesn't leave less than nothing where all
                 # of it moved on)
                 nv = nv if nv >= 0 else np.float32(0.0)
@@ -6184,17 +6319,15 @@ def _upwind(layer, und, own, under, shares, g_rows, sy0, sx0, xdir, ydir, lean):
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _note_gaps(cv, floor, filling, hanging, inside, in_rows, sy0, sx0, met):
+def _note_gaps(cv, floor, level, hanging, inside, in_rows, sy0, sx0, met):
     """Add to ``met`` (sums, weights) the gap under the blade where it is
     now, over ``inside`` of each pixel (``in_rows``: columns in_lo..in_hi of
-    each row), down to the surface as the canvas shows it now: as the film
-    on the blade can fill it (``filling``: the blade's level and that film,
-    see film_gap), and as its bead finds it (``hanging``: the level the bead
+    each row), down to the surface as the canvas shows it now: under its
+    ``level``, and as its bead finds it (``hanging``: the level the bead
     hangs from and how tall it is, see bead_gap)."""
     top, und = cv.top, cv.und
     in_lo, in_hi = in_rows
     total, weight = met
-    level, film = filling
     hang, bead = hanging
     hh = level.shape[0]
     for y in range(hh):
@@ -6202,7 +6335,7 @@ def _note_gaps(cv, floor, filling, hanging, inside, in_rows, sy0, sx0, met):
             w = inside[y, x]
             Y, X = sy0 + y, sx0 + x
             surface = np.float64(floor[y, x] + top[Y, X, IV] + und[Y, X, IV])
-            total[y, x, 0] += w * film_gap(level[y, x], surface, film[y, x])
+            total[y, x, 0] += w * np_max(level[y, x] - surface, 0.0)
             total[y, x, 1] += w * bead_gap(hang[y, x], surface, bead[y, x])
             weight[y, x] += w
 
@@ -6210,9 +6343,9 @@ def _note_gaps(cv, floor, filling, hanging, inside, in_rows, sy0, sx0, met):
 @njit(cache=True, error_model="numpy", inline="always")
 def _mean_gaps(met, hang):
     """What the blade met over each pixel, from the gaps noted in ``met``
-    (see _note_gaps): the mean gap its film could fill (below 0 where the
-    blade was never over the pixel), and the surface as its bead found it,
-    the mean of how far it lay below ``hang`` under that level."""
+    (see _note_gaps): the mean gap under it (below 0 where the blade was
+    never over the pixel), and the surface as its bead found it, the mean of
+    how far it lay below ``hang`` under that level."""
     total, weight = met
     hh, ww = weight.shape
     out = np.empty((hh, ww, 2))
@@ -6227,25 +6360,66 @@ def _mean_gaps(met, hang):
     return out
 
 
-# How far, at most, the fastest paint under a riding blade goes in one
-# sub-step of the flow (see flow_under_riding_blade), in pixels along x and
-# along y together. The flow passes paint on from pixel to pixel, which
-# spreads it along the way, the more the shorter the sub-steps: with
-# sub-steps of a whole pixel (flow_under_blade's) a stroke's own steps
-# spread it hardly at all, and the same stroke in steps of a pixel spreads
-# it as sub-steps of 0.68 do. So how far a blade riding on its wave carried
-# the paint, and how much it wavered on it, hung on how the stroke was cut:
-# the wave is sharper the less it is spread, and the blade answers to it.
-# (White knifed at pressures 0.3 to 0.7 across 2.8 units of wet dark, at a
-# stroke's own steps, the same textures: the ripple of the surface along
-# the pull is 0.064, 0.081, 0.053, 0.040 and 0.023 units at pressures 0.3,
-# 0.4, 0.5, 0.6 and 0.7 with sub-steps of a pixel, 0.072, 0.057, 0.029,
-# 0.018 and 0.012 with 0.7, and 0.045, 0.028, 0.019, 0.015 and 0.011 with
-# 0.5; the paint carried changes by 4% at most from one end to the other.)
-# 0.7 is what steps of a pixel give along a slanted pull, and three
-# sub-steps where flow_under_blade takes two: shorter ones cost in
+# How far the fastest paint under a riding blade goes in one sub-step of the
+# flow (see flow_under_riding_blade), in pixels along x and along y
+# together. The flow passes paint on from pixel to pixel, which spreads it
+# along the way, the more the shorter the sub-steps: with sub-steps of a
+# whole pixel (flow_under_blade's) a stroke's own steps spread it hardly at
+# all, and the same stroke in steps of a pixel spreads it as sub-steps of
+# 0.68 do. So how far a blade riding on its wave carried the paint, and how
+# much it wavered on it, hung on how the stroke was cut: the wave is
+# sharper the less it is spread, and the blade answers to it. (White knifed
+# at pressures 0.3 to 0.7 across 2.8 units of wet dark, at a stroke's own
+# steps, the same textures: the ripple of the surface along the pull is
+# 0.064, 0.081, 0.053, 0.040 and 0.023 units at pressures 0.3, 0.4, 0.5,
+# 0.6 and 0.7 with sub-steps of a pixel, 0.072, 0.057, 0.029, 0.018 and
+# 0.012 with 0.7, and 0.045, 0.028, 0.019, 0.015 and 0.011 with 0.5; the
+# paint carried changes by 4% at most from one end to the other.) 0.7 is
+# what steps of a pixel gave along a slanted pull; shorter ones cost in
 # proportion.
+#
+# It is the length of every sub-step, not the most one may be: the
+# sub-steps are laid along the stroke, wherever it is cut into steps (see
+# flow_sub_steps). (They were whole divisions of each step, no longer than
+# this: 0.67 px of the paint's way in steps of 8 px down a slant of 45
+# degrees, 0.47 in steps of a pixel and 0.35 in steps of half a pixel. Such
+# a pull at pressure 0.5 rippled by 0.048, 0.030, 0.022, 0.015 and 0.013
+# units in steps of 8, 4, 2, 1 and 0.5 px, and a loaded knife pulled along
+# x carried 7% further in steps of 2 px and more than in shorter ones:
+# murex-h6u.)
 RIDE_CFL = 0.7
+# How thick the film of its own fresh paint lies between a blade and the
+# earlier strokes' paint for the blade to begin to glide on it, and for it
+# to glide altogether (see glides): a ramp about the 0.3 units it was
+# decided at, wide enough for films that differ by a hundredth of a unit
+# to drag much the same.
+GLIDE_FROM, GLIDE_ON = 0.15, 0.45
+# The least a blade riding on wet paint spills out sideways from a pixel in
+# a sub-step for it to spill any in that sub-step (see _spill_aside): a
+# trace taken from here and there along the blade would make a ridge of no
+# more paint than dust, which covers the pixels it lands on or not as its
+# volume falls either side of EMPTY (see spread_part). (A blade that does
+# not ride spills in a step only if it spills 1e-3 somewhere, see
+# _knife._push_aside: a step of 8 px is some twelve sub-steps.)
+SPILL_MIN = 1e-4
+
+
+@njit(cache=True, error_model="numpy")
+def flow_sub_steps(phase, ds, tx, ty):
+    """The sub-steps of the flow under a riding blade (see
+    flow_under_riding_blade) that fall in a step of ``ds`` px along (tx,
+    ty). They are laid along the stroke, one every RIDE_CFL px of the
+    fastest paint's way along x and y together, wherever the stroke is cut
+    into steps: so the blade stands at the same places for them, and moves
+    the paint by as much in each, however long the steps are. ``phase``:
+    how far into a sub-step the stroke was when the step began (0 to 1).
+    Returns how many fall in the step, how far from the step's start the
+    first one is (px of the blade's way), and how far into a sub-step the
+    stroke is when the step ends."""
+    per = RIDE_CFL / (abs(tx) + abs(ty))
+    reach = phase + ds / per
+    n = whole_floor(reach)
+    return n, (1.0 - phase) * per, min(max(reach - n, 0.0), 1.0)
 
 
 @njit(cache=True, error_model="numpy")
@@ -6270,57 +6444,95 @@ def flow_under_riding_blade(
     bead,
     before,
     ride,
+    subs,
+    lays,
+    spill,
+    mine,
 ):
-    """flow_under_blade for a blade that rides on the wet paint it drags
-    (``ride``: a Riding, see _knife._blade_rest): how high it rides is
-    worked out again as it goes, every other sub-step, from the paint under
-    where it is then, as _knife._blade_rest works it out for the step (see
-    _ride_sums and riding_level), and the sub-steps are no longer than
-    RIDE_CFL has them.
+    """A step of a blade that rides on wet paint of earlier strokes
+    (``ride``: a Riding, see _knife._blade_rest), worked out sub-step by
+    sub-step: at each the blade finds its level on the paint under where
+    it is then, spills what stands above it near its ends, drags and
+    pushes the paint under it as flow_under_blade does, and lays its own
+    paint. The sub-steps are
+    those of the stroke that fall in the step (``subs``: how many, and how
+    far in the first is, see flow_sub_steps); a step with none is worked
+    out once, where it ends, and moves nothing. So what the step does
+    hangs on where the stroke's sub-steps lie, not on how long the step
+    is.
 
-    ``level`` is the step's own, read from the paint under where the step
-    takes the blade: it decides, as in flow_under_blade, whether the paint
-    reaches the blade at all. ``hang`` is, as there, the level the bead on
-    the blade's edge meets the surface from, and is read for nothing else
-    (see _note_met and _met_riding): the caller gives it raised by the
-    stroke's own paint (_knife._drag_film), and what the bead hangs from
-    where the step ends is the caller's to work out, from the level
-    returned. A blade carries a wave of
-    paint under it, as long as it is wide; where the step takes it, a step
-    further on, the part of that wave it has yet to push there is missing,
-    so the level read there is too low all along the step, the more the
-    longer the step is next to the blade's width, and too low a blade drags
-    more. (Over 2.8 units of wet paint, in steps of 8 px, the level a blade
-    ends a step at lies above the step's own by 0.2 units for one 22 px
-    wide at pressure 0.25, and by 0.1, 0.75 and 1.0 units for one 12 px
-    wide at pressures 0.25, 0.5 and 0.7, on average along a pull; held at
-    the step's own, the two blades carried 21% and 94% further at pressure
+    How high the blade rides: worked out at each sub-step as
+    _knife._blade_rest works it out for the step (see _ride_sums and
+    riding_level). ``level`` is the step's own, read from the paint under
+    where the step takes the blade. A blade carries a wave of paint under
+    it, as long as it is wide; where the step takes it, a step further on,
+    the part of that wave it has yet to push there is missing, so the
+    level read there is too low all along the step, the more the longer
+    the step is next to the blade's width, and too low a blade drags more.
+    (Over 2.8 units of wet paint, in steps of 8 px, the level a blade ends
+    a step at lies above the step's own by 0.2 units for one 22 px wide at
+    pressure 0.25, and by 0.1, 0.75 and 1.0 units for one 12 px wide at
+    pressures 0.25, 0.5 and 0.7, on average along a pull; held at the
+    step's own, the two blades carried 21% and 94% further at pressure
     0.25 than in steps of a pixel, and left a heap 45% and 127% bigger at
-    the end of their pull.) Read under
-    where the blade stands as the step begins instead, and held over the
-    step, the level is right at first and then lags the wave it rides on,
-    by up to a step: the blade wavers (0.10 units of ripple at pressure
-    0.5, where steps of a pixel give 0.03).
+    the end of their pull.) Read under where the blade stands as the step
+    begins instead, and held over the step, the level is right at first
+    and then lags the wave it rides on, by up to a step: the blade wavers
+    (0.10 units of ripple at pressure 0.5, where steps of a pixel give
+    0.03).
 
-    Returns (what the blade met, its level where it ends the step). What it
-    met, over each pixel, as (h, w, 2 + 2m): whether the blade was ever over
-    the pixel (1, or 0), the surface as its bead found it (see
-    flow_under_blade; under ``hang`` moved by as much as the level has moved
-    from ``level`` to the one returned: the level the bead hangs from moves
-    with the blade's), then, for the step's sub-steps two by two, what its
-    film could fill there (see _note_met and filled_as_met). Or an empty
-    array, and ``level`` as it is, if the blade touches no wet paint and
-    nothing moved.
+    What it lays (``lays``: the share of the gap under it that the step
+    fills over each pixel, see _knife._fill_share; what the bead on a
+    skimming blade's edge leaves there over the step where it is pressed
+    flat against the surface, see _knife._bead_coat, empty if the blade
+    does not skim; and the power of how hard it is pressed that it leaves
+    by): at each sub-step its share of the step's (see _sub_step_shares), of
+    the gap between its level then and the surface then, the paint it has
+    laid there so far in the step lying on that surface (see _lay_as_met).
+    That paint is laid on the canvas when the step is over
+    (_knife._fill_under_blade); till then the flow counts it with the
+    stroke's own film on the pixel, on which the blade glides (see
+    _contact_speed). (Laid on the gap the step found when it was over, a blade
+    laid less the longer its steps where the gap opens as it passes,
+    behind the paint it pushes: 8% less at pressure 0.7 in a stroke's
+    steps than in steps eight times shorter; and unknown to the flow till
+    the step was over, a film thick enough to glide on let the blade drag
+    the paint under the front of it for a step: murex-kau, murex-5gw.)
 
-    The per-pixel arrays, those of ``ride`` too, all cover the window."""
+    ``hang`` is the level the bead on the blade's edge meets the surface
+    from, in the step: the caller gives it raised by the stroke's own
+    paint (_knife._drag_film), since the bead touches what was there
+    before the stroke; it moves with the blade's level.
+
+    ``spill``: what tells how the blade spills paint near its ends (see
+    _spill_aside). ``mine``: the stroke's own paint in an earlier stroke's
+    top layer over each pixel (see _knife._Mine; empty: none anywhere).
+
+    Returns (what the blade laid over each pixel, below 0 where it never
+    was; its level where it ends the step; what it spilt to its left and
+    to its right, packed).
+
+    The per-pixel arrays, those of ``ride``, ``lays`` and ``spill`` too,
+    all cover the window."""
     hh, ww = level.shape
+    at = (sy0, sx0)
     own, gap = _blade_gap(cv, level, floor, sy0, sx0, stroke_id)
-    if not _paint_reaches(cv, own, gap, aa, sy0, sx0):
-        return np.empty((0, 0, 2)), level
-    merge_same(cv, sy0, sx0, own, 0.25)
+    sides = (np.zeros(PACKED), np.zeros(PACKED))
+    none = np.empty((0, 0))
+    # The paint under the blade must reach it somewhere for the blade to do
+    # anything to it (see flow_under_blade). Where it does not, the blade
+    # lays its paint as on a canvas it does not ride on, and nothing is
+    # worked out here; but for the bead on a skimming blade's edge, which
+    # touches the paint all the same.
+    reaches = _paint_reaches(cv, own, mine, gap, aa, sy0, sx0)
+    if not (reaches or lays[1].shape[0] > 0):
+        return none, level, sides, False
+    # two wet layers of the same paint can merge without any visible change
+    if reaches:
+        merge_same(cv, sy0, sx0, own, mine, 0.25)
     ax, ay = abs(tx), abs(ty)
-    n_sub = max(whole_ceil(ds * (ax + ay) / RIDE_CFL), 1)
-    step = ds / n_sub
+    n_sub, first = subs
+    per = RIDE_CFL / (ax + ay)
     dirs = (1 if tx >= 0 else -1), (1 if ty >= 0 else -1), True
     # (how much of each pixel the blade is over: none of those it never is)
     inside = np.zeros((hh, ww))
@@ -6337,69 +6549,239 @@ def flow_under_riding_blade(
     gap_now = gap.copy()
     room = _ride_room(ride.bins)
     drag_room = _drag_room(hh, ww)
-    met = _met_room(hh, ww, n_sub)
-    bead_met = (np.zeros((hh, ww)), np.zeros((hh, ww)))
+    laid = np.zeros((hh, ww))
+    shares = _sub_step_shares(
+        aa,
+        chord_half,
+        along,
+        c,
+        (ds, n_sub, first, per),
+        swept,
+        (lays[0] if reaches else none, spill[1] if reaches else none),
+    )
+    spilt = np.zeros((hh, ww))  # (room for what each pixel spills)
     rides = False  # (whether where it rests has been worked out yet)
-    for k in range(1, n_sub + 1):
-        # the blade's position along the motion
-        pos = -ds + k * step
+    for k in range(max(n_sub, 1)):
+        # the blade's position along the motion (with no sub-step in the
+        # step: where the step ends, and nothing flows)
+        pos = min(-ds + first + k * per, 0.0) if n_sub > 0 else 0.0
         if not _under_blade_in(aa, chord_half, along, c, pos, inside, rows[0], swept):
             continue
-        _old_paint(cv, own, sy0, sx0, rows[0], old, heights[0])
-        # (where it rests: every other sub-step, about a pixel of its way,
-        # which gives what every sub-step does, for a twentieth less time.
-        # So the level it ends the step at, the last one worked out, is that
-        # of the last sub-step if their number is odd, and of the one
-        # before, 0.7 px of its way back at most, if it is even: meant so.
-        # The paint it lays is filled sub-step by sub-step under the level
-        # of each; the level it ends at is what the layers are folded under
-        # and what its part past the edge of the canvas is level with, see
-        # _knife._knife_step.)
-        if k % 2 == 1 or not rides:
-            _ride_sums(floor, old, inside, rows[0], ride, room, planes[0])
-            rides = True
+        _old_paint(cv, own, mine, sy0, sx0, rows[0], old, heights[0])
+        _ride_sums(floor, old, inside, rows[0], ride, room, planes[0])
+        rides = True
         _ride_level(
             level, ride, room, rides, rows[0], viscous, (gap, gap_now), planes[1]
         )
-        _drag_paint(
-            cv,
-            own,
-            inside,
-            (gap_now, slip, (planes[1], floor, before)),
-            viscous,
-            (step * ax, step * ay),
-            rows,
-            heights,
-            (sy0, sx0),
-            dirs,
-            drag_room,
-        )
-        _note_met(
+        riding = (gap_now, slip, (planes[1], floor, before), (laid, mine))
+        if reaches:
+            _spill_aside(
+                cv, own, inside, rows[0], at, riding, shares, (spill, spilt), sides
+            )
+        if reaches and n_sub > 0:
+            _drag_paint(
+                cv,
+                own,
+                inside,
+                riding,
+                viscous,
+                (per * ax, per * ay),
+                rows,
+                heights,
+                at,
+                dirs,
+                drag_room,
+            )
+        _lay_as_met(
             cv,
             floor,
-            (planes[1], film),
-            (level, hang, bead),
+            (planes[1], film, shares, laid),
+            (level, hang, bead, lays[1], lays[2]),
             inside,
             rows[0],
-            (sy0, sx0),
-            (met, bead_met, (k - 1) // 2),
+            at,
         )
-    return _met_riding(met, bead_met, level, hang, ride, room, rides)
+    _never_over(laid, shares[0])
+    if not reaches:
+        return laid, level, sides, False
+    return laid, _end_level(level, ride, room, rides), sides, True
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _met_room(hh, ww, n):
-    """Room for what a riding blade meets over each pixel of an (hh, ww)
-    window at ``n`` sub-steps, noted two by two (see _note_met), nothing
-    noted yet. (The marks are set, and the surface, which is read where
-    the blade never was only to be copied: what it met at each pair of
-    sub-steps is set where a mark is.)"""
-    met = np.empty((hh, ww, 2 + 2 * ((n + 1) // 2)))
+def _sub_step_shares(aa, chord_half, along, c, steps, s_rows, parts):
+    """What tells the share of a step's work that each of its sub-steps
+    does on each pixel (``steps``: the step's length, how many sub-steps
+    fall in it, how far in the first is and how far apart they are; none:
+    one, where the step ends).
+
+    Over a step the blade is to fill a share ``parts[0]`` of the gap under
+    it over each pixel, and to spill a share ``parts[1]`` of what stands
+    above it there (see _lay_as_met, _spill_aside). A sub-step during
+    which it is over w of the pixel does the share 1 - (1 - f)^(w / over)
+    of what is left, f being the step's and ``over`` how much of the pixel
+    the blade is over added up over the step's sub-steps: so the sub-steps
+    together do the step's share, in proportion to how much of the pixel
+    the blade is over, and a gap that does not change is filled as it is
+    by a blade that drags nothing.
+
+    Returns ``over``, and for each of the two parts the rate log(1 - f) /
+    over and the share of a sub-step that is over the whole pixel (most
+    are: worked out once here, and not at every sub-step); in the columns
+    ``s_rows`` of each row (see _swept_rows), nothing elsewhere."""
+    ds, n_sub, first, per = steps
+    s_lo, s_hi = s_rows
+    hh, ww = aa.shape
+    over = np.zeros((hh, ww))
+    for k in range(max(n_sub, 1)):
+        pos = min(-ds + first + k * per, 0.0) if n_sub > 0 else 0.0
+        for y in range(hh):
+            for x in range(s_lo[y], s_hi[y]):
+                # (as _under_blade_in has it at that sub-step)
+                over[y, x] += aa[y, x] * clip(
+                    chord_half[y, x] - abs(along[y, x] - pos - c[y, x]) + 0.5, 0.0, 1.0
+                )
+    return (
+        over,
+        _share_rates(parts[0], over, s_rows),
+        _share_rates(parts[1], over, s_rows),
+    )
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _share_rates(part, over, s_rows):
+    """For the share ``part`` of a step's work on each pixel (empty: none
+    to do, and nothing worked out), the rate and the share of a sub-step
+    that is over the whole pixel (see _sub_step_shares)."""
+    s_lo, s_hi = s_rows
+    hh, ww = part.shape
+    rate, whole = np.empty((hh, ww)), np.empty((hh, ww))
     for y in range(hh):
-        for x in range(ww):
-            met[y, x, 0] = 0.0
-            met[y, x, 1] = 0.0
-    return met
+        for x in range(s_lo[y], s_hi[y]):
+            if over[y, x] > 0:
+                rate[y, x] = math.log1p(-part[y, x]) / over[y, x]
+                whole[y, x] = -math.expm1(rate[y, x])
+    return rate, whole
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _share_now(w, rate, whole):
+    """The share of what is left of a step's work on a pixel that a
+    sub-step does, the blade being over ``w`` of the pixel in it (``rate``,
+    ``whole``: see _sub_step_shares)."""
+    if w == 1.0:
+        return whole
+    return -math.expm1(rate * w)
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _spill_aside(cv, own, inside, in_rows, at, riding, shares, spilling, sides):
+    """Near its ends a blade spills out sideways some of the wet paint that
+    stands above it (see _knife._push_aside, which does it once a step for
+    a blade that does not ride): over ``inside`` of each pixel now
+    (``in_rows``: the columns of each row of the window at ``at``), what
+    _spills gives for each pixel, if that is more than a trace anywhere
+    (SPILL_MIN). The earlier strokes' paint goes first. What is taken is
+    added to ``sides`` (left, right; packed), for the lips along the mark.
+    ``spilling``: what _spills takes as ``spill``, and room for what each
+    pixel spills, all zeros, and left so.
+
+    (Read once a step, under the level the step read ahead of the wave the
+    blade pushes, a blade spilt less the longer its steps: a clean knife
+    at pressure 0.7 pushed 13% less past its ends at a stroke's own steps
+    than in steps of half a pixel, a loaded one at 0.9 up to 24% less.)
+
+    (This and what it calls hold their loops themselves, and take the
+    arrays out of their tuples before them: handed to a helper called for
+    every pixel, which leaves early as a rule, each array was counted a
+    reference to and released for every pixel, 22 of them, and the knife
+    scene of the benchmark took half as long again.)"""
+    spill, out = spilling
+    most = _spills(cv, inside, in_rows, at, riding, shares, spill, out)
+    if most > 0:
+        _take_aside(cv, own, in_rows, at, spill[0], out, most > SPILL_MIN, sides)
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _spills(cv, inside, in_rows, at, riding, shares, spill, out):
+    """Set in ``out`` how much of the wet paint of each pixel of the window
+    at ``at`` a blade spills out sideways now (see _spill_aside), where it
+    spills any, and return the most a pixel spills: of what stands above
+    the blade's level now (``riding[2]``: the level, the solid surface, and
+    how thick the wet paint lay before the stroke; the paint it has laid
+    there in this step so far, ``riding[3][0]``, stands on the surface),
+    the sub-step's share of the step's (``shares``, see _sub_step_shares),
+    and of that, within ``spill[3]`` px of the ends of the mark
+    (``spill[0]``: how far across the stroke each pixel lies; ``spill[2]``:
+    the mark's half-width), the share ``spill[4]``, or as much of the paint
+    that lay there before the stroke, if that is less."""
+    top, und = cv.top, cv.und
+    in_lo, in_hi = in_rows
+    sy0, sx0 = at
+    lev, floor, before = riding[2]
+    laid = riding[3][0]
+    rate, whole = shares[2]
+    lat, half, within, part = spill[0], spill[2], spill[3], spill[4]
+    most = 0.0
+    for y in range(lat.shape[0]):
+        for x in range(in_lo[y], in_hi[y]):
+            w = inside[y, x]
+            inner = half - abs(lat[y, x])
+            if not w > 0 or inner >= within:
+                continue
+            Y, X = sy0 + y, sx0 + x
+            e = np.float64(floor[y, x] + top[Y, X, IV] + und[Y, X, IV])
+            e += laid[y, x] - lev[y, x]
+            if not e > 0:
+                continue
+            e *= _share_now(w, rate[y, x], whole[y, x])
+            near = smoothstep(within, 0.0, inner)
+            e = part * near * np_min(e, np.float64(before[y, x]))
+            if e > 0:
+                out[y, x] = e
+                most = max(most, e)
+    return most
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _take_aside(cv, own, in_rows, at, lat, out, taking, sides):
+    """Take from each pixel of the window at ``at`` the volume ``out`` says
+    (as much as it holds; with ``taking``: else none) of its wet paint, the
+    earlier strokes' first (the layer below under the stroke's ``own``
+    paint on top, else the top layer), and add it to ``sides`` (left,
+    right; packed), to the side the pixel lies on (``lat``: how far across
+    the stroke; see right_share). ``out`` is left all zeros."""
+    top, und = cv.top, cv.und
+    in_lo, in_hi = in_rows
+    sy0, sx0 = at
+    left, right = sides
+    zero = np.float32(0.0)
+    for y in range(lat.shape[0]):
+        for x in range(in_lo[y], in_hi[y]):
+            volume = out[y, x]
+            if not volume > 0:
+                continue
+            out[y, x] = 0.0
+            if not taking:
+                continue
+            Y, X = sy0 + y, sx0 + x
+            t = top[Y, X, IV] if top[Y, X, IV] >= 0 else zero
+            uv = und[Y, X, IV] if und[Y, X, IV] >= 0 else zero
+            if own[y, x]:
+                from_und = min(volume, np.float64(uv))
+                from_top = clip(volume - from_und, 0.0, np.float64(t))
+            else:
+                from_top = min(volume, np.float64(t))
+                from_und = clip(volume - from_top, 0.0, np.float64(uv))
+            ft = np.float32(from_top / (t if t > 0 else 1.0))
+            fu = np.float32(from_und / (uv if uv > 0 else 1.0))
+            to_right = right_share(lat[y, x])
+            for ch in range(PACKED):
+                mt, mu = top[Y, X, ch] * ft, und[Y, X, ch] * fu
+                top[Y, X, ch] -= mt
+                und[Y, X, ch] -= mu
+                m = np.float64(mt + mu)
+                right[ch] += to_right * m
+                left[ch] += (1.0 - to_right) * m
 
 
 @njit(cache=True, error_model="numpy", inline="always")
@@ -6418,21 +6800,27 @@ def _ride_room(bins):
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _old_paint(cv, own, sy0, sx0, in_rows, old, smooth):
+def _old_paint(cv, own, mine, sy0, sx0, in_rows, old, smooth):
     """How thick the earlier strokes' paint lies, the two layers together
     (in single precision, as blade_rest adds them), at the pixels the blade
     is over (``in_rows``: in_lo..in_hi of each row) and a pixel around, into
     ``old``; and that lightly smoothed, where the blade is, into ``smooth``
     (as _smoothed_heights smooths each layer: the flow under a riding blade
-    reads the column alone, see _contact_speed)."""
+    reads the column alone, see _contact_speed). The stroke's own paint in
+    an earlier stroke's top layer (``mine``, empty: none anywhere) is none
+    of theirs: a blade does not rest on the paint it has just laid because
+    that joined the layer it fell on (see _knife._Mine)."""
     top, und = cv.top, cv.und
     in_lo, in_hi = in_rows
     hh, ww = own.shape
     lo1, hi1 = grown(in_lo, in_hi, 1, ww)
     zero = np.float32(0.0)
+    has_mine = mine.shape[0] > 0
     for y in range(hh):
         for x in range(lo1[y], hi1[y]):
             t = zero if own[y, x] else top[sy0 + y, sx0 + x, IV]
+            if has_mine and mine[y, x] > 0:
+                t = max(t - mine[y, x], zero)
             old[y, x] = und[sy0 + y, sx0 + x, IV] + t
     box_blur_rows(old, 1, in_lo, in_hi, smooth)
 
@@ -6537,53 +6925,80 @@ def _ride_level(level, ride, room, rides, in_rows, viscous, gaps, lev):
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _note_met(cv, floor, filling, hanging, inside, in_rows, at, noted):
-    """Note in ``noted`` (met, (sums, weights), which pair of sub-steps this
-    is of the step's) what the blade meets where it is now, over ``inside``
-    of each pixel (``in_rows``: columns in_lo..in_hi of each row) of the
-    window at ``at`` (sy0, sx0), down to the surface as the canvas shows it
-    now: the gap the film on it can fill (``filling``: its level now and
-    that film, see film_gap) times how much of the pixel it is over, and
-    how much of the pixel it is over, added up over the two sub-steps of the
-    pair (see filled_as_met; a pixel is marked, and its pairs set to
-    nothing, the first time the blade is over it); and, added up over them
-    all, how far below the level it hangs from the bead on its edge finds
-    the surface (``hanging``: the step's level, the level the bead hangs
-    from in the step, which moves with the blade, and how tall the bead is,
-    see bead_gap)."""
+def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
+    """What the blade lays where it is now, over ``inside`` of each pixel
+    (``in_rows``: columns in_lo..in_hi of each row of the window at
+    ``at``), added to what it has laid there in this step so far
+    (``filling[3]``).
+
+    Its film (``filling``: its level now, the film on it, the shares of
+    the step, see _sub_step_shares) fills the sub-step's share of the gap
+    between its level and the surface as the canvas shows it now with what
+    it has laid there so far in the step on it (see film_gap): that paint
+    is on the surface, as it is once the step is over and it has been laid
+    on the canvas. (Taken off the gap the film could fill on the surface
+    without it instead, a gap out of the film's reach stayed out of it
+    however much the blade had laid there in the step, where a step later
+    it is within reach: in steps of 8 px a blade at pressures 0.5 to 0.9
+    laid 2 to 4% less than in steps of half a pixel.)
+
+    The bead on a skimming blade's edge (``beading``: the step's level,
+    the level the bead hangs from in the step, which moves with the
+    blade's, how tall the bead is, what it leaves over the step where it
+    is pressed flat against the surface, empty if the blade does not skim,
+    and the power of how hard it is pressed that it leaves by) leaves the
+    sub-step's part of that, by how hard it is pressed against the surface
+    now (see bead_gap): the surface under the stroke's own paint, as the
+    caller has raised the level it hangs from by that, and not the paint
+    laid in this step either. (Worked out once a step from the mean of how
+    far the bead was off the surface over the step, what it left was more
+    than the mean of what it leaves at each place, the more the rougher
+    the ground and the longer the step: 2% more in steps of 8 px over an
+    earlier pull. And left out of the film the blade glides on till the
+    step was over, it let a skimming blade drag the paint under it 2 to 4%
+    further in steps of 8 px.)"""
     top, und = cv.top, cv.und
     in_lo, in_hi = in_rows
-    sy0, sx0 = at
-    met, (total, weight), pair = noted
-    lev, film = filling
-    level, hang, bead = hanging
-    hh, last = lev.shape[0], met.shape[2]
-    for y in range(hh):
+    lev, film, shares, laid = filling
+    over, rate, whole = shares[0], shares[1][0], shares[1][1]
+    level, hang, bead, coat, catch = beading
+    fills, skims = rate.shape[0] > 0, coat.shape[0] > 0
+    if not (fills or skims):
+        return
+    for y in range(lev.shape[0]):
         for x in range(in_lo[y], in_hi[y]):
             w = inside[y, x]
             if not w > 0:
                 continue
-            Y, X = sy0 + y, sx0 + x
+            Y, X = at[0] + y, at[1] + x
             surface = np.float64(floor[y, x] + top[Y, X, IV] + und[Y, X, IV])
-            if met[y, x, 0] == 0:
-                met[y, x, 0] = 1.0
-                for j in range(2, last):
-                    met[y, x, j] = 0.0
-            met[y, x, 2 + 2 * pair] += w * film_gap(lev[y, x], surface, film[y, x])
-            met[y, x, 3 + 2 * pair] += w
-            hangs = lev[y, x] - level[y, x] + hang[y, x]
-            total[y, x] += w * bead_gap(hangs, surface, bead[y, x])
-            weight[y, x] += w
+            lays = 0.0
+            if fills:
+                lays = _share_now(w, rate[y, x], whole[y, x]) * film_gap(
+                    lev[y, x], surface + laid[y, x], film[y, x]
+                )
+            if skims and coat[y, x] > 0:
+                hangs = lev[y, x] - level[y, x] + hang[y, x]
+                b = bead[y, x]
+                touch = (b - bead_gap(hangs, surface, b)) / np_max(b, 1e-6)
+                lays += coat[y, x] * (w / over[y, x]) * clip(touch, 0.0, 1.0) ** catch
+            laid[y, x] += lays
 
 
 @njit(cache=True, error_model="numpy", inline="always")
-def _met_riding(met, bead_met, level, hang, ride, room, rides):
-    """What flow_under_riding_blade returns: ``met``, with the surface as
-    the bead found it (the mean of how far it lay below the level the bead
-    hung from, see _note_met, under the level it hangs from where the step
-    ends: ``hang``, moved as the blade's level has moved), and the blade's
-    level where the step ends (see riding_level)."""
-    total, weight = bead_met
+def _never_over(laid, over):
+    """Mark in ``laid`` (below 0) the pixels the blade was never over in
+    the step (``over``: see _sub_step_shares): what it lays on those is not
+    worked out here (see blade_slab)."""
+    for y in range(laid.shape[0]):
+        for x in range(laid.shape[1]):
+            if not over[y, x] > 0:
+                laid[y, x] = -1.0
+
+
+@njit(cache=True, error_model="numpy", inline="always")
+def _end_level(level, ride, room, rides):
+    """The blade's level where the step ends (see riding_level)."""
     on_paint, has = room[3], room[4]
     bins, rest, sunk = ride.bins, ride.rest, ride.sunk
     hh, ww = level.shape
@@ -6599,10 +7014,7 @@ def _met_riding(met, bead_met, level, hang, ride, room, rides):
                 has[k],
                 rides,
             )
-            if weight[y, x] > 0:
-                hangs = end_level[y, x] - level[y, x] + hang[y, x]
-                met[y, x, 1] = hangs - total[y, x] / weight[y, x]
-    return met, end_level
+    return end_level
 
 
 # ----------------------------------------------------------------------------
