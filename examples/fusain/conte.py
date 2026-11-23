@@ -11,8 +11,8 @@ then lay what it asks for, as in a study from life. A tone of sanguine is
 laid behind them with the side of half a stick and rubbed with a finger.
 Sanguine hatched one way and then across it models the shadows, sepia and
 then black deepen them, and white chalk lays the lights, firmest at the
-highlights. The contours, the stalk and the edge of the table are drawn
-last with pastel pencils, sharpened to a point.
+highlights. The far edge of the table, and last the contours and the
+stalk, are drawn with pastel pencils, sharpened to a point.
 """
 
 # cspell:words aux trois
@@ -145,13 +145,13 @@ def ground(sheet, solid):
     half = Stick(conte.SANGUINE, width=7, lead=7, side=34)
 
     def behind(x, y):
-        middle = np.exp(-(((x - 450) / 250) ** 2) - ((y - 340) / 130) ** 2)
+        middle = np.exp(-(((x - 450) / 215) ** 2) - ((y - 330) / 115) ** 2)
         return 0.4 * middle * (y < 452) * ~reader(solid)(x, y)
 
     for angle in (38, -32):
-        sheet.shade((70, 60, 900, 450), half, behind, angle=angle, tilt=1.0)
-    sheet.rub((90, 80, 880, 440), Smudger(tools.FINGER), 0.5)
-    pencil = Stick(pastels.pencil(conte.SEPIA.pigment), width=3, lead=8)
+        sheet.shade((30, 40, 960, 452), half, behind, angle=angle, tilt=1.0)
+    sheet.rub((30, 40, 960, 451), Smudger(tools.FINGER), 0.5)
+    pencil = Stick(pastels.pencil(conte.SEPIA.pigment), width=3)
     left, right = pear_outline(-1)[23][0], pear_outline(1)[23][0]
     sheet.stroke([(40, 452), (250, 449), (left - 4, 452)], pencil, 0.35)
     sheet.stroke([(right + 4, 452), (800, 453), (960, 450)], pencil, 0.35)
@@ -195,8 +195,8 @@ def model(sheet, tone, on_pear, on_egg):
 def lines(sheet):
     """Contours with pastel pencils: light on the lit side, firm and dark
     on the shadow side, and the stalk."""
-    red = Stick(pastels.pencil(conte.SANGUINE.pigment), width=3, lead=8)
-    dark = Stick(pastels.pencil(conte.BLACK.pigment), width=3, lead=8)
+    red = Stick(pastels.pencil(conte.SANGUINE.pigment), width=3)
+    dark = Stick(pastels.pencil(conte.BLACK.pigment), width=3)
     sheet.stroke(pear_outline(-1), red, lambda u: 0.45 + 0.25 * u)
     sheet.stroke(pear_outline(1), red, 0.5)
     sheet.stroke(pear_outline(1)[8:], dark, lambda u: 0.25 + 0.5 * np.sin(np.pi * u))

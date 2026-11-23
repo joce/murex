@@ -46,9 +46,9 @@ def pencil(color: ColorLike, name: str | None = None) -> Medium:
     is: held flat, it marks a band five times as wide as its point, darkest
     down the middle and fading to its edges.
 
-    The core is some 4 mm thick, twice a graphite lead: on a sheet where an
-    HB is drawn with ``width=2``, hold it as ``Stick(pastels.pencil(c),
-    width=3, lead=8)``, or draw with ``width=3`` to 4."""
+    Its point is blunter than a graphite pencil's: on a sheet where an HB
+    is drawn with ``width=2``, draw with ``width=3`` to 4, or hold it as
+    ``Stick(pastels.pencil(c), width=3)``."""
     pigment = Pigment(color, name=name)
     label = name or f"{pigment.hex} pastel pencil"
     return Medium(pigment, softness=0.55, binding=0.45, name=label)

@@ -282,11 +282,11 @@ from murex.fusain import Stick, conte, papers
 sheet = Sheet(1000, 760, paper=papers.TONED_TAN)        # the paper is the middle tone
 sheet.shade((100, 60, 300, 200), conte.SANGUINE, pressure=0.6, width=7)   # the shadows
 sheet.shade((180, 120, 300, 200), conte.BLACK, pressure=0.7, width=5)     # their depths
-sheet.shade((100, 60, 180, 120), conte.WHITE, pressure=0.7, width=6)      # the lights
+sheet.shade((320, 60, 440, 200), conte.WHITE, pressure=0.7, width=6)      # the lights
 half = Stick(conte.SANGUINE, width=7, lead=7, side=34)  # half a stick, laid on its side
 sheet.stroke([(100, 300), (400, 320)], half, 0.4, tilt=1)
 # a pastel pencil: a hard pastel's core with a pencil's point, for the lines
-pencil = Stick(pastels.pencil("#a8492f"), width=3, lead=8)
+pencil = Stick(pastels.pencil("#a8492f"), width=3)
 sheet.stroke([(100, 400), (250, 380), (400, 410)], pencil, 0.6)
 ```
 
