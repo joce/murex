@@ -47,39 +47,8 @@ All are in the changelog with their figures.
 - Knife pulls over dried relief take up to 2.7 times the processor time.
 - Paint is kept no further than 128 px past the canvas edge (`_knife._KEPT_FAR`). Strokes that reach further lose what they leave there.
 
-## How the work was run
+## How to work
 
-One coordinating session, with agents doing the work:
+How agents are run, what the last session learned about it, and the practical notes are now in `AGENTS.md` ("Working with agents", "Pull requests").
 
-1. An author agent in its own worktree, branched from `origin/main`, told not to push, open pull requests, change issues or commit images. It writes before, after and difference pictures to the scratchpad.
-2. The coordinator shows the pictures to the owner.
-3. A fresh, independent reviewer gets the diff and questions, not the author's conclusions. It measures with its own scripts and marks each finding as caused by the change or already so, and as "must fix" or "acceptable".
-4. Findings go back to the same author as new commits. Repeat until clean.
-5. The coordinator lands it: applies the diff on the session's branch, closes the issues, regenerates every image of `examples/huile/output/`, runs the checks, opens the pull request, and squash-merges on green CI.
-
-What held up well:
-
-- The independent reviewer found real faults in every change: false conservation, out-of-bounds reads, a behaviour change of tens of percent the author had measured only on smooth grounds.
-- "Step independence" as the criterion: own steps against cuts of 4, 2, 1 and 0.5 px with the `same_textures` fixture.
-
-## What to do differently
-
-The session ran well over a day for a small visible result. The causes, plainly:
-
-- **Too much process for small fixes.** The strongest model as author and a deep review each round is right for kernel rewrites, not for narrow fixes. Use a lighter author and a single review unless the change rewrites a mechanism.
-- **Serial by construction.** Every knife change touches `_knife.py` and `_engine.py`, so agents could not run side by side. Pair one knife task with one fusain task instead.
-- **Building before measuring the cost.** The automatic lay-out of the end heap was built in one round and removed in the next, once it was known to cost up to 41% on loaded pulls. Ask the author for the cost of a mechanism on ordinary strokes before asking for the mechanism.
-- **Measuring on convenient grounds.** Authors measured on smooth knifed slabs; the trouble was on brushed, textured grounds. Require both in the brief.
-- **Polishing without a reference.** The knife residuals were worked in order of the issue list, not of worth. Until murex-bua's image is there, more knife polish has nothing to be judged against.
-- **Fixed cost per landing.** Regenerating the images, the checks and CI take about an hour each time. Land fewer, larger changes.
-
-One rule came out of it and is now in `AGENTS.md`: what a change breaks is fixed in that change, and no follow-up issue is filed for it. An issue is only for what was already so before.
-
-## Practical notes
-
-- The scratchpad fills the disk: agents keep arrays there. Delete the scratch of merged work as you go.
-- `black` walks into the agents' checkouts under `.claude`: run it with `--extend-exclude .claude`, and use `make coverage spell-changed` in the main checkout rather than `make pre-push`.
-- Push images with `git lfs push origin BRANCH` before `git push`.
-- A bot reviews each pull request when it opens, not on later pushes. Verify its findings before acting on them.
-- CI takes about 12 minutes.
-- An agent may refuse to edit `AGENTS.md` policy on a relayed instruction. That is correct; the coordinator adds such lines.
+The short of it: the session ran well over a day for a small visible result, through too much process for small fixes, tasks that could only run one after another, and a mechanism built before its cost was known. Start with the two fusain media, and leave the knife until the reference image is there.
