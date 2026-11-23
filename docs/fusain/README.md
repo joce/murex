@@ -8,8 +8,8 @@ colour science and the stroke paths it shares with the other media. Wet media
 oil paint, see [`murex.huile`](../huile/README.md).
 
 Early days. So far there are papers, graphite and coloured pencils, charcoal,
-soft, hard and oil pastels, wax crayons, ballpoint pens, stumps, erasers and
-a knife. Tone depends on how hard a stick is pressed and
+soft, hard and oil pastels, pastel pencils, Conté crayons, wax crayons,
+ballpoint pens, stumps, erasers and a knife. Tone depends on how hard a stick is pressed and
 how many layers are laid, as on real paper. Charcoal and pastel leave dust
 that a stump drags about and an eraser lifts; coloured pencils are waxy and
 translucent, so their layers mix to the eye, a colourless blender burnishes
@@ -275,6 +275,35 @@ first. Left: vine charcoal, a stump dragged through and a kneaded eraser
 pulled through. Middle: orange and blue pastel, the join rubbed with a finger.
 Right: white pastel strokes laid over a dark ground after the fixative, the
 lower two rubbed with a finger.
+
+```python
+from murex.fusain import Stick, conte, papers
+
+sheet = Sheet(1000, 760, paper=papers.TONED_TAN)        # the paper is the middle tone
+sheet.shade((100, 60, 300, 200), conte.SANGUINE, pressure=0.6, width=7)   # the shadows
+sheet.shade((180, 120, 300, 200), conte.BLACK, pressure=0.7, width=5)     # their depths
+sheet.shade((100, 60, 180, 120), conte.WHITE, pressure=0.7, width=6)      # the lights
+half = Stick(conte.SANGUINE, width=7, lead=7, side=34)  # half a stick, laid on its side
+sheet.stroke([(100, 300), (400, 320)], half, 0.4, tilt=1)
+# a pastel pencil: a hard pastel's core with a pencil's point, for the lines
+pencil = Stick(pastels.pencil("#a8492f"), width=3, lead=8)
+sheet.stroke([(100, 400), (250, 380), (400, 410)], pencil, 0.6)
+```
+
+A Conté crayon (`conte.BLACK`, `SANGUINE`, `SEPIA`, `BISTRE`, `WHITE`, or
+`conte.crayon(colour)`) is firmer than a hard pastel: it lays less at a pass,
+the paper holds more of what it lays, a finger smudges it less and a kneaded
+eraser lifts it less cleanly. A pastel pencil (`pastels.pencil(colour)`) lies
+between it and a hard pastel, and its side is a pencil's: a band that fades to
+its edges. How hard each is and how much it dusts are guesses from how the
+real ones behave, not measurements.
+
+![A pear and an egg in black, sanguine and white Conté](../../examples/fusain/output/conte.png)
+
+*`examples/fusain/conte.py`: a pear and an egg aux trois crayons on tan paper.
+A tone of sanguine laid behind them with the side of half a stick and rubbed
+with a finger; sanguine, sepia and black for the shadows, white chalk for the
+lights, and pastel pencils for the contours and the stalk.*
 
 ```python
 from murex.fusain import crayons

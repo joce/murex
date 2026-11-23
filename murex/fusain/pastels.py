@@ -1,9 +1,10 @@
-"""Pastels, of any colour: ``pastels.soft("#c0392b")``, ``pastels.hard(...)``
-and ``pastels.oil(...)``.
+"""Pastels, of any colour: ``pastels.soft("#c0392b")``, ``pastels.hard(...)``,
+``pastels.pencil(...)`` and ``pastels.oil(...)``.
 
 A pastel is pigment with barely enough gum to hold a stick together. It is
 opaque, so a light one covers a dark one, and nearly all of what it lays is
-dust, which a finger blends. An oil pastel is bound with oil and wax
+dust, which a finger blends. A pastel pencil is a thin core of hard pastel
+in wood, sharpened for detail. An oil pastel is bound with oil and wax
 instead: greasy and thick, it smears rather than dusts, a light one half
 covers a dark one, and a kneaded eraser does not lift it.
 """
@@ -33,6 +34,24 @@ def hard(color: ColorLike, name: str | None = None) -> Medium:
     return Medium(
         pigment, softness=0.6, binding=0.35, side=6.0, flat_side=True, name=label
     )
+
+
+def pencil(color: ColorLike, name: str | None = None) -> Medium:
+    """A pastel pencil of that colour: a core of hard pastel in a wooden
+    casing, sharpened to a point for detail. The core is a little harder
+    than a hard pastel and has a little more gum in it (guessed, until it
+    is measured against a real one): it lays less and dusts less. It has no
+    wax, so it layers, blends under a finger and erases as a pastel does.
+    Its side is the cone of the core its sharpening bared, as a pencil's
+    is: held flat, it marks a band five times as wide as its point, darkest
+    down the middle and fading to its edges.
+
+    The core is some 4 mm thick, twice a graphite lead: on a sheet where an
+    HB is drawn with ``width=2``, hold it as ``Stick(pastels.pencil(c),
+    width=3, lead=8)``, or draw with ``width=3`` to 4."""
+    pigment = Pigment(color, name=name)
+    label = name or f"{pigment.hex} pastel pencil"
+    return Medium(pigment, softness=0.55, binding=0.45, name=label)
 
 
 def oil(color: ColorLike, name: str | None = None) -> Medium:

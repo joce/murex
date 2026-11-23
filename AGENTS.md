@@ -2,7 +2,7 @@
 
 `murex` simulates artists' media. It holds what the media share (pigments and Kubelka-Munk mixing, stroke paths, noise, reference images and PNG output) and the media themselves, each family a subpackage named in French after one of its own:
 
-- `murex.fusain` draws with dry and semi-dry media (graphite and coloured pencils, charcoal, pastel, crayon, ballpoint pen) on a paper with tooth.
+- `murex.fusain` draws with dry and semi-dry media (graphite and coloured pencils, charcoal, pastel, Conté and wax crayons, ballpoint pen) on a paper with tooth.
 - `murex.huile` paints in oils: brushes and knives lay, drag, mix and lift paint on a canvas, and a renderer lights the result. It was `oilpaint`.
 - `murex.aquarelle` will be the wet media (ink, watercolour, felt-tip markers).
 
@@ -76,7 +76,7 @@ A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `e
 
 - `paper.py`, `papers.py`: a paper's texture, tooth and colour, and the presets.
 - `sheet.py`: the `Sheet`, with the tooth, how far the paper has been crushed (`crush`) and the wax on it polished (`polish`: `press` is what a tip meets of the two), how far it has been indented (`dent`) and its fibres raised (`rough`), the pigment it holds and the two layers that lie over it (dust, what a binder holds there: `bonded`, and a film on each: `films`), strokes, a stylus, rubbing and erasing, fixative, what shines, and rendering.
-- `medium.py`, `pencils.py`, `charcoal.py`, `pastels.py`, `crayons.py`: what a stick is made of; graphite and coloured pencils, charcoals, soft, hard and oil pastels, wax crayons.
+- `medium.py`, `pencils.py`, `charcoal.py`, `pastels.py`, `conte.py`, `crayons.py`: what a stick is made of; graphite and coloured pencils, charcoals, soft, hard and oil pastels and pastel pencils, Conté crayons, wax crayons.
 - `stick.py`: a medium in the hand, with a tip that wears. `pens.py`: ballpoint pens, whose ink is a stain in the paper, and a pen in the hand (`HeldPen`), which keeps the ink its ball gathers.
 - `tools.py`: stumps, fingers and erasers, which lay nothing of their own, and what scrapes wax off: a sand eraser and a knife. `smudger.py`: a tool in the hand, which keeps what it picks up.
 - `hatching.py`: the strokes of a shading, as a hand lays them.

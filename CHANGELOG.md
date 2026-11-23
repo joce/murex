@@ -8,6 +8,21 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `murex.fusain`: Conté crayons (`conte.BLACK`, `conte.SANGUINE`,
+  `conte.SEPIA`, `conte.BISTRE`, `conte.WHITE`, and `conte.crayon(colour)` for
+  any other) and pastel pencils (`pastels.pencil(colour)`). Both are presets of
+  the existing `Medium`: no mechanism is new, and no existing medium, hash of
+  `tools/fusain/fingerprint.py` or image changes. A Conté crayon is firmer
+  than a hard pastel and holds better: over two firm layers it lays 0.63 of
+  what a hard pastel lays, 0.42 of it lies as dust against 0.60, a finger
+  carries off three quarters as much, and a kneaded eraser pulled three times
+  leaves 0.41 of it against 0.32. A pastel pencil lies between the two (0.80
+  of a hard pastel, 0.51 dust), and its side is the cone of a sharpened core,
+  whose band fades to its edges, where a stick's is even. These figures follow
+  from a softness and a binding guessed from how the real sticks behave; they
+  are not measured against them. `examples/fusain/conte.py` draws a pear and
+  an egg aux trois crayons (black, sanguine and white on `papers.TONED_TAN`).
+
 - `murex.fusain`: drawing with dry and semi-dry media (graphite and coloured
   pencils, charcoal, soft, hard and oil pastels, wax crayons, ballpoint pens,
   stumps, erasers and a knife) on a paper with tooth. It is
