@@ -21,11 +21,11 @@ period was the step of the stroke: 8 px for a blade this long (``spacing`` in
 should stay much as it is (the ripple left is the base's own, and the slow
 waver of the blade, half a blade apart). ``--step S`` cuts it instead into
 steps of S px at most, as a stroke would with ``_MAX_STEP`` of
-``murex/huile/stroke.py`` at S rather than 8: unlike ``--finer``, it leaves
-the stroke's random textures as they are, where the wobble of the width
-draws as many random numbers either way (it counts its noise in steps:
-``--finer`` draws more, and the pull's blade tilts and its bands wander
-otherwise, which can change what a light pull leaves by a sixth).
+``murex/huile/stroke.py`` at S rather than 8. Either way the pull has the
+textures it has in its own steps (the wobble of its width, the tilt of its
+blade, its bands and its nicks: they are drawn against the distance along
+the path, as many random numbers as the stroke in its own steps calls for,
+murex-9t4).
 
 ``skim`` (murex-iaa, murex-dnj): white knifed over a wet dark at a light
 touch, for some pressures and loads. The table gives the volume each stroke
@@ -47,9 +47,7 @@ and the peaks: how many pixels stand more than 3 units above all that lies
 on a ring 8 px around them, and the tallest (see ``standing_alone``: a ridge
 is no peak). There were lumps up to 13 units thick, where a pull dropped the heap
 it was pushing; there should be none. ``--step S`` cuts the ground's pulls
-into steps of S px at most, with the textures the same at every cut (the
-width does not wobble, as the ``same_textures`` fixture of huile's tests has
-it: ``--step 8`` gives a stroke's own steps with those textures).
+into steps of S px at most (their textures are the same at every cut).
 
 All three paint with fixed seeds, so the same code prints the same numbers.
 """
@@ -226,17 +224,9 @@ def standing_alone(thickness: np.ndarray, r: int = 8) -> np.ndarray:
 
 def lumps(args: argparse.Namespace) -> None:
     print(f"{'canvas':>8}  {'dark body':>9}  {'over 8':>6}  {'thickest':>8}  peaks")
-    longest, wobble = stroke._MAX_STEP, stroke.value_noise_1d
-
-    def no_wobble(n, cell, rng):
-        if cell == 1.0:  # (the knife's chatter and lips, counted in px)
-            return wobble(n, cell, rng)
-        rng.random(8)
-        return np.full(n, 0.5)
-
+    longest = stroke._MAX_STEP
     if args.step is not None:
         stroke._MAX_STEP = args.step
-        stroke.value_noise_1d = no_wobble
     try:
         for width, height in ((420, 300), (900, 500)):
             for body in (0.2, 0.7):
@@ -254,7 +244,7 @@ def lumps(args: argparse.Namespace) -> None:
                     name = f"lumps_{width}x{height}_body{body}.png"
                     canvas.save(os.path.join(args.save, name))
     finally:
-        stroke._MAX_STEP, stroke.value_noise_1d = longest, wobble
+        stroke._MAX_STEP = longest
 
 
 def main() -> None:
@@ -277,8 +267,8 @@ def main() -> None:
         "--step",
         type=float,
         metavar="S",
-        help="cut each white pull (lumps: each pull of the ground, with the "
-        "textures matched) into steps of S px at most (a stroke's: 8)",
+        help="cut each white pull (lumps: each pull of the ground) into "
+        "steps of S px at most (a stroke's: 8)",
     )
     parser.add_argument("--save", metavar="DIR", help="keep the pictures in DIR")
     args = parser.parse_args()

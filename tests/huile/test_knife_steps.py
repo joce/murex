@@ -324,28 +324,29 @@ def test_a_knife_pull_cut_twice_as_fine_ripples_the_same():
     (three strokes each: 0.057 against 0.048 units of ripple, each within
     0.01 from stroke to stroke; it was 0.135 against 0.065), and as even a
     film of white (0.055 and 0.063 of its thickness; it was 0.29 and 0.16):
-    the steps of a stroke give what only short ones gave. (The two cuts do
-    not have the same textures, which are drawn point by point along the
-    path: with the same ones they ripple by 0.066 and 0.065.)"""
+    the steps of a stroke give what only short ones gave. (Those figures
+    are from when the two cuts did not have the same textures, which were
+    drawn point by point along the path. They have now, murex-9t4: 0.0622
+    against 0.0622 units of ripple, 0.046 and 0.047 of the white.)"""
     coarse = np.mean([_pull(1, seed) for seed in (100, 101, 102)], axis=0)
     fine = np.mean([_pull(2, seed) for seed in (100, 101, 102)], axis=0)
     assert 0.5 < coarse[0] / fine[0] < 1.5
     assert coarse[1] < 0.12 and fine[1] < 0.12
 
 
-def test_a_knife_pressed_into_wet_paint_does_not_waver_at_some_steps(same_textures):
+def test_a_knife_pressed_into_wet_paint_does_not_waver_at_some_steps():
     """At pressure 0.5 the blade rides on the wave of paint it pushes, and
     the surface it leaves is as even at a stroke's own steps as in steps of
-    4 px and of 2 (two strokes, each with the same textures at every step:
-    0.024, 0.024 and 0.025 units of ripple between them). It wavered in
+    4 px and of 2 (two strokes, each with the same textures at every step,
+    as every stroke has: 0.0313, 0.0309 and 0.0306 units of ripple between
+    them; 0.024, 0.024 and 0.025 with the wobble of their width switched
+    off, as this test had it before murex-9t4). It wavered in
     steps of 4 and 2 px (0.030, 0.044 and 0.042 units; 0.025 in steps of 1
     px): its level was read once per step, ahead of the wave it rides on,
     and the flow under it took sub-steps of whatever length fitted the step
     (see _engine.RIDE_CFL). (With the level read under where the blade
     stands as the step begins, it wavered at a stroke's own steps too:
     0.10, murex-kau.)"""
-    _dark()  # (laid with its own textures, before the pulls' are matched)
-    same_textures()
     seeds = (102, 103)
     own = np.mean([_pull(1, seed, 0.5)[0] for seed in seeds])
     assert own < 0.04

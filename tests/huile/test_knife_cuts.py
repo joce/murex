@@ -1,8 +1,13 @@
 """A knife's stroke does not show how it is cut into steps: the same pull
 at a stroke's own steps (8 px at most) and with its steps capped at 4, 2, 1
-and half a pixel leaves the same paint, the textures being the same (the
-``same_textures`` fixture). What still hung on the cut after murex-kau and
-murex-6fa, and why:
+and half a pixel leaves the same paint. Its textures are the same at every
+cut, as every stroke's are (murex-9t4: these tests switched the wobble of
+the width off, which drew another count of random numbers at each cut, and
+their figures were those of the one stroke that left; with its wobble each
+pull has another tilt, other bands and other nicks, and how near the cuts
+come to each other depends on those: each test says what its own pull
+gives, and the worst of six). What still hung on the cut after murex-kau
+and murex-6fa, and why:
 
 - a heavily loaded knife carried the wet paint further the longer its steps
   (murex-5gw): a step read the film on the blade once, as it began, and the
@@ -147,11 +152,9 @@ def _pull(cap, way, width, load, pressure, seed=100, bare=False, first=None):
     }
 
 
-def _against_fine(what, same_textures, **pull):
+def _against_fine(what, **pull):
     """``what`` of a pull (see _pull) at each of CAPS over what it is in
-    steps of FINE, the textures matched; every pull keeps its paint."""
-    _ground()  # (laid with its own textures, before the pulls' are matched)
-    same_textures()
+    steps of FINE; every pull keeps its paint."""
     fine = _pull(FINE, **pull)
     assert fine["kept"] < 1e-7
     out = {}
@@ -173,59 +176,63 @@ def _within(got, what, most):
 # --- murex-5gw: a heavily loaded knife ------------------------------------------------
 
 
-def test_a_heavily_loaded_knife_carries_wet_paint_as_far_at_every_cut(same_textures):
+def test_a_heavily_loaded_knife_carries_wet_paint_as_far_at_every_cut():
     """A knife 60 px wide loaded with 3 and pulled at pressure 0.25 across
     the wet dark carries it as far in steps of 8, 4, 2 and 1 px as in steps
-    of half a pixel (to 0.3%, and the test allows 1%; it carried 11.4, 5.5,
-    2.2 and 0.8% further), lays the same white (to 0.1%; 0.5% allowed) and
-    leaves the same dark beside its mark (to 1.5%; 3% allowed; it left 18%
-    more at a stroke's own steps)."""
+    of half a pixel (to 1.2%, the most of six pulls, and the test allows
+    2%; it carried 11.4, 5.5, 2.2 and 0.8% further), lays the same white
+    (to 0.1%; 0.5% allowed) and leaves the same dark beside its mark (to
+    2.6%, the most of six too; 4% allowed; it left 18% more at a stroke's
+    own steps). (0.3% and 1.5% with the wobble of its width off, when 1%
+    and 3% were allowed.)"""
     what = ("carried", "white", "beside")
-    got = _against_fine(
-        what, same_textures, way=SLANT, width=60, load=3.0, pressure=0.25
-    )
-    _within(got, what, (0.01, 0.005, 0.03))
+    got = _against_fine(what, way=SLANT, width=60, load=3.0, pressure=0.25)
+    _within(got, what, (0.02, 0.005, 0.04))
 
 
-def test_a_loaded_knife_lays_as_thick_a_slab_on_the_bare_canvas_at_every_cut(
-    same_textures,
-):
+def test_a_loaded_knife_lays_as_thick_a_slab_on_the_bare_canvas_at_every_cut():
     """The same load on a knife 110 px wide, on the bare canvas: the slab
-    behind the blade is as thick at every cut (to 0.2%, and the test allows
-    1%; it was 12.5, 5.5, 2.3 and 0.7% thinner in steps of 8, 4, 2 and 1 px
+    behind the blade is as thick at every cut (to 2.2%, and the test allows
+    3%; it was 12.5, 5.5, 2.3 and 0.7% thinner in steps of 8, 4, 2 and 1 px
     than in steps of half a pixel: the blade was set down and went its
-    first step at the level it was set down at)."""
+    first step at the level it was set down at). How near depends on the
+    pull's textures: of six pulls the slab is 0.8 to 2.5% thinner at a
+    stroke's own steps, and at most 0.9, 0.3 and 0.1% in steps of 4, 2 and
+    1 px. (With the wobble of its width off, as this test had it, this
+    pull's was 0.1% thinner and 1% was allowed; six such pulls gave 2.2%
+    thinner to 0.9% thicker: it was so before the textures were the same
+    at every cut, murex-9t4.)"""
     what = ("thick", "white")
-    got = _against_fine(
-        what, same_textures, way=SLANT, width=110, load=3.0, pressure=0.25, bare=True
-    )
-    _within(got, what, (0.01, 0.005))
+    got = _against_fine(what, way=SLANT, width=110, load=3.0, pressure=0.25, bare=True)
+    _within(got, what, (0.03, 0.005))
 
 
-def test_a_knife_pressed_hard_leaves_as_much_beside_it_at_every_cut(same_textures):
+def test_a_knife_pressed_hard_leaves_as_much_beside_it_at_every_cut():
     """A loaded knife at pressure 0.9, and a clean one at 0.7: what the
     blade spills past its ends is the same at every cut (to 0.6%, and the
     test allows 2%; in steps of 8, 4, 2 and 1 px it left 25, 15, 6 and 2%
     less beside it than in steps of half a pixel, the clean one 16, 9, 4
     and 1% less: what stands above the blade was read once a step, under
     the level the step read ahead of the wave it pushes), and the white the
-    loaded one lays (to 0.9%; 2% allowed; it laid up to 5.4% less)."""
+    loaded one lays (to 1.7%; 2% allowed; it laid up to 5.4% less).
+
+    The bound on the white holds for this pull, not for every one: of six
+    pulls (seeds 100 to 105) the loaded knife lays 1.0 to 2.7% more white
+    at a stroke's own steps than in steps of half a pixel, so other seeds
+    exceed the 2% allowed. It was so before the textures were the same at
+    every cut (murex-9t4); the bound is not widened to hide it."""
     what = ("beside", "white", "carried")
-    got = _against_fine(
-        what, same_textures, way=SLANT, width=60, load=3.0, pressure=0.9
-    )
+    got = _against_fine(what, way=SLANT, width=60, load=3.0, pressure=0.9)
     _within(got, what, (0.02, 0.02, 0.01))
     what = ("beside", "carried")
-    got = _against_fine(
-        what, same_textures, way=SLANT, width=110, load=0.0, pressure=0.7
-    )
+    got = _against_fine(what, way=SLANT, width=110, load=0.0, pressure=0.7)
     _within(got, what, (0.02, 0.005))
 
 
 # --- murex-dl9: a skimming knife ------------------------------------------------------
 
 
-def test_a_skimming_knife_carries_wet_paint_as_far_at_every_cut(same_textures):
+def test_a_skimming_knife_carries_wet_paint_as_far_at_every_cut():
     """A lightly loaded knife skimming the wet dark at pressure 0.05
     carries it as far, and lays as much, at every cut (to 0.05%, and the
     test allows 0.5%; it carried
@@ -234,16 +241,14 @@ def test_a_skimming_knife_carries_wet_paint_as_far_at_every_cut(same_textures):
     when the step was over, and till then the blade dragged the paint under
     it as if it had laid none there)."""
     what = ("carried", "white")
-    got = _against_fine(
-        what, same_textures, way=SLANT, width=110, load=0.3, pressure=0.05
-    )
+    got = _against_fine(what, way=SLANT, width=110, load=0.3, pressure=0.05)
     _within(got, what, (0.005, 0.005))
 
 
 # --- murex-dq0: a loaded skim over its own colour -------------------------------------
 
 
-def test_a_loaded_skim_over_its_own_colour_lays_as_much_at_every_cut(same_textures):
+def test_a_loaded_skim_over_its_own_colour_lays_as_much_at_every_cut():
     """White knifed over the wet dark, and then a knife loaded with 8 of
     the same white skimming over it at pressure 0.03: it lays the same
     white at every cut (to 0.1%, and the test allows 1%; 31, 15, 7 and 2%
@@ -254,7 +259,6 @@ def test_a_loaded_skim_over_its_own_colour_lays_as_much_at_every_cut(same_textur
     what = ("white", "thick")
     got = _against_fine(
         what,
-        same_textures,
         way=SLANT,
         width=110,
         load=8.0,
@@ -267,21 +271,23 @@ def test_a_loaded_skim_over_its_own_colour_lays_as_much_at_every_cut(same_textur
 # --- murex-h6u: the ripple down a slant -----------------------------------------------
 
 
-def test_a_pull_down_a_slant_ripples_the_same_at_every_cut(same_textures):
+def test_a_pull_down_a_slant_ripples_the_same_at_every_cut():
     """A pull at 45 degrees at pressure 0.5: the surface behind the blade
-    ripples by 0.055 units along the pull at every cut (to 1.1%, and the
-    test allows 8%): what sub-steps of 0.7 px of the paint's way give
+    ripples by 0.066 units along the pull at every cut (0.055 with the
+    wobble of its width off; the test allows 8% between the cuts, and
+    0.075 units, which holds for this pull and not for every one: six
+    pulls with other seeds ripple by 0.040 to 0.084 units, as their
+    textures fall, and it was so before murex-9t4): what sub-steps of 0.7
+    px of the paint's way give
     (_engine.RIDE_CFL). It rippled by 0.048, 0.030, 0.022, 0.015 and 0.013
     in steps of 8, 4, 2, 1 and half a pixel, the sub-steps of the flow
     under the blade being whole divisions of each step. The blade carries
     the dark as far and lays as much white (to 0.1%, and the test allows
     1%; it laid 2.1% less at a stroke's own steps)."""
     what = ("ripple", "carried", "white")
-    got = _against_fine(
-        what, same_textures, way=DIAGONAL, width=110, load=0.3, pressure=0.5
-    )
+    got = _against_fine(what, way=DIAGONAL, width=110, load=0.3, pressure=0.5)
     _within(got, what, (0.08, 0.01, 0.01))
-    assert _pull(8.0, way=DIAGONAL, width=110, load=0.3, pressure=0.5)["ripple"] < 0.065
+    assert _pull(8.0, way=DIAGONAL, width=110, load=0.3, pressure=0.5)["ripple"] < 0.075
 
 
 # --- other grounds, other ways of holding the blade ----------------------------------
@@ -367,17 +373,13 @@ def _drag(cap, path, width, load, pressure, **how):
     ],
     ids=["square", "edge-on", "lifted", "over-the-edge"],
 )
-def test_a_loaded_knife_over_a_brushed_ground_at_its_own_steps(
-    path, knife, how, most, same_textures
-):
+def test_a_loaded_knife_over_a_brushed_ground_at_its_own_steps(path, knife, how, most):
     """A knife loaded with white pulled across thick brushed umber, four
     ways: at a stroke's own steps it carries the umber as far, and moves
     as much of it, as in steps of half a pixel (to 0.2 and 0.0% square to
     its way, 1.3 and 1.9% edge-on, 0.4 and 0.1% lifted off, 2.2 and 0.3%
     leaving over the edge; the test allows what is beside each case, with
     what it was). Every channel is kept."""
-    _brushed()  # (laid with its own textures, before the pulls' are matched)
-    same_textures()
     own = _drag(8.0, path, *knife, **how)
     fine = _drag(FINE, path, *knife, **how)
     assert own[2] < 1e-7 and fine[2] < 1e-7
@@ -385,22 +387,26 @@ def test_a_loaded_knife_over_a_brushed_ground_at_its_own_steps(
         assert abs(a / b - 1.0) < tol, (name, a / b)
 
 
-def test_a_clean_knife_over_a_brushed_ground_does_what_it_did(same_textures):
+def test_a_clean_knife_over_a_brushed_ground_does_what_it_did():
     """A clean blade 60 px wide pulled at pressure 0.3 across the brushed
-    umber, in steps of 2 px: it carries the umber 121,500 units times px and
-    moves 4,250 units of it in all, which is what it did in steps of half a
-    pixel before a knife's stroke was made the same at every cut (121,900
-    and 4,240: within 0.4%; the test allows 2%). Nothing but the cut was to
-    change for it: no part of the change gives a pull over a textured
-    ground another character. (With what stands in a blade's way spread
-    across its way, as it was for a while, such a pull carried 15% further
-    and moved a third more.)"""
+    umber, in steps of 2 px: it carries the umber 118,800 units times px and
+    moves 4,290 units of it in all (the test allows 2%). With the wobble of
+    its width off, as these tests had it before murex-9t4, it was another
+    pull, which carried 121,500 and moved 4,250: what that one did in steps
+    of half a pixel before a knife's stroke was made the same at every cut
+    (121,900 and 4,240: within 0.4%). Nothing but the cut was to change
+    for it: no part of the change gives a pull over a textured ground
+    another character. (With what stands in a blade's way spread across
+    its way, as it was for a while, such a pull carried 15% further and
+    moved a third more.) The figures of today's pull were not measured on
+    that older engine: they are what this one gave when the textures were
+    made the same at every cut, when the pull with its wobble off still
+    gave the older figures."""
     _brushed()
-    same_textures()
     carried, moved, kept = _drag(2.0, [(40, 120), (320, 150)], 60, 0.0, 0.3, lift=0.0)
     assert kept < 1e-7
-    assert carried == pytest.approx(121900.0, rel=0.02)
-    assert moved == pytest.approx(4240.0, rel=0.02)
+    assert carried == pytest.approx(118800.0, rel=0.02)
+    assert moved == pytest.approx(4290.0, rel=0.02)
 
 
 @functools.cache
@@ -468,9 +474,7 @@ def _skimmed(ground, pressure, cap):
 
 
 @pytest.mark.parametrize("pressure", [0.1, 0.3])
-def test_a_knife_skimming_dried_ridges_lays_as_much_at_its_own_steps(
-    pressure, same_textures
-):
+def test_a_knife_skimming_dried_ridges_lays_as_much_at_its_own_steps(pressure):
     """A small knife skimming across dried ridges lays as much in a
     stroke's own steps as in steps of half a pixel (to 0.2%, and the test
     allows 1%; it laid 3.8% more at pressure 0.1 and 2.4% less at 0.3, more
@@ -479,14 +483,11 @@ def test_a_knife_skimming_dried_ridges_lays_as_much_at_its_own_steps(
     on it to hold the blade up, a knife's steps are now 2 px long at most,
     stroke._DRY_STEP)."""
     _dried()
-    same_textures()
     laid = [_skimmed(_dried(), pressure, cap) for cap in (8.0, FINE)]
     assert abs(laid[0] / laid[1] - 1.0) < 0.01, laid
 
 
-def test_specks_of_wet_paint_on_dried_ridges_do_not_bring_the_long_steps_back(
-    same_textures,
-):
+def test_specks_of_wet_paint_on_dried_ridges_do_not_bring_the_long_steps_back():
     """The same skim at pressure 0.1 over the same ridges with a speck of
     wet paint 0.02 units thick on them every 9 px: as much in a stroke's
     own steps as in steps of half a pixel (to 0.2%, and the test allows
@@ -494,7 +495,6 @@ def test_specks_of_wet_paint_on_dried_ridges_do_not_bring_the_long_steps_back(
     laid 2.0% more, as if the ridges were none of a knife's business: only
     wet paint a blade would ride on counts (_knife._KNIFE_RIDES_ON)."""
     _specked()
-    same_textures()
     laid = [_skimmed(_specked(), 0.1, cap) for cap in (8.0, FINE)]
     assert abs(laid[0] / laid[1] - 1.0) < 0.01, laid
 

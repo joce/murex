@@ -64,6 +64,151 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures:** a stroke's random textures no longer
+  show how it is cut into steps (murex-9t4). The wobble of a stroke's width
+  counted its noise in steps (`value_noise_1d(len(pts) + 2, 0.8 * w /
+  spacing)`), so a stroke cut otherwise drew more or fewer random numbers
+  for it, and every texture drawn after it (a knife's chatter, the swell of
+  its lips, the tilt of its blade, its colour bands, the hair or the nicks)
+  was another, as a different seed gives it. The hair also covered a length
+  and a width measured on the points of the cut (`arc[-1]`,
+  `radii.max()`), so its array changed shape from cut to cut even where the
+  draws were the same; a brush's load was measured in the mean width of the
+  cut's points, and how far before its end it starts lifting off in their
+  greatest radius.
+
+  Measured before the change, the same stroke with its steps capped at 8,
+  4, 2 and 1 px (half a pixel for knives), five seeds, on the bare canvas,
+  on thick brushed wet paint and on a knifed wet slab, each cap against
+  the finest. At a stroke's own steps the chatter and the lips were
+  unrelated to the finest cut's for every tool tried, knives 60 and 110 px
+  wide, a 30 px hog flat, a 16 px round and a 24 px filbert (root mean
+  square difference 1.2 to 2.9 times the texture's own spread, where 1.4
+  is two independent draws), the tilt differed by up to 0.23, the bands
+  were another draw and the hair another array; the knives' wobble was
+  unrelated too (1.7 to 1.8), the brushes' off by 0.2 to 0.3 of its
+  spread. With the cap at 4, 2 or 1 px it depended on the tool: the 60 px
+  knife had other draws at every cap, the 110 px knife and the filbert at
+  4, and where the draws were the same the hair was still another array
+  for all but the hog flat. The paint showed it: a 110 px knife skimming
+  at pressure 0.05 kept 0.65 to 1.81 times as much paint on its blade at
+  its own steps as in steps of half a pixel, and the wet paint it left
+  on the bare canvas differed from the finest cut's by 70 to 88% of
+  itself with the cap at 8 and at 4 (the 60 px knife's by 27 to 54% at
+  every cap; 1 to 3% over wet grounds).
+
+  Now every texture is noise against the distance along the path (px):
+  as many numbers are drawn as the length of the path calls for
+  (`whole_floor` and `whole_ceil`, from `Path.length`, which no cut
+  exceeds), and each point reads them where it lies
+  (`stroke._stroke_textures`; the new `murex.noise.value_noise_at` reads
+  a line of random values at any places, as `value_noise_1d` reads its
+  own at whole steps, to the bit). What the hair covers, the width a load
+  is measured in and how far before its end a brush starts lifting off
+  are taken from the stroke cut into its own steps (`stroke._Own`: a
+  quarter of its width, 8 px at most), whatever steps it is painted in. A
+  stroke painted in its own steps is its own reference: it is not sampled
+  twice.
+
+  After the change, on the three grounds, each cap against the finest:
+  the generator is left in the same state, the tilt, the bands and the
+  hair are the same arrays at the same place (to the bit), and the wobble,
+  the chatter and the lips are the same along the length, read at the
+  cut's own points (0.8% of the texture's spread for a knife's wobble at
+  its own steps, 4% for its chatter, whose turns are 24 px apart for
+  steps of 8). A 60 px knife then leaves the same wet paint within 3.3%
+  on the bare canvas (it was 27 to 54%) and 0.1% over wet grounds, and
+  keeps as much on its blade within 2.2% (it was 0.90 to 1.20 times); the
+  110 px skim within 0.4%, and 0.7% on its blade (it was 70 to 88%, and
+  0.65 to 1.81 times). `tests/huile/test_textures_along.py` checks it for
+  two knives, a flat and a soft round whose width and pressure vary, on a
+  curve and on a bend, that a second stroke does not show how the first
+  was cut, and that the draws do not hang on a last bit of the length.
+
+  **What an ordinary stroke loses or gains.** A stroke that is not cut
+  finer than its own steps keeps its character: the wobble is as strong
+  as it was (the same noise, 3% of the width either way) and turns every
+  0.8 widths, which is what it did at a stroke's own steps. It is drawn
+  for the path's length in whole steps of the stroke's own and three
+  more, as it was when it was counted in steps: so of the 2251 strokes
+  and marks of the 16 benchmark scenes, 2101 leave the generator as they
+  left it, with the tilt and the bands they had, and a wobble stretched
+  by a few percent at most (its steps are a little shorter than the
+  nominal one). Most of those keep their hair too, not all: the
+  stretched wobble can change the widest the bundle is, and with it how
+  many columns the hair's array has, and a few have another array of the
+  same draws (the review of this change counted about 22 strokes that
+  are not cut finer and get another hair array). The other 150 are as
+  another seed would have made them: 118 in `painting`, 12 in
+  `taper-curve`, 8 in `fan`, 7 in `edges`, 4 in `round-small`, 1 in
+  `liner`. All 16 scenes change: the paint that lies elsewhere than it
+  did is 0.1 to 0.2% of all of it in `knife`, `knife-lift` and
+  `flat-wide`, 1.2% in `taper-curve` and in `painting`. The strokes whose
+  character does change are those of any tool that is not round, where
+  they turn: a flat's, a filbert's, a fan's, and a knife's on a curve.
+  They are cut finer there, and their width wobbled as many times faster
+  as they were cut finer (up to 23 times); it now wobbles as any
+  stroke's does. (Measured in the review: the width of a 60 px knife on
+  a gentle curve crossed its mean every 4.5 px before, and every 100 to
+  106 px now.) A
+  dab reads the wobble where its two points lie, half a pixel apart or
+  so, not a step apart (0.15% less paint in the test that pins one).
+  Setting a stroke going takes as long as it did (a short round: 341 and
+  348 us before, 353 and 342 after; a long flat: 1.41 and 1.42 ms
+  before, 1.40 and 1.38 after); on the benchmark's 16 scenes no
+  difference can be told from the machine's noise, which was up to 20%
+  between two runs of the same code.
+
+  **The tests that matched the textures.** The `same_textures` fixture
+  is gone: it switched the wobble off and drew 8 numbers in its place, so
+  that cuts could be compared. The tests that took it, in five files, now
+  run with each stroke's own textures, and so with another tilt, other
+  bands and other nicks than the fixture left them. How near a knife's
+  cuts come to each other depends on those, which was already so: the
+  bounds were those of the one pull the fixture left (with the fixture's
+  draws the new code gives the old figures: checked, the slab on the bare
+  canvas to all printed digits, the pull over brushed paint to 121,500
+  and 4,245). The slab a heavily loaded 110 px blade lays on the bare
+  canvas was, over six such pulls with the wobble off, 2.2% thinner to
+  0.9% thicker at a stroke's own steps than in steps of half a pixel (the
+  test allowed 1%, and its pull gave 0.1%); with their own textures six
+  pulls give 0.8 to 2.5% thinner (the test now allows 3% for its pull,
+  which gives 2.2%). A heavily loaded 60 px knife carries the wet paint
+  1.2% further at most and leaves 2.6% more beside it (2% and 4% allowed,
+  where 1% and 3% were). Two bounds on a level, not on a cut, are
+  wider for the same reason (the ripple down a slant, 0.066 units where
+  the fixture's pull gave 0.055; the heap where a pull stops, 7.7 units,
+  which the test's docstring already gave for a stroke's own textures),
+  and the load a curve lays next to a straight stroke is now the average
+  of six strokes each (it hung on a seed: 0.76 to 1.13 from seed to seed
+  before, 0.93 to 1.18 now). Three pinned values are measured again (a
+  dab's volume, the cover of a ridge beside a 32 px flat, what a clean
+  knife carries over brushed paint). `tools/huile/knife_probe.py --step`
+  no longer switches the wobble off for `lumps`.
+
+  **Not changed: a brush still depends on its steps.** With the textures
+  the same at every cut it can be measured stroke by stroke. A brush lays
+  as much paint at every cut (a 30 px hog flat, a 16 px round and a
+  24 px filbert at their own steps against steps of 1 px: within 1.1% on
+  the bare canvas and over brushed paint; 2.4 to 4.5% more for the flat
+  over a knifed slab). What it lifts and carries off does depend on the
+  cut: at its own steps it ends its stroke holding 0.72 to 1.02 times
+  what it holds in steps of 1 px on the bare canvas, 0.27 to 0.67 times
+  over brushed wet paint and 0.57 to 0.83 times over a knifed slab (in
+  steps of 2 px: 0.90 to 1.01, 0.80 to 0.93 and 0.90 to 0.94); it moves
+  0.87 to 1.19 times as much of the paint under it; and the wet paint it
+  leaves differs by 11 to 32% of itself on the bare canvas. Two
+  mechanisms, neither a texture. One is `_engine.own_lift`, which takes
+  the stroke's nominal step for how often the footprint passes over a
+  pixel (`0.4 + 2h / K.spacing`), and the nominal step follows the cap:
+  handed the stroke's own step whatever the cap (tried, not kept), the
+  wet paint on the bare canvas differs by 3 to 8% where it was 11 to
+  32%, and the brush holds 0.81 to 1.04 times as much. The other shows
+  only over wet paint: with `own_lift` so fixed a brush at its own steps
+  still holds 0.50 to 0.79 times as much over brushed paint and 0.86 to
+  1.32 times over a slab. It is presumably what a brush picks up at each
+  step (`_engine.pick_up`), and was not traced.
+
 - **Breaking, in huile's pictures:** a knife's stroke no longer shows how it
   is cut into steps (murex-5gw, murex-dl9, murex-dq0, murex-h6u). The same
   pull at a stroke's own steps (8 px at most) and in steps of 4, 2, 1 and

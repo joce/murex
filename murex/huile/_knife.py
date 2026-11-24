@@ -909,12 +909,14 @@ class _BladeStart(NamedTuple):
     band_period: float  # (px along the stroke)
 
 
-def _before_the_blade(canvas, rng, pts, pad, w_typ, arc) -> _BladeStart:
+def _before_the_blade(canvas, rng, pts, pad, w_typ, length) -> _BladeStart:
     """What a knife stroke starts from: the wet paint lying on the canvas
     before it, which the blade's ends push aside into lips (a pile it is
     carrying mostly rides along), over the part of the canvas within ``pad``
     px of its path, from (wet_y0, wet_x0); and the bands its colours wander
-    in (see :func:`_wandering_bands`) and their period along the stroke (px)."""
+    in (see :func:`_wandering_bands`) and their period along the stroke (px),
+    over the ``length`` of its path (px, see ``stroke._Own``: the same
+    bands however it is cut)."""
     H, W = canvas.height, canvas.width
     wet_y0 = min(max(math.floor(float(pts[:, 1].min()) - pad - 1), 0), H)
     wet_x0 = min(max(math.floor(float(pts[:, 0].min()) - pad - 1), 0), W)
@@ -925,7 +927,7 @@ def _before_the_blade(canvas, rng, pts, pad, w_typ, arc) -> _BladeStart:
     # Paint on a blade isn't held in lanes like paint in bristles: its
     # colour bands wander a little from side to side along the stroke.
     period = max(0.5 * w_typ, 4.0)
-    n_s = eng.whole_floor(arc[-1] / period) + 3
+    n_s = eng.whole_floor(length / period) + 3
     bands = value_noise_2d(8 * n_s, 64, 8.0, rng)
     return _BladeStart(wet_y0, wet_x0, wet_before, bands, period)
 

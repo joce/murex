@@ -429,9 +429,7 @@ def _pull(step, seed, pressure=0.5):
     )
 
 
-def test_a_knife_drags_wet_paint_as_far_at_its_own_steps_as_in_shorter_ones(
-    same_textures,
-):
+def test_a_knife_drags_wet_paint_as_far_at_its_own_steps_as_in_shorter_ones():
     """The pull above at pressure 0.5 and 0.7, with the same textures: at a
     stroke's own steps the blade carries the dark as far as in steps of 2
     px (0.998 and 1.001 times), leaves the same heap where it stops (1.003
@@ -441,8 +439,6 @@ def test_a_knife_drags_wet_paint_as_far_at_its_own_steps_as_in_shorter_ones(
     and 0.90 and 0.87 times the white: its level, read 8 px ahead of a
     blade 12 px wide, missed two thirds of the wave it rode on. Every
     channel is kept (to 3e-9)."""
-    _ground()  # (laid with its own textures, before the pulls' are matched)
-    same_textures()
     for pressure, seed in ((0.5, 100), (0.7, 101)):
         own, fine = _pull(8.0, seed, pressure), _pull(2.0, seed, pressure)
         carried, heap, white = (np.array(own) / np.array(fine))[:3]

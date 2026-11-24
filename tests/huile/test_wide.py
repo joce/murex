@@ -777,7 +777,7 @@ def test_a_ridge_s_cover_reaches_its_paint_by_the_footprint_s_width(w, angle):
             1
         ]
 
-    want = {(120, 0.0): 0.4, (32, 0.0): 0.12120598562597296, (120, 90.0): 0.0}
+    want = {(120, 0.0): 0.4, (32, 0.0): 0.12076775099551718, (120, 90.0): 0.0}
     halves = {(120, 0.0): 61.72, (32, 0.0): 16.77, (120, 90.0): 13.6}
     assert half == pytest.approx(halves[w, angle], abs=0.01)
     whole = cover(wd - 2.0)

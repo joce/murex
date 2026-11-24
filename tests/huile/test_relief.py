@@ -184,7 +184,7 @@ def test_an_overloaded_brush_lays_as_thick_as_its_load():
     assert t120 > 1.5 * t60  # (it was 1.2-1.45: capped by what the tips hold)
 
 
-def _deposit_rate(path):
+def _deposit_rate(path, seed):
     """Paint laid per px of travel per px of width, from 60 to 120 px along."""
     c = Canvas(520, 260, seed=12)
     stroke = bm.Stroke(
@@ -192,7 +192,7 @@ def _deposit_rate(path):
         paint=P.CADMIUM_RED,
         amount=120,
         brush=brushes.FLAT_HOG.sized(36),
-        seed=1,
+        seed=seed,
     )
     run = bm._Run.begin(c, stroke)
     run.pend = bm._pending(*run.bounds())
@@ -210,9 +210,15 @@ def _deposit_rate(path):
 
 def test_how_thick_a_load_goes_on_does_not_depend_on_the_step_size():
     # a curve is cut into much finer steps than a straight stroke
-    straight = _deposit_rate([(40, 130), (480, 130)])
-    curve = _deposit_rate([(40, 130), (150, 80), (260, 130), (370, 180), (480, 130)])
-    assert 0.9 < curve / straight < 1.1  # (it was 1.42)
+    # (six strokes each: over 60 px one stroke lays up to a fifth more or
+    # less than another, as its hair falls; the curve of one seed laid
+    # 0.97 of the straight stroke, and lays 1.18 of it since its hair is
+    # another, murex-9t4)
+    wavy = [(40, 130), (150, 80), (260, 130), (370, 180), (480, 130)]
+    seeds = range(1, 7)
+    straight = np.mean([_deposit_rate([(40, 130), (480, 130)], s) for s in seeds])
+    curve = np.mean([_deposit_rate(wavy, s) for s in seeds])
+    assert 0.9 < curve / straight < 1.1  # (1.05; it was 1.42)
 
 
 def test_a_loaded_brush_set_down_leaves_one_bead_behind_where_it_landed():

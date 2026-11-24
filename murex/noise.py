@@ -47,6 +47,19 @@ def value_noise_1d(n: int, cell: float, rng: np.random.Generator) -> np.ndarray:
     return grid[xi] + (grid[xi + 1] - grid[xi]) * f
 
 
+def value_noise_at(grid: np.ndarray, x) -> np.ndarray:
+    """Smooth value noise read at the places ``x`` (0 and up, in cells: a
+    number or an array) of a line of random values ``grid``, one to a cell,
+    as :func:`value_noise_1d` reads its own at whole steps: so the noise can
+    be drawn for a length and read wherever points fall along it. Past the
+    last cell of ``grid`` it is the last value, and before the first (a
+    negative ``x``) the first."""
+    x = np.clip(np.asarray(x, dtype=np.float64), 0.0, len(grid) - 1.0)
+    xi = np.minimum(x.astype(int), len(grid) - 2)
+    f = _smooth(x - xi)
+    return grid[xi] + (grid[xi + 1] - grid[xi]) * f
+
+
 def canvas_weave(h: int, w: int, period: float, rng: np.random.Generator) -> np.ndarray:
     """Height field in [0, 1] resembling primed plain-weave canvas."""
     y, x = np.mgrid[0:h, 0:w].astype(np.float64)
