@@ -30,7 +30,7 @@ from typing import Any, NamedTuple, Protocol
 import numpy as np
 
 from ..filters import smoothstep
-from ..noise import value_noise_1d
+from ..noise import value_noise_1d, value_noise_at
 from ..spline import Path, Profile, as_path, evaluate_profile
 from . import _engine as eng
 from ._dab import dab_pattern
@@ -90,10 +90,18 @@ _LEVEL_PASSES = 12
 _SOFTEN_PASSES = 2
 
 # --- cutting a stroke into steps (see _sample_stroke) ------------------------------
-# The longest step (px): a stroke is cut into steps a quarter of the tool's
-# width long, no longer than this. (Tests and tools/huile/knife_probe.py
-# set it lower, to see whether what a stroke lays depends on its steps.)
-_MAX_STEP = 8.0
+# The longest of a stroke's own steps (px): a stroke is cut into steps a
+# quarter of the tool's width long, no longer than this. Its textures are
+# sized by them and its load measured with them (see _Own), whatever steps
+# it is painted in.
+_OWN_STEP = 8.0
+# The longest step (px) a stroke is painted in: its own, unless tests or
+# tools/huile/knife_probe.py set this lower, to see whether what a stroke
+# lays depends on its steps. (It is _OWN_STEP, not a number of its own: set
+# higher, strokes would still be painted in their own steps; were _OWN_STEP
+# the higher, every wide stroke would be sampled twice, and sized by steps
+# it is never painted in. tests/huile/test_textures_along.py checks it.)
+_MAX_STEP = _OWN_STEP
 # How far (px) a knife moves in the step that sets its blade down and in the
 # one that lifts it off (see _Run._parts): next to nothing, and less than
 # the shortest step a stroke is cut into.
@@ -643,6 +651,27 @@ _NO_PENDING = eng.Pending(
 )
 
 
+class _Own(NamedTuple):
+    """A stroke's path cut into its own steps (a quarter of its width,
+    _OWN_STEP px at most), whatever steps it is painted in: the distance
+    along it (px) at each of those points, and the tool's width (px) and
+    pressure there. And the length of the path itself (px), which the way
+    along its points comes up to at no cut (cut finer, a path is a little
+    longer where it bends).
+
+    What must not depend on how a stroke is cut is worked out from this: how
+    many random numbers its textures draw and what they cover (see
+    :func:`_stroke_textures`), how far before its end a brush starts lifting
+    off, and the width a load is measured in. A stroke painted in its own
+    steps is its own: the three arrays are then its samples themselves."""
+
+    arc: np.ndarray
+    widths: np.ndarray
+    pressure: np.ndarray
+    length: float
+    step: float  # the nominal step of its own steps (px)
+
+
 class _Samples(NamedTuple):
     """A stroke's path sampled into steps: the points, and the tool's width
     (px), pressure, angle and roll (radians) at each."""
@@ -655,6 +684,8 @@ class _Samples(NamedTuple):
     spacing: float  # the nominal step (px)
     w_typ: float  # the stroke's typical width (px)
     is_dab: bool  # a single point, pressed down with a tiny movement
+    arc: np.ndarray  # the distance along the path (px) at each point
+    own: _Own  # the stroke in its own steps
 
 
 def _circular(bt: BrushType) -> bool:
@@ -675,7 +706,8 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         path.n_knots,
     )
     w_typ = max(float(np.mean(w_probe)), 1.0)
-    spacing = float(np.clip(0.25 * w_typ, 0.5, _MAX_STEP))
+    own_step = float(np.clip(0.25 * w_typ, 0.5, _OWN_STEP))
+    spacing = min(own_step, _MAX_STEP)
     taper = eff["taper"]
     t0, t1 = (taper, taper) if isinstance(taper, (int, float, np.number)) else taper
 
@@ -700,9 +732,12 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
             )
         )
         _check_sampled(u, width=widths, pressure=pressure, angle=angles, roll=rolls)
-        return pts, widths, pressure, angles, rolls
+        return _as_steps(bt, pts, widths, pressure, angles, rolls)
 
-    pts, widths, pressure, angles, rolls = sample(spacing)
+    cut = sample(spacing)
+    # (in its own steps: as it is, unless it is cut shorter)
+    own = cut if spacing == own_step else sample(own_step)
+    pts, angles, widths = cut[0], cut[3], cut[1]
     if not _circular(bt) and len(pts) > 2:
         # An elongated footprint that turns between two steps leaves a thin
         # wedge uncovered at the outside of the turn. Step finely enough that
@@ -714,9 +749,34 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         reach_px = 0.5 * float(widths.max()) * (1.0 + bt.spread)
         gap = float(np.max(turn + twist)) * reach_px
         if gap > 0.5:
-            pts, widths, pressure, angles, rolls = sample(
-                max(spacing * 0.5 / gap, 0.35)
-            )
+            cut = sample(max(spacing * 0.5 / gap, 0.35))
+    pts, widths, pressure, angles, rolls, arc, is_dab = cut
+    return _Samples(
+        pts,
+        widths,
+        pressure,
+        angles,
+        rolls,
+        spacing,
+        w_typ,
+        is_dab,
+        arc,
+        # (a dab's path has no length: its two points lie a little apart)
+        _Own(
+            own[5],
+            own[1],
+            own[2],
+            max(float(path.length), float(own[5][-1])),
+            own_step,
+        ),
+    )
+
+
+def _as_steps(bt: BrushType, pts, widths, pressure, angles, rolls):
+    """The sampled points of a stroke, and the width, pressure, angle and
+    roll at each, as its steps take them: a single point as a dab's two, a
+    knife's on its grid. And the distance along them (px) at each, and
+    whether it is a dab."""
     is_dab = len(pts) == 1
     # a dab: press the brush down with a tiny movement (small next to its narrow
     # side)
@@ -729,7 +789,7 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
         rolls = np.repeat(rolls, 2)
     if bt.rigid:
         pts = _on_grid(pts)
-    return _Samples(pts, widths, pressure, angles, rolls, spacing, w_typ, is_dab)
+    return pts, widths, pressure, angles, rolls, _arc_length(pts), is_dab
 
 
 class _Textures(NamedTuple):
@@ -740,25 +800,41 @@ class _Textures(NamedTuple):
     lip: np.ndarray  # how much the lips squeezed out along it swell
     blade_tilt: float  # a knife pressed harder at one end of its blade
     dab: np.ndarray  # the bristle tips a dab prints (see _dab)
+    own_wobble: np.ndarray  # the wobble at each point of its own steps
 
 
-def _stroke_textures(rng, bt: BrushType, smp: _Samples, arc) -> _Textures:
+def _stroke_textures(rng, bt: BrushType, smp: _Samples) -> _Textures:
     """The first textures of a stroke, drawn from its random numbers in this
-    order (see :class:`_Run`)."""
-    pts, w_typ, spacing = smp.pts, smp.w_typ, smp.spacing
-    # A slow wobble of the width.
-    wobble = (
-        value_noise_1d(len(pts) + 2, max(2.0, 0.8 * w_typ / spacing), rng)[: len(pts)]
-        - 0.5
+    order (see :class:`_Run`).
+
+    Each is noise against the distance along the path, in px: as many
+    numbers are drawn as the length of the path calls for (see
+    :class:`_Own`), and each point reads them where it lies. So the stroke
+    wavers the same way along its length whatever steps it is cut into, and
+    what is drawn after (a knife's bands, the hair) is the same."""
+    w_typ, arc, own_arc = smp.w_typ, smp.arc, smp.own.arc
+    length = smp.own.length
+    # A slow wobble of the width, about 0.8 widths from one turn to the next.
+    # (Drawn for the path's length in whole steps of the stroke's own, and
+    # three more, which nothing reads: as it was when the wobble was counted
+    # in steps, so that a stroke in its own steps draws as many numbers as
+    # it did, and what is drawn after is what it was.)
+    cell = max(0.8 * w_typ, 1.0)
+    step = smp.own.step
+    steps = max(eng.whole_ceil(length / step), 1) + 3
+    turns = rng.random(eng.whole_floor(steps * step / cell) + 3)
+    wobble = value_noise_at(turns, arc / cell) - 0.5
+    own_wobble = (
+        wobble if own_arc is arc else value_noise_at(turns, own_arc / cell) - 0.5
     )
     # a knife's height wavers as it is pushed along (faint ripples across the
     # slab: chatter), and a hand never presses both ends of the blade quite
     # equally (the slab is thicker towards one side); the lips squeezed out
     # along a stroke swell and break
     period = max(0.4 * w_typ, 2.0)  # ripples about half a blade width apart
-    ripple = value_noise_1d(eng.whole_floor(arc[-1] / period) + 4, 1.0, rng)
+    ripple = value_noise_1d(eng.whole_floor(length / period) + 4, 1.0, rng)
     chatter = np.interp(arc / period, np.arange(len(ripple)), ripple) - 0.5
-    swell = value_noise_1d(eng.whole_floor(arc[-1] / (2.0 * period)) + 4, 1.0, rng)
+    swell = value_noise_1d(eng.whole_floor(length / (2.0 * period)) + 4, 1.0, rng)
     lip = np.interp(arc / (2.0 * period), np.arange(len(swell)), swell)
     blade_tilt = float(np.clip(rng.normal(0.0, 0.08), -0.2, 0.2))
     # the bristle tips a dab prints (see _dab)
@@ -766,32 +842,34 @@ def _stroke_textures(rng, bt: BrushType, smp: _Samples, arc) -> _Textures:
     # two goes up, not up or down as rounding left it)
     w_dab = eng.whole_floor(w_typ + 0.5)
     dab = _frozen(dab_pattern(bt, 0.5 * w_dab, rng)) if smp.is_dab else _NO_TEX2
-    return _Textures(wobble, chatter, lip, blade_tilt, dab)
+    return _Textures(wobble, chatter, lip, blade_tilt, dab, own_wobble)
 
 
-def _radii(smp: _Samples, wobble, bt: BrushType) -> tuple[np.ndarray, np.ndarray]:
-    """The brush's half-width at every sample: the bristle bundle's size with
-    a slow wobble (nominal), and that as far as the hairs splay under pressure
-    (a pointed round paints thin with a light touch)."""
-    radii = 0.5 * smp.widths * (1.0 + 0.06 * wobble)
+def _radii(widths, pressure, wobble, bt: BrushType) -> tuple[np.ndarray, np.ndarray]:
+    """The brush's half-width at every sample (``widths`` px wide, pressed
+    ``pressure``): the bristle bundle's size with a slow wobble (nominal),
+    and that as far as the hairs splay under pressure (a pointed round
+    paints thin with a light touch)."""
+    radii = 0.5 * widths * (1.0 + 0.06 * wobble)
     # the bristle bundle's size; pressure only splays it
     nominal = radii.copy()
     if bt.spread > 0:
         radii = radii * (
-            (1.0 - bt.spread)
-            + bt.spread * (np.maximum(smp.pressure, 0.02) / 0.5) ** 0.8
+            (1.0 - bt.spread) + bt.spread * (np.maximum(pressure, 0.02) / 0.5) ** 0.8
         )
     return nominal, radii
 
 
-def _lift_reach(bt: BrushType, eff: dict, smp: _Samples, arc, radii):
+def _lift_reach(bt: BrushType, eff: dict, smp: _Samples, arc, radii, own_r: float):
     """Lifting a brush off at the end (see _Run._lift): how far before the
-    end it starts, at most (px), and the arc length from which a step can be
-    lifting off. And the longest step of the stroke (px), which that takes."""
+    end it starts, at most (px: by the widest the brush is in the stroke's
+    own steps, ``own_r``, a half-width), and the arc length from which a
+    step can be lifting off. And the longest step of the stroke (px), which
+    that takes."""
     reach = (
         0.0
         if smp.is_dab or bt.rigid or not bt.deposits
-        else _LIFT_LEN * eff["lift"] * 1.5 * (2.0 * float(radii.max()) / 36.0) ** 0.3
+        else _LIFT_LEN * eff["lift"] * 1.5 * (2.0 * own_r / 36.0) ** 0.3
     )
     pts = smp.pts
     # (no step further than this from the end can be lifting off)
@@ -906,21 +984,23 @@ _NO_HAIR = (0.0, 0.0, 1.0, 1.0)
 
 
 def _stroke_hair(
-    bt: BrushType, w_typ: float, half: float, r_max: float, reach: float, arc, rng
+    bt: BrushType, w_typ: float, half: float, r_max: float, reach: float, length, rng
 ):
     """The brush's hair over the stroke: where its bristle clumps run along
     it, or a blade's nicks (which score nearly straight lines, coming and
     going as grit catches and paint closes over them), and where that lies
     (see :func:`_hair_field`), from a little before its start to a little
     past its end. ``half`` is the bristle bundle's largest half-width (px),
-    ``r_max`` the largest it is splayed to under pressure."""
+    ``r_max`` the largest it is splayed to under pressure, both in the
+    stroke's own steps, and ``length`` that of its path (px; see
+    :class:`_Own`): the same hair however it is cut."""
     pad = r_max * reach + 4.0
     return _hair_field(
         bt,
         w_typ,
         half,
         -pad,
-        float(arc[-1]) + pad,
+        float(length) + pad,
         rng,
         wander=_NICK_WANDER if bt.rigid else 1.0,
     )
@@ -1054,7 +1134,9 @@ class _Run:
         brush, bt, eff = _resolve(stroke)
         smp = _sample_stroke(path, stroke, bt, eff)
         # a load is measured in widths of the stroke (see Stroke.amount)
-        brush.width = float(np.mean(smp.widths))
+        # (the width of the stroke in its own steps: the same load however
+        # it is cut)
+        brush.width = float(np.mean(smp.own.widths))
         load_paint(brush, stroke.paint, stroke.amount)
         return cls(canvas, rng, brush, bt, eff, smp)
 
@@ -1072,7 +1154,7 @@ class _Run:
         pts, is_dab, w_typ = smp.pts, smp.is_dab, smp.w_typ
         self.pts, self.is_dab, self.w_typ = pts, is_dab, w_typ
         self.lays_paint = bool(bt.deposits and brush.volume > 0)
-        arc = self.arc = _arc_length(pts)
+        arc = self.arc = smp.arc
         shape = _shape(bt)
         self.circle, self.aspect, self.reach, self.area_unit = shape
         self.stiff_blade = float(np.clip((bt.stiffness - 0.4) / 0.6, 0.0, 1.0))
@@ -1090,10 +1172,20 @@ class _Run:
 
         # (from here to lift_var, the stroke's textures are drawn from rng in
         # the order the class gives; nothing in between draws any)
-        tex = _stroke_textures(rng, bt, smp, arc)
+        tex = _stroke_textures(rng, bt, smp)
         self.chatter, self.blade_tilt = tex.chatter, tex.blade_tilt
-        nominal, radii = _radii(smp, tex.wobble, bt)
+        nominal, radii = _radii(smp.widths, smp.pressure, tex.wobble, bt)
         self.radii = radii
+        # (the widest the tool is in the stroke's own steps, its bundle and
+        # as it splays, and how long its path is: what its textures cover,
+        # whatever steps it is painted in)
+        own = smp.own
+        own_length = own.length
+        if own.arc is arc:
+            own_half, own_r = float(nominal.max()), float(radii.max())
+        else:
+            wide = _radii(own.widths, own.pressure, tex.own_wobble, bt)
+            own_half, own_r = float(wide[0].max()), float(wide[1].max())
         # (the widest the tool is along the stroke, and the box its path
         # lies in, y0, y1, x0, x1: what its reach is worked out from, see
         # _reach and _knife._reaches)
@@ -1109,23 +1201,17 @@ class _Run:
         self.lateral = 0.0
         # (and the longest of its steps: see _knife._reaches)
         self.lift_reach, self._lift_from, self.longest_step = _lift_reach(
-            bt, eff, smp, arc, radii
+            bt, eff, smp, arc, radii, own_r
         )
         if bt.rigid:
             pad = self.pad = float(radii.max()) * shape.reach + 3.0
-            self.blade = _before_the_blade(canvas, rng, pts, pad, w_typ, arc)
+            self.blade = _before_the_blade(canvas, rng, pts, pad, w_typ, own_length)
         self.stroke_id = canvas._new_stroke_id()
         if is_dab:
             self.tex2, hair_at = tex.dab, _NO_HAIR
         else:
             self.tex2, hair_at = _stroke_hair(
-                bt,
-                w_typ,
-                float(nominal.max()),
-                float(radii.max()),
-                shape.reach,
-                arc,
-                rng,
+                bt, w_typ, own_half, own_r, shape.reach, own_length, rng
             )
         # how ragged this stroke's end is (each stroke ends its own way)
         self.lift_var = float(0.4 + 1.2 * rng.random()) if self.lift_reach > 0 else 1.0

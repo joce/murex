@@ -541,9 +541,7 @@ def test_a_knife_barely_touching_leaves_more_the_more_it_carries(base):
 
 
 @pytest.mark.parametrize("base", [0.0, 4.0])
-def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
-    same_textures, base
-):
+def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(base):
     # Skimming, the bead on the blade's edge laid more the shorter the
     # stroke's steps: how much it leaves over a pass was reckoned in the
     # stroke's nominal steps, and it caught on the paint it had just laid,
@@ -553,11 +551,10 @@ def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
     # within 2.5%: 0.978 to 0.987 as much (these heavily loaded pulls drag
     # none of it, and where a blade that drags nothing rests on wet paint is
     # read once per step; for one that drags it, see the test below).
-    # (Only the white is cut finer: the base is laid in its own steps, with
-    # its textures as they are. The white's textures are the same whatever
-    # its steps: see same_textures.)
+    # (Only the white is cut finer: the base is laid in its own steps. The
+    # white's textures are the same whatever its steps, as every stroke's
+    # are: murex-9t4.)
     _skim_base(base)
-    same_textures()
     bounds = (0.96, 1.04) if base == 0.0 else (0.94, 1.04)
     for pressure in (0.03, 0.08):
         for end, seed in (((180, 120), 1), ((170, 112), 3)):
@@ -571,7 +568,7 @@ def test_what_a_knife_barely_touching_leaves_does_not_hang_on_its_steps(
             assert bounds[0] < ratio < bounds[1], (pressure, end, seed, laid)
 
 
-def test_a_light_skim_over_wet_paint_does_not_hang_on_its_steps(same_textures):
+def test_a_light_skim_over_wet_paint_does_not_hang_on_its_steps():
     # A lightly loaded knife skimming thick wet paint drags some of it along
     # and rides on it. How high it rides was read once per step, a step
     # ahead of the paint it pushes, so the shorter the steps the higher it
@@ -581,7 +578,6 @@ def test_a_light_skim_over_wet_paint_does_not_hang_on_its_steps(same_textures):
     # 0.980 (0.969 to 0.976 in steps of 1 px; murex-kau). (What is left is
     # what the heavily loaded pulls above, which drag nothing, show too.)
     _skim_base(4.0)
-    same_textures()
     for seed in (1, 2, 3):
         laid = []
         for step in (8.0, 2.0):

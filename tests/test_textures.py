@@ -36,6 +36,30 @@ def test_noise_along_a_line():
     assert a.shape == (100,) and np.isfinite(a).all() and a.std() > 0
 
 
+def test_noise_read_at_whole_steps_is_the_noise_of_those_steps():
+    """``value_noise_at`` reads a line of random values as
+    ``value_noise_1d`` reads its own, to the bit."""
+    for n, cell in ((40, 3.2), (7, 2.0), (100, 12.5)):
+        steps = noise.value_noise_1d(n, cell, np.random.default_rng(8))
+        grid = np.random.default_rng(8).random(int(n / cell) + 3)
+        at = noise.value_noise_at(grid, np.arange(n) / cell)
+        np.testing.assert_array_equal(at, steps)
+
+
+def test_noise_read_past_its_last_cell_is_its_last_value():
+    grid = np.array([0.25, 0.5, 1.0])
+    assert noise.value_noise_at(grid, 1.5) == pytest.approx(0.75)
+    assert noise.value_noise_at(grid, 2.0) == 1.0
+    np.testing.assert_array_equal(noise.value_noise_at(grid, [2.5, 40.0]), [1.0, 1.0])
+
+
+def test_noise_read_before_its_first_cell_is_its_first_value():
+    grid = np.array([0.25, 0.5, 1.0])
+    assert noise.value_noise_at(grid, -0.5) == 0.25
+    at = noise.value_noise_at(grid, [-1e-17, -3.0, -1e300, 0.0])
+    np.testing.assert_array_equal(at, [0.25, 0.25, 0.25, 0.25])
+
+
 def test_box_blur_keeps_the_mean_of_a_flat_field_and_the_type():
     flat = np.full((9, 12), 3.0, np.float32)
     out = filters.box_blur(flat, 2)

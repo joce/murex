@@ -131,8 +131,11 @@ def test_tapped_more_lightly_a_dab_lays_less_paint_with_no_step():
 def test_below_the_band_where_the_tips_fade_in_a_dab_lays_what_it_laid_before():
     # The gaps between the tips fade in as the pressure falls from 0.5 to 0.41;
     # tapped more lightly than that, a dab is as it was with no fade at all.
-    # (The volumes were measured with the old, hard-edged formula.)
-    for p, laid in ((0.41, 114.58768062146737), (0.40, 111.15305007198049)):
+    # (The volumes were measured with the old, hard-edged formula: 114.588
+    # and 111.153. They are 0.15% lower since a dab reads the wobble of its
+    # width where its two points lie, a pixel apart, not a step apart:
+    # murex-9t4.)
+    for p, laid in ((0.41, 114.41384642264347), (0.40, 110.97240678622256)):
         c = _two_paint_dab(p)
         assert c.thickness.astype(float).sum() == pytest.approx(laid, rel=1e-6)
 

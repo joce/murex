@@ -278,6 +278,53 @@ pixel. And it no longer hangs on a last bit of its path in the one way that
 was traced: a stroke whose end moved by a million-millionth of a pixel had
 changed over thousands of pixels.
 
+## Breaking, in oil paintings: a stroke has the same textures however it is cut
+
+Every stroke wavers at random along its length: its width wobbles a little,
+a knife's blade chatters and is tilted to one side, its colours wander in
+bands, and the hair of a brush or the nicks of a blade score their lanes.
+The wobble of the width was counted in steps of the stroke, so a stroke cut
+into other steps drew more or fewer random numbers for it, and everything
+drawn after it (the tilt, the bands, the hair) came out as another seed
+would give it: a stroke showed how it was cut through its textures. The
+hair also covered a length and a width that were measured on the points of
+the cut.
+
+Now every texture is drawn against the distance along the path, as many
+random numbers as the length of the path calls for, and read where each
+point of the stroke lies; what the hair covers and the width a load is
+measured in are taken from the stroke in its own steps, whatever steps it
+is painted in. The same stroke in steps of 8, 4, 2 and 1 px (and half a
+pixel, a knife's) draws the same numbers, and has the same wobble, tilt,
+bands and hair along its length. (A stroke already drew from numbers of its
+own: one stroke's cut never changed the next stroke's textures.)
+
+Every oil painting changes a little. For most strokes the wobble is what
+it was: as strong, and one turn every 0.8 widths, which is what a stroke's
+own steps gave it. Of the 2251 strokes and marks of the benchmark's 16
+scenes, 2101 draw as many numbers as they did, and keep their tilt and
+their bands, with a wobble stretched by a few percent at most (most keep
+their hair too; a few dozen have another, where the stretched wobble makes
+the brush a hair wider at its widest); the other 150 come out as another
+seed would have made them. The strokes that do change in character are
+those of a flat, a filbert, a fan or a knife where they turn: they are cut
+finer there, and their width then wobbled as many times faster as they
+were cut finer (a 60 px knife's on a gentle curve crossed its mean every
+4.5 px, and does every 100 px now, as any stroke's does). Painting takes
+as long as it did: setting a stroke
+going costs what it cost (0.3 to 1.4 ms, the same within 3%), and a stroke
+painted in its own steps is not sampled twice.
+
+What the cut still changes can now be measured stroke by stroke, where it
+took the average of several seeds. A knife's pull does the same at every
+cut within 1% as a rule, and within 2 to 3% where it was known to be
+furthest (the slab a wide, heavily loaded blade lays on the bare canvas is
+0.8 to 2.5% thinner in its own steps than in steps of half a pixel, from
+one pull to another). A brush lays as much paint at every cut (within 1%;
+2.4 to 4.5% more for a hog flat over a knifed slab), but what it lifts and
+carries off still depends on its steps, as it did: that is not changed
+here, see the changelog.
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and
