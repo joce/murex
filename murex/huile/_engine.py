@@ -6485,10 +6485,13 @@ def flow_under_riding_blade(
     fills over each pixel, see _knife._fill_share; what the bead on a
     skimming blade's edge leaves there over the step where it is pressed
     flat against the surface, see _knife._bead_coat, empty if the blade
-    does not skim; and the power of how hard it is pressed that it leaves
-    by): at each sub-step its share of the step's (see _sub_step_shares), of
-    the gap between its level then and the surface then, the paint it has
-    laid there so far in the step lying on that surface (see _lay_as_met).
+    does not skim; the power of how hard it is pressed that it leaves by;
+    and, where that bead is a roll, what the roll leaves there over the
+    step and the share of the bead's that is left, see _knife._Roll, both
+    empty for a stroke with no roll): at each sub-step its share of the
+    step's (see _sub_step_shares), of the gap between its level then and
+    the surface then, the paint it has laid there so far in the step lying
+    on that surface (see _lay_as_met).
     That paint is laid on the canvas when the step is over
     (_knife._fill_under_blade); till then the flow counts it with the
     stroke's own film on the pixel, on which the blade glides (see
@@ -6596,7 +6599,7 @@ def flow_under_riding_blade(
             cv,
             floor,
             (planes[1], film, shares, laid),
-            (level, hang, bead, lays[1], lays[2]),
+            (level, hang, bead, lays[1], lays[2], lays[3], lays[4]),
             inside,
             rows[0],
             at,
@@ -6946,9 +6949,11 @@ def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
     the level the bead hangs from in the step, which moves with the
     blade's, how tall the bead is, what it leaves over the step where it
     is pressed flat against the surface, empty if the blade does not skim,
-    and the power of how hard it is pressed that it leaves by) leaves the
-    sub-step's part of that, by how hard it is pressed against the surface
-    now (see bead_gap): the surface under the stroke's own paint, as the
+    the power of how hard it is pressed that it leaves by, and for a
+    stroke with a roll what the roll leaves over the step and the share of
+    the bead's that is left, see _knife._Roll) leaves the sub-step's part
+    of that, by how hard it is pressed against the surface now (see
+    bead_gap): the surface under the stroke's own paint, as the
     caller has raised the level it hangs from by that, and not the paint
     laid in this step either. (Worked out once a step from the mean of how
     far the bead was off the surface over the step, what it left was more
@@ -6956,13 +6961,16 @@ def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
     the ground and the longer the step: 2% more in steps of 8 px over an
     earlier pull. And left out of the film the blade glides on till the
     step was over, it let a skimming blade drag the paint under it 2 to 4%
-    further in steps of 8 px.)"""
+    further in steps of 8 px.) A roll leaves the sub-step's part of what
+    it leaves over the step, whatever the surface is now: where it lays
+    was settled before the stroke."""
     top, und = cv.top, cv.und
     in_lo, in_hi = in_rows
     lev, film, shares, laid = filling
     over, rate, whole = shares[0], shares[1][0], shares[1][1]
-    level, hang, bead, coat, catch = beading
+    level, hang, bead, coat, catch, rolled, kept = beading
     fills, skims = rate.shape[0] > 0, coat.shape[0] > 0
+    rolls = rolled.shape[0] > 0
     if not (fills or skims):
         return
     for y in range(lev.shape[0]):
@@ -6977,12 +6985,52 @@ def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
                 lays = _share_now(w, rate[y, x], whole[y, x]) * film_gap(
                     lev[y, x], surface + laid[y, x], film[y, x]
                 )
-            if skims and coat[y, x] > 0:
+            if skims and coat[y, x] > 0 and not (rolls and kept[y, x] <= 0):
                 hangs = lev[y, x] - level[y, x] + hang[y, x]
                 b = bead[y, x]
                 touch = (b - bead_gap(hangs, surface, b)) / np_max(b, 1e-6)
-                lays += coat[y, x] * (w / over[y, x]) * clip(touch, 0.0, 1.0) ** catch
+                if rolls:
+                    lays += (
+                        kept[y, x]
+                        * coat[y, x]
+                        * (w / over[y, x])
+                        * clip(touch, 0.0, 1.0) ** catch
+                    )
+                else:
+                    lays += (
+                        coat[y, x] * (w / over[y, x]) * clip(touch, 0.0, 1.0) ** catch
+                    )
+            if rolls:
+                lays += rolled[y, x] * (w / over[y, x])
             laid[y, x] += lays
+
+
+@njit(cache=True, error_model="numpy")
+def roll_at(F, wy0, wx0, ch, cw, s0, lays, share, row0, mid):
+    """What the roll of paint on a skimming blade's edge leaves over each
+    pixel of the (ch, cw) part at (wy0, wx0) of the footprint ``F`` of a
+    step that ends ``s0`` px along the stroke (see _knife._Roll): ``lays``,
+    worked out before the stroke in rows 1 px of the stroke's way apart
+    from ``row0`` px along it and columns 1 px across it, the path in
+    column ``mid``, read where the pixel lies (bilinear), times the share
+    of it the roll leaves at that place along the stroke (``share[0]``,
+    row by row); and the share of what the bead leaves as it did that is
+    left there (``share[1]``). Returns the two as (2, ch, cw)."""
+    out = np.empty((2, ch, cw))
+    n_s, n_u = lays.shape
+    for y in range(ch):
+        for x in range(cw):
+            a = F[F_ALONG, wy0 + y, wx0 + x] + s0 - row0
+            a = min(max(a, 0.0), n_s - 1.001)
+            b = min(max(F[F_LAT, wy0 + y, wx0 + x] + mid, 0.0), n_u - 1.001)
+            ia, ib = min(int(a), n_s - 2), min(int(b), n_u - 2)
+            fa, fb = a - ia, b - ib
+            v = (lays[ia, ib] * (1 - fb) + lays[ia, ib + 1] * fb) * (1 - fa) + (
+                lays[ia + 1, ib] * (1 - fb) + lays[ia + 1, ib + 1] * fb
+            ) * fa
+            out[0, y, x] = v * (share[0, ia] * (1 - fa) + share[0, ia + 1] * fa)
+            out[1, y, x] = share[1, ia] * (1 - fa) + share[1, ia + 1] * fa
+    return out
 
 
 @njit(cache=True, error_model="numpy", inline="always")

@@ -55,6 +55,8 @@ from ._knife import (
     _kept_band,
     _knife_step,
     _knife_taps,
+    _Roll,
+    _roll_of,
     _Stage,
 )
 from .brush import (
@@ -74,6 +76,15 @@ from .brush import (
     load_paint,
 )
 from .surface import Surface
+
+#: The pressure of a knife that barely touches: ``pressure=SKIM``. The roll
+#: of paint on the blade's edge then lays a thin sheet that breaks, leaving
+#: holes where the surface falls away from it or the hand lifts (snow on a
+#: mountain, over a thin wet dark). It is a pressure like any other: up to
+#: 0.04 a knife lays so, more of the sheet the nearer 0.04 and less the
+#: nearer 0; from 0.07 on it lays as a knife pressed lightly does, and
+#: between the two the one way gives over to the other.
+SKIM = 0.03
 
 # --- lifting a brush off (see _Run._lift) ------------------------------------------
 # Over how much of the end (px, for a brush 36 px wide, at most) a stiff
@@ -219,6 +230,8 @@ class Stroke:
         squeezes paint out into ridges along the edges. A knife rides on
         the paint: light pressure leaves a thick slab, heavy pressure
         scrapes close to the canvas, leaving paint only in the weave.
+        Barely touching (:data:`SKIM`, 0.03; anything up to 0.04), a loaded
+        knife lays a thin sheet that breaks in patches.
     brush:
         The tool: a :class:`BrushType` (e.g. ``brushes.FLAT_HOG``), or a
         :class:`Brush` to keep paint and dirt between strokes (``paint`` and
@@ -670,6 +683,7 @@ class _Own(NamedTuple):
     pressure: np.ndarray
     length: float
     step: float  # the nominal step of its own steps (px)
+    pts: np.ndarray  # the points themselves
 
 
 class _Samples(NamedTuple):
@@ -768,6 +782,7 @@ def _sample_stroke(path: Path, stroke: Stroke, bt: BrushType, eff: dict) -> _Sam
             own[2],
             max(float(path.length), float(own[5][-1])),
             own_step,
+            own[0],
         ),
     )
 
@@ -1106,6 +1121,9 @@ class _Run:
     # earlier strokes' layers, once there is any (see _knife._Mine)
     flow_phase: float = 0.0
     mine: Any = None
+    # (knives only) what the roll of paint on the blade's edge leaves over
+    # the stroke where it skims, if it does anywhere (see _knife._Roll)
+    roll: _Roll | None = None
     # (knives only) what each column of the blade used in its last step
     # along the stroke, and how long that step was (see _knife._knife_step)
     last_use: Any = None
@@ -1215,6 +1233,10 @@ class _Run:
             )
         # how ragged this stroke's end is (each stroke ends its own way)
         self.lift_var = float(0.4 + 1.2 * rng.random()) if self.lift_reach > 0 else 1.0
+        if bt.rigid and not is_dab and self.lays_paint:
+            # (from random numbers of its own, so that none of the above,
+            # nor the peaks pulled up at the end, is drawn any differently)
+            self.roll = _roll_of(canvas, rng, bt, own, own_r, own_r * shape.reach)
 
         self.dry = False
         brush.wet = 0.0

@@ -220,7 +220,7 @@ Useful members:
 | `amount`   | Paint on the brush, in "brush widths of solid stroke": `amount=6` covers about 6 widths before the brush runs dry and starts to break up. Small brushes need bigger amounts to go as far (they also hold more for their size). Loading a brush beyond what its hair holds (roughly `amount` 10 to 15 and up for a brush 20 px or wider, depending on the hair) puts a glob of paint on it that goes on thick: impasto. The width it is measured in is the stroke's *mean* width, after any `taper` and along any width profile, so a tapered or narrowing stroke loads less paint for the same `amount` (`taper=0.3` about 58% of the same stroke untapered). Not used when `paint` is a list of loads, which carry their own amounts. |
 | `brush`    | The tool: a `BrushType` (e.g. `brushes.FLAT_HOG`, see below), or a `Brush` that keeps leftover paint and dirt between strokes. Default: a medium round. |
 | `width`    | Brush width in px; defaults to the brush's own size. A number, one value per control point, or `f(u)` with `u` in 0..1 along the stroke. `f` is called once with the array of all `u`; if it only takes one number (`lambda u: 30 if u < 0.5 else 10`), it is called for each `u` in turn. |
-| `pressure` | 0..1, same forms as `width`. Light pressure lays paint *on top of* wet paint. Heavy pressure releases more paint and churns it *into* the wet paint below. Soft, pointed brushes also get wider under pressure. An overloaded brush pressed hard squeezes paint out into ridges at its edges. A knife's pressure sets how thick its slab is: light leaves it thick, hard scrapes close to the canvas. |
+| `pressure` | 0..1, same forms as `width`. Light pressure lays paint *on top of* wet paint. Heavy pressure releases more paint and churns it *into* the wet paint below. Soft, pointed brushes also get wider under pressure. An overloaded brush pressed hard squeezes paint out into ridges at its edges. A knife's pressure sets how thick its slab is: light leaves it thick, hard scrapes close to the canvas. Barely touching (`pressure=SKIM`, which is 0.03; anything up to 0.04), a loaded knife lays a thin sheet that breaks in patches (see Knives). |
 | `angle`    | Brush angle in degrees, same forms as `width`: 0 drags a flat broadside, 90 on its edge. Vary it to twist the brush mid-stroke. |
 | `follow_path` | `True`: the angle turns with the stroke. `False`: the angle is fixed on the canvas, like a calligraphy nib. |
 | `roll`     | Round brushes only: how far the brush is rolled between the fingers, in degrees, same forms as `width`. Rolling turns a different side of the bundle to the canvas (see `Brush`). |
@@ -780,10 +780,69 @@ the blade is filled up to the blade and everything above it is pushed away, so:
   lips along the sides. Pressing hard scrapes close to the canvas: the
   blade rides on the tops of the threads and the paint is left only in the
   weave.
-* **Barely touching** (pressure below about 0.3), the blade skims: only the
+* **Touching lightly** (pressure below about 0.3), the blade skims: only the
   bead of paint on its edge touches the high points of what is underneath,
-  in streaks along the blade's nicks and on the threads. That is how snow
-  goes on a mountain over the wet dark ("let it break").
+  in streaks along the blade's nicks and on the threads.
+* **Barely touching** (`pressure=SKIM`: 0.03), that bead is a roll of stiff
+  paint, wider than a thread, and it "breaks": it lays a thin sheet of one
+  thickness with ragged holes in it, a little longer along the pull than
+  across, where the dark underneath shows as bare rock. That is how snow
+  goes on a mountain: a dark knifed thin, then one pull of a blade loaded
+  with white down each lit face, with almost no pressure.
+
+  ```python
+  from murex.huile import SKIM
+  knife = Brush(brushes.knife("straight", 110)).load(P.TITANIUM_WHITE, 8)
+  canvas.stroke([(330, 160), (440, 240), (540, 315)], brush=knife,
+                angle=-54, follow_path=False, pressure=SKIM, lift=0)
+  ```
+
+  The roll reads the surface as it lay before the stroke, smoothed over its
+  own width (5 px, in which the threads are lost); its edge is straight
+  over 10 px either way along the blade and rests on the high places there,
+  so what lies lower is a hollow it may not reach; and how far it reaches
+  wavers along the pull and across it, as a hand does (in cells of 16 by 5
+  px, another draw for every stroke). So the holes fall where the ground
+  dips and where the hand lifts, the same however the stroke is cut into
+  steps, and nothing of the weave shows in them. Over a rough ground
+  (brushed paint, a coarse linen) there are more of them. The white lies
+  0.7 units thick under a straight blade 110 px long, and thinner under a
+  shorter one, which passes over a place sooner (0.56 under one of 70 px,
+  0.41 under one of 40). `SKIM` is a pressure like any other: at 0.04 the
+  sheet covers more, at 0 less (0.86, 0.82 and 0.70 of a face over a dark
+  knifed thin on the default canvas at 0.04, 0.03 and 0; 0.75, 0.69 and
+  0.55 over a brushed dark on coarse linen). Up to 0.04 a knife lays so;
+  from 0.07 on it lays as it always did, on thread tops and along nicks;
+  between the two the one gives over to the other. A comb has no roll, nor
+  has a knife dabbed.
+
+  What to know:
+
+  * Give the blade paint to spare (a load of 3 or more for a face; the roll
+    lays just under a fifth of a load of 8 in a pull 270 px long), or it
+    runs dry in streaks, which is a way to end a pull.
+  * It wants a thin dark, or a brushed one. Over a dark knifed thin every
+    pull measured is one sheet with holes of the size of those in the
+    paintings it was judged against (see the changelog). Over a dark
+    brushed rough the holes are larger and fewer, and about one pull in
+    four has them wider than in those paintings, or its white in two
+    pieces. Over a *thick* knifed dark with the lips of its pulls standing
+    in it, the white is not one sheet: it follows the ridges of the slab,
+    covers under half of the face and lies in many pieces.
+  * One pull a face. A second pull over the same place has holes of its
+    own and fills most of the first one's (0.88 to 0.96 covered over a dark
+    knifed thin, 0.81 to 0.89 over a brushed one).
+  * On an even ground the holes are the stroke's own: another `seed`,
+    other holes, and the same ones on any even ground. The ground decides
+    them where it has relief the roll can feel, some tenths of a unit over
+    more than the roll's width. That is meant: there the hand is all that
+    varies.
+  * These sizes are pixels, set for a picture of about 2 px to the
+    millimetre (a 24 in canvas 1200 px wide, as
+    `examples/huile/bob_ross_style.py`): on a canvas painted at more
+    pixels the holes are smaller on the painting.
+  * Pressed a little harder than a skim, a knife can lay *less*: see
+    Limitations.
 * **Running out.** As the paint under the blade runs low the blade sinks: the
   slab thins out and finally only catches the high points, tearing into a
   streaky tail with the canvas showing through. A smaller load gives a
@@ -1087,6 +1146,40 @@ off towards white rather than clip.
   much. (A blade that does not ride, with no wet paint thicker than 0.05
   units under it, still spills the top layer first: it has next to
   nothing to spill.)
+* Where a skimming knife's sheet of paint breaks (`pressure=SKIM`) is
+  settled before the stroke from the ground and from a texture of the
+  stroke's own: nothing along the stroke remembers that the roll has caught
+  or let go, and the roll does not run low at one place along the blade
+  and stay full at another. (A rule with such a memory was tried and
+  measured no nearer the paintings it was judged against.) Its sizes are in
+  pixels, whatever the size of the painting. The ribs a knife leaves across
+  its pull in stiff paint are not simulated.
+* A knife does not always lay more the harder it is pressed, between a skim
+  and a light touch. From pressure 0.07 on it lays as it did before a skim
+  had its roll, and that is in places less than the roll lays at 0.04 (a
+  sheet 0.7 units thick over four fifths of a face); the roll gives over to
+  the old way between 0.04 and 0.07, and no way of doing that rises all the
+  way where the far end is the lower. Measured in steps of 0.0025 of
+  pressure from 0 to 0.1, with blades 40 and 110 px long, the furthest the
+  white a pull lays falls below what a lighter pull laid (over two sets of
+  pulls: it varies with the stroke's seed):
+  * over a dark knifed thin or brushed rough, over a thick slab, and on the
+    bare default canvas: nothing with a load of 3 or more (but 0.6% for
+    the 40 px blade loaded with 3 on the bare canvas); with a load of 1,
+    which the roll uses up, 0.4 to 9%;
+  * on the bare LINEN_COARSE, whose threads stand far apart: 0.5 to 3% with
+    loads of 8 and 20, 8 to 15% with 3, 13 to 19% with 1;
+  * on a ground with no tooth (glass, a surface made with `texture=0`),
+    where the old way lays next to nothing before 0.06: 28 to 39% with
+    loads of 8 and 20, 53 to 64% with 3, 56 to 79% with 1.
+
+  A blade with very little paint lays more of it as a skim than at any
+  pressure up to 0.3: a 40 px knife loaded with 0.22 over dried ridges lays
+  312 units at 0.04, 172 at 0.07 and 257 at 0.3 (before, it rose all the
+  way, from 97 at no pressure). And the share of a face that is covered
+  can fall where the white laid does not: a 40 px blade loaded with 3
+  covers nine tenths of its face at 0.055 and under half at 0.065, where
+  it begins to spread its film and runs dry along the way.
 * Knives lie flat on the canvas (or, with a tiny `aspect`, on their edge);
   the tilt of the blade (spreading with the trailing edge down vs scraping
   with the leading edge) is folded into pressure.

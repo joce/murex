@@ -9,7 +9,8 @@ one sitting, everything wet:
   with little circles of white, then their bases blended into the blue with
   a clean, dry brush, one mass of cloud in front of another;
 * the mountain cut in with the palette knife, its snow laid on with almost
-  no pressure so it breaks over the dark paint, and mist tapped in at its base;
+  no pressure (``pressure=SKIM``), one pull down each face, so that it breaks
+  over the dark paint, and mist tapped in at its base;
 * distant trees tapped in with a fan brush, evergreens built from the top
   down with the fan, happy little bushes tapped in dark and then highlighted;
 * the lake brushed in, reflections pulled straight down and lightly across,
@@ -29,7 +30,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from murex.huile import Brush, Canvas, Paint, brushes, surfaces
+from murex.huile import SKIM, Brush, Canvas, Paint, brushes, surfaces
 from murex.huile import palette as P
 
 W, H = 1200, 900
@@ -605,62 +606,117 @@ def knife_mountain(ridge_ctrl, base, dark, seed=0):
         ln = (base - y) * r.uniform(0.45, 0.75)
         k = (
             Brush(KNIFE)
-            .load(dark, 0.5 * ln / KNIFE.width)
-            .load(lower, 0.4 * ln / KNIFE.width, depth="heel")
+            .load(dark, 0.25 * ln / KNIFE.width)
+            .load(lower, 0.2 * ln / KNIFE.width, depth="heel")
         )
         # near a peak, the blade is held on the side of the slope it is on and
         # never pokes above the ridge line: shorten it to fit under the ridge
         lo, hi = max(0, j - 2), min(len(segs) - 1, j + 2)
         bend = abs(segs[hi][2] - segs[lo][2])
         width = KNIFE.width * (1.0 if bend < 25 else 0.45)
-        y0 = y + 0.5 * KNIFE.aspect * width + (3 if bend >= 25 else 0)
+        # The blade is set down along the ridge line, just under it, and
+        # pulled square to itself into the mountain, then turned to come
+        # straight down. (Pulled straight down from the start, askew to its
+        # own edge, it left a bead of paint standing above the ridge line at
+        # its upper end: a row of dark posts along every rising ridge.)
+        nx, ny = np.sin(np.radians(slope)), np.cos(np.radians(slope))
+        inset = 0.5 * KNIFE.aspect * width + (3 if bend >= 25 else 0)
+        x0, y0 = x + nx * inset, y + ny * inset
+        x1, y1 = x0 + nx * 0.3 * ln, y0 + ny * 0.3 * ln
         st(
             [
-                (x, y0),
-                (x + r.normal(0, 3), y0 + ln * 0.5),
-                (x + r.normal(0, 5), y0 + ln),
+                (x0, y0),
+                (x1 + r.normal(0, 3), y1),
+                (x1 + r.normal(0, 5), y1 + 0.7 * ln),
             ],
             None,
             brush=k,
             width=width,
-            angle=slope,
-            follow_path=False,
+            angle=0,
+            follow_path=True,
             pressure=0.65,
             lift=0.0,
         )
     return ridge
 
 
-def snow(ridge_ctrl, base, lit, shade, seed=0, amount=0.22, pressure=0.1):
-    """Highlights: the knife edge laid along the ridge and pulled down the
-    face, barely touching, with very little paint, so it breaks over the dark.
-    The lit colour on faces turned to the light (the ridge rising to the
-    right: the face looks left), the shadow colour on those turned away."""
+def ridge_faces(ridge_ctrl):
+    """The faces of a ridge: the runs of its line that rise all the way, or
+    fall all the way, from one peak or saddle to the next. For each, its
+    points and whether it rises to the right."""
+    ctrl = np.asarray(ridge_ctrl, float)
+    faces, run = [], [ctrl[0]]
+    for a, b, c in zip(ctrl[:-1], ctrl[1:], [*ctrl[2:], None], strict=True):
+        run.append(b)
+        if c is None or (b[1] < a[1]) != (c[1] < b[1]):
+            faces.append((np.array(run), bool(b[1] < a[1])))
+            run = [b]
+    return faces
+
+
+# How much paint a snow knife is loaded with, for a pull as long as its
+# blade (see snow).
+LOAD = 0.42
+
+
+def snow(ridge_ctrl, base, lit, shade, seed=0, blade=KNIFE):
+    """Highlights: a small roll of paint on the knife's edge, the blade set
+    down at a peak with one end on the ridge and pulled down the slope
+    with almost no pressure (``SKIM``), so that the paint breaks: a thin
+    sheet of white with holes where the dark shows as bare rock. One pull
+    down each face of the ridge, the blade turning with the ridge line,
+    and on a long face a second, shorter one beside it, lower on the
+    mountain. The lit colour on faces turned to the light (the ridge
+    rising to the right: the face looks left), the shadow colour on those
+    turned away: the shadows first, so that under a peak the light lies
+    over them."""
     r = np.random.default_rng(seed)
-    for x, y, slope in ridge_segments(ridge_ctrl, 9):
-        if base - y < 25:
-            continue
-        rising = slope > 0
-        paint = lit if rising else shade
-        ln = (base - y) * r.uniform(0.3, 0.7)
-        # down the face and out, away from the ridge
-        fall = np.array([(-0.55 if rising else 0.55), 1.0])
-        fall /= np.linalg.norm(fall)
-        k = Brush(SMALL_KNIFE).load(paint, amount * r.uniform(0.7, 1.4))
-        y0 = y + 6
-        st(
-            [
-                (x, y0),
-                (x + fall[0] * ln * 0.5, y0 + fall[1] * ln * 0.5),
-                (x + fall[0] * ln, y0 + fall[1] * ln),
-            ],
-            None,
-            brush=k,
-            angle=slope,
-            follow_path=False,
-            pressure=[pressure, pressure * 0.5, 0.02],
-            lift=0.0,
+    faces = ridge_faces(ridge_ctrl)
+    for pts, rising in [f for f in faces if not f[1]] + [f for f in faces if f[1]]:
+        if rising:  # (from its peak down)
+            pts = pts[::-1]
+        along = np.concatenate(
+            [[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))]
         )
+        if along[-1] < 30:
+            continue
+        width = min(blade.width, along[-1])
+        pulls = [(0, r.uniform(0.6, 0.9))]
+        if along[-1] > 3 * width:
+            pulls.append((1, r.uniform(0.3, 0.55)))
+        for row, share in pulls:
+            # (the first with the blade's upper end just under the ridge
+            # line; the second below it, beginning further down)
+            inset = (0.5 + 0.9 * row) * width + 3
+            path = []
+            for d in np.arange(0.12 * row * along[-1], share * along[-1], 30.0):
+                x, y = (np.interp(d, along, pts[:, k]) for k in (0, 1))
+                ahead = [np.interp(d + 5.0, along, pts[:, k]) for k in (0, 1)]
+                back = [np.interp(d - 5.0, along, pts[:, k]) for k in (0, 1)]
+                tx, ty = np.subtract(ahead, back) / np.hypot(*np.subtract(ahead, back))
+                # (into the mountain: the side of the ridge line that lies lower)
+                nx, ny = (-ty, tx) if tx > 0 else (ty, -tx)
+                if base - (y + ny * inset) < 20:
+                    break
+                path.append((x + nx * inset, y + ny * inset))
+            if len(path) < 2:
+                continue
+            length = 30.0 * (len(path) - 1)
+            st(
+                path,
+                None,
+                # (about what the pull will lay: the blade runs dry towards
+                # its end, and the white gives out in streaks)
+                brush=Brush(blade).load(
+                    lit if rising else shade, max(0.6, LOAD * length / width)
+                ),
+                width=width,
+                angle=0,
+                follow_path=True,
+                # (and lifted off as it goes)
+                pressure=[SKIM] * (len(path) - 1) + [0.0],
+                lift=0.0,
+            )
 
 
 def paint_mountains():
@@ -677,6 +733,7 @@ def paint_mountains():
         mix((SNOW_LIT, 3), (SNOW_SHADE, 1)),
         mix((SNOW_SHADE, 2), (TITANIUM_WHITE, 1)),
         seed=2,
+        blade=SMALL_KNIFE,
     )
     knife_mountain(MAIN_RIDGE, MOUNTAIN_BASE, MOUNTAIN_DARK, seed=3)
     snow(MAIN_RIDGE, MOUNTAIN_BASE, SNOW_LIT, SNOW_SHADE, seed=4)
