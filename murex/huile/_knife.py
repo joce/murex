@@ -70,6 +70,56 @@ _KNIFE_CATCH = 0.7
 # knife 32 px or longer), and a stroke cut into shorter steps laid more
 # (murex-86z).
 _KNIFE_SKIM_PX = 8.0
+# --- a skimming blade's roll of paint (see _Roll) ---------------------------------
+# Lengths on the painting, in pixels, tuned at about 2 px/mm (a 24 in canvas
+# 1200 px wide; huile has no scale of its own to turn millimetres into
+# pixels by).
+#
+# Below _ROLL_ALONE of pressure the bead on a skimming blade's edge lays as
+# a roll, and from _ROLL_GONE on as it did, catching on each thread top
+# (see _slab): every stroke pressed that hard or harder all along is what it
+# was, to the bit. Between the two the catching comes in evenly and the roll
+# goes out late: by the smoothstep of the way from the one pressure to the
+# other, that way raised to the power _ROLL_LATE for the roll (see _Roll).
+# (At 1, the two summing to 1, a pull of a knife loaded with 8 laid 1.2%
+# less at 0.05 than at 0.045 on the bare canvas, and one loaded with 3,
+# 1.6% less; at 1.6 the one loaded with 3 laid 1.6% less at 0.065 than at
+# 0.0575, and at 2, 6.6% less: the roll still there when the blade has
+# little more to give. At 1.3 both rise all the way, there and over a
+# knifed dark and a brushed one on LINEN_COARSE; not on every ground, nor
+# with every load: see _Roll.)
+_ROLL_ALONE, _ROLL_GONE = 0.04, 0.07
+_ROLL_LATE = 1.3
+# How wide the roll is (px, a whole odd number): it reads the surface
+# smoothed over that, in which the threads of a canvas are lost.
+_ROLL_WIDTH = 5
+# Over how far along the blade, either way, the roll's edge is straight
+# (px): it rests on the high places of the surface that far along it, and
+# what it meets elsewhere is a hollow under it.
+_ROLL_STRAIGHT = 10
+# How far below its edge the roll reaches with no pressure at all (paint
+# thickness units), and how much further per unit of pressure.
+_ROLL_REACH, _ROLL_REACH_P = 0.3, 8.0
+# How much of the hollow under its edge the roll feels.
+_ROLL_HOLLOW = 0.6
+# How far the roll's reach wanders over the stroke (paint thickness units,
+# the standard deviation: the hand wavers and the roll is uneven), in cells
+# this long along the stroke and this wide along the blade (px), and finer
+# ones on top, _ROLL_FINER of the first in strength.
+_ROLL_WANDER = 0.55
+_ROLL_CELLS = ((16.0, 5.0), (6.0, 3.0))
+_ROLL_FINER = 0.6
+# Over how much reach the roll comes to lay (paint thickness units): how
+# soft the edges of what it lays are.
+_ROLL_SOFT = 0.15
+# How hard the roll is pressed against the surface where it lays (0 to 1,
+# as the touch of a bead: see _slab): how thick the white lies.
+_ROLL_PRESS = 0.091
+# The standard deviation of a number drawn evenly between -0.5 and 0.5.
+_EVEN_SD = 1.0 / math.sqrt(12.0)
+# How many rows of a roll's surface are read off the canvas at a time (see
+# _roll_surface): what bounds the memory it takes, not what comes out.
+_ROLL_ROWS = 64
 # A knife rides no higher than this times the paint film under its blade.
 _KNIFE_FILM = 0.5
 # Radius (px) over which wet paint dragged by a blade moves together (viscosity).
@@ -932,6 +982,256 @@ def _before_the_blade(canvas, rng, pts, pad, w_typ, length) -> _BladeStart:
     return _BladeStart(wet_y0, wet_x0, wet_before, bands, period)
 
 
+class _Roll(NamedTuple):
+    """What the roll of paint on a skimming blade's edge leaves over a
+    stroke: the bead of :func:`_slab` at the lightest touch, as a roll
+    (murex-dnj).
+
+    The bead as it lays at a light touch catches where a thread top meets a
+    nick of the blade: specks a thread across, on the lattice of the weave.
+    A roll of stiff paint is wider than a thread and holds together. It
+    reads the surface as it lay before the stroke, smoothed over its own
+    width (_ROLL_WIDTH); its edge is straight over a short way along the
+    blade (_ROLL_STRAIGHT) and rests on the high places there, so that what
+    lies lower is a hollow under it; how far below its edge it reaches goes
+    by the pressure (_ROLL_REACH, _ROLL_REACH_P) and wanders over the
+    stroke, as the hand wavers and the roll is uneven (_ROLL_WANDER, a
+    texture of the stroke's own, against the distance along it and the
+    place across it). It lays where it reaches the surface, coming in over
+    _ROLL_SOFT of reach, and there it leaves the paint of a bead pressed
+    _ROLL_PRESS against the surface: a sheet of one thickness, with holes
+    where the surface falls away or the roll lifts.
+
+    All of it is worked out before the stroke, over the stroke: ``lays``,
+    the share of a bead's full coat that the roll leaves, in rows 1 px of
+    the stroke's way apart from ``row0`` px along it and columns 1 px
+    across it, the path in column ``mid``; and ``share``, by the pressure
+    at each row: how much of that the roll leaves there (1 up to
+    _ROLL_ALONE, 0 from _ROLL_GONE on), and how much of what it left as a
+    bead catching on thread tops the bead leaves (0 up to _ROLL_ALONE, 1
+    from _ROLL_GONE on). A step reads them where each of its pixels lies
+    (see :func:`_rolled`): nothing in them hangs on how the stroke is cut
+    into steps, and nothing is kept from one step to the next.
+
+    Between the two pressures the bead's catching comes in evenly
+    (smoothstep) and the roll goes out late (_ROLL_LATE): so that the
+    paint a pull lays rises with the pressure all the way where a blade at
+    _ROLL_GONE lays well more than a roll does: over a wet dark and on the
+    bare default canvas, under a blade loaded with 3 or more. Where it
+    does not, no way of going from the one to the other rises all the
+    way, and a pull pressed harder lays less: on a ground with no tooth
+    (glass, a canvas made with ``texture=0``), where the catching comes to
+    next to nothing before 0.06 (by 28 to 79%, the more the less paint on
+    the blade); on the bare LINEN_COARSE (0.5 to 3% loaded with 8, 8 to
+    15% loaded with 3); and under a blade with little paint, all of which
+    a roll lays (a load of 1: up to 9% on other grounds). How far varies
+    with the stroke's seed. The figures are in
+    docs/huile/README.md, and tests/huile/test_skim.py holds some."""
+
+    lays: np.ndarray
+    share: np.ndarray
+    row0: float
+    mid: float
+
+
+def _roll_of(canvas, rng, bt, own, half: float, far: float) -> _Roll | None:
+    """The roll of a knife stroke about to begin on ``canvas`` (see
+    :class:`_Roll`), or None if it has none: a comb's teeth carry no roll,
+    and a stroke pressed _ROLL_GONE or harder all along lays as it did.
+
+    ``own``: the stroke in its own steps (a ``stroke._Own``: its points,
+    the distance along them and the pressure there, and the length of its
+    path), whatever steps it is painted in; ``half``: the widest its blade
+    reaches across the stroke, and ``far`` from its path at all (px), in
+    those steps. ``rng``: the stroke's random numbers; the roll's are
+    drawn from a generator of their own made from them, which takes
+    nothing from theirs."""
+    if bt.clumps > 0 or not (float(own.pressure.min()) < _ROLL_GONE):
+        return None
+    if not own.arc[-1] > 0:
+        return None
+    pad = eng.whole_ceil(far) + 4
+    n_s = eng.whole_ceil(own.length) + 2 * pad + 1
+    n_u = 2 * eng.whole_ceil(half) + 9
+    rows = np.arange(n_s, dtype=np.float64) - pad
+    wander = _roll_wander(n_s, n_u, rng.spawn(1)[0])
+    r = _ROLL_WIDTH // 2
+    surface = _roll_surface(canvas, own, rows, n_u, r)
+    # (the edge: on the high places along it, and no sharper than the roll)
+    edge = _box(np.pad(_max_along(surface, _ROLL_STRAIGHT), r, mode="edge"), r)
+    hollow = np.maximum(edge - surface, 0.0)
+    p = np.interp(np.clip(rows, 0.0, own.arc[-1]), own.arc, own.pressure)
+    reach = (_ROLL_REACH + _ROLL_REACH_P * p)[:, None] - _ROLL_HOLLOW * hollow - wander
+    lays = (_ROLL_PRESS * smoothstep(0.0, _ROLL_SOFT, reach)) ** _KNIFE_CATCH
+    # (how far the pressure is from the roll alone towards none of it)
+    x = np.clip((p - _ROLL_ALONE) / (_ROLL_GONE - _ROLL_ALONE), 0.0, 1.0)
+    share = np.stack(
+        [1.0 - smoothstep(0.0, 1.0, x**_ROLL_LATE), smoothstep(0.0, 1.0, x)]
+    )
+    return _Roll(np.ascontiguousarray(lays), share, float(-pad), 0.5 * (n_u - 1))
+
+
+def _roll_wander(n_s: int, n_u: int, rng) -> np.ndarray:
+    """How a roll's reach wanders over the stroke (see :class:`_Roll`), in
+    ``n_s`` rows along it and ``n_u`` columns across it, 1 px apart: value
+    noise in cells of _ROLL_CELLS px, of standard deviation _ROLL_WANDER
+    at every place. As many numbers are drawn as the rows and columns call
+    for: for each size of cell its grid, and where in a cell the first row
+    and the first column lie.
+
+    Value noise is a number drawn at each corner of a cell and smoothed
+    from one corner to the next: at a corner it is that one number, and
+    midway between four it is their mean, which strays half as far. So
+    each place's value is divided by how far values stray there. (Left as
+    it comes, with the cells beginning at the first row of every stroke,
+    the wander strayed 0.61 units at the corners of the larger cells and
+    0.48 midway, and a hole was 1.56 times likelier at a corner: over 24
+    strokes on one ground the share left bare ran from 0.15 to 0.26 along
+    the pull, every 16 px.)"""
+    out = np.zeros((n_s, n_u))
+    strays = np.zeros((n_s, n_u))
+    amp = 1.0
+    for along, across in _ROLL_CELLS:
+        grid = rng.random(
+            (eng.whole_floor(n_s / along) + 3, eng.whole_floor(n_u / across) + 3)
+        )
+        first = rng.random(2)
+        a, b = np.arange(n_s) / along + first[0], np.arange(n_u) / across + first[1]
+        ia, ib = a.astype(np.int64), b.astype(np.int64)
+        fa, fb = (a - ia)[:, None], (b - ib)[None, :]
+        fa, fb = fa * fa * (3.0 - 2.0 * fa), fb * fb * (3.0 - 2.0 * fb)
+        near = grid[ia][:, ib] * (1.0 - fb) + grid[ia][:, ib + 1] * fb
+        far = grid[ia + 1][:, ib] * (1.0 - fb) + grid[ia + 1][:, ib + 1] * fb
+        out += amp * (near * (1.0 - fa) + far * fa - 0.5)
+        # (the variance of what four numbers so weighted come to, in that of one)
+        strays += (amp * amp) * ((1.0 - fa) ** 2 + fa**2) * ((1.0 - fb) ** 2 + fb**2)
+        amp *= _ROLL_FINER
+    return out * (_ROLL_WANDER / (_EVEN_SD * np.sqrt(strays)))
+
+
+def _roll_surface(canvas, own, rows, n_u: int, r: int) -> np.ndarray:
+    """The surface as it lies on ``canvas`` (the solid surface and the wet
+    paint, and what lies past the edge where the stroke goes there), as
+    the roll of a stroke reads it (see :class:`_Roll`): smoothed over 2 r
+    + 1 px, at the ``rows`` px along the stroke's path (``own``: see
+    :func:`_roll_of`; straight on before its start and past its end) and
+    in ``n_u`` columns 1 px apart across it.
+
+    Read where each place lies from the stroke's first point, on the grid
+    its path lies on (stroke._PATH_GRID), so that the same stroke a whole
+    number of pixels further on reads the same; and off the canvas a few
+    rows at a time (_ROLL_ROWS), each pixel smoothed from the pixels
+    around it alone, so that it takes the memory of those rows however
+    long the stroke is, and comes out the same wherever it is cut."""
+    arc, end = own.arc, float(own.arc[-1])
+    first = own.pts[0]
+    rel = own.pts - first
+    on = np.clip(rows, 0.0, end)
+    ahead, back = np.minimum(on + 1.0, end), np.maximum(on - 1.0, 0.0)
+    tx = np.interp(ahead, arc, rel[:, 0]) - np.interp(back, arc, rel[:, 0])
+    ty = np.interp(ahead, arc, rel[:, 1]) - np.interp(back, arc, rel[:, 1])
+    n = np.maximum(np.hypot(tx, ty), 1e-12)
+    tx, ty = tx / n, ty / n
+    px = np.interp(on, arc, rel[:, 0]) + (rows - on) * tx
+    py = np.interp(on, arc, rel[:, 1]) + (rows - on) * ty
+    across = np.arange(n_u) - 0.5 * (n_u - 1)
+    # (pixel (i, j) has its centre at (j + 0.5, i + 0.5))
+    X = _on_path_grid(px[:, None] - across * ty[:, None]) + (first[0] - 0.5)
+    Y = _on_path_grid(py[:, None] + across * tx[:, None]) + (first[1] - 0.5)
+    out = np.empty(X.shape)
+    for a in range(0, len(rows), _ROLL_ROWS):
+        x, y = X[a : a + _ROLL_ROWS], Y[a : a + _ROLL_ROWS]
+        ix, iy = np.floor(x).astype(np.int64), np.floor(y).astype(np.int64)
+        x0, y0 = int(ix.min()), int(iy.min())
+        box = (y0 - r, int(iy.max()) + 2 + r, x0 - r, int(ix.max()) + 2 + r)
+        smooth = _box(_surface_over(canvas, box), r)
+        fx, fy = x - ix, y - iy
+        ix, iy = ix - x0, iy - y0
+        out[a : a + _ROLL_ROWS] = (
+            smooth[iy, ix] * (1.0 - fx) + smooth[iy, ix + 1] * fx
+        ) * (1.0 - fy) + (
+            smooth[iy + 1, ix] * (1.0 - fx) + smooth[iy + 1, ix + 1] * fx
+        ) * fy
+    return out
+
+
+# The grid a knife's path lies on (px): stroke._PATH_GRID, written out here
+# as _knife cannot read stroke's (a test checks that the two agree).
+_PATH_GRID = 2.0**-20
+
+
+def _on_path_grid(x):
+    """The nearest to ``x`` (px) on the grid a knife's path lies on
+    (_PATH_GRID)."""
+    return np.round(x / _PATH_GRID) * _PATH_GRID
+
+
+def _surface_over(canvas, box) -> np.ndarray:
+    """How high the surface lies over the ``box`` (y0, y1, x0, x1) of
+    ``canvas``, the solid surface and the wet paint on it: on the canvas;
+    and past its edge, where it goes on (see :class:`_Stage`)."""
+    y0, y1, x0, x1 = box
+    if y0 >= 0 and x0 >= 0 and y1 <= canvas.height and x1 <= canvas.width:
+        at = (slice(y0, y1), slice(x0, x1))
+        floor, top, und = canvas._relief().floor[at], canvas.top_v[at], canvas.und_v[at]
+    else:
+        stage = _Stage(canvas, y0, y1, x0, x1)
+        floor, top, und = stage._relief().floor, stage.top_v, stage.und_v
+    return floor.astype(np.float64) + top + und
+
+
+def _box(a: np.ndarray, r: int) -> np.ndarray:
+    """The mean of ``a`` over the 2 r + 1 px square around each of its
+    pixels that has one (r fewer rows and columns all round): summed pixel
+    by pixel in one order, so that a pixel's comes out the same to the bit
+    whatever part of a larger array it is worked out in."""
+    n = 2 * r + 1
+    h, w = a.shape[0] - 2 * r, a.shape[1] - 2 * r
+    rows = a[0:h].copy()
+    for k in range(1, n):
+        rows += a[k : k + h]
+    out = rows[:, 0:w].copy()
+    for k in range(1, n):
+        out += rows[:, k : k + w]
+    return out / (n * n)
+
+
+def _max_along(a: np.ndarray, r: int) -> np.ndarray:
+    """The most of ``a`` within ``r`` columns of each of its places, along
+    its row."""
+    out = a.copy()
+    for k in range(1, min(r, a.shape[1] - 1) + 1):
+        np.maximum(out[:, k:], a[:, :-k], out=out[:, k:])
+        np.maximum(out[:, :-k], a[:, k:], out=out[:, :-k])
+    return out
+
+
+def _rolled(run: _Run, s: _Step):
+    """What the roll of paint on the blade's edge leaves over each pixel of
+    the step's part of the canvas, as a share of the bead's full coat, and
+    the share of what the bead leaves as it did that is left there (two
+    planes: see :class:`_Roll` and _engine.roll_at); None for a stroke
+    with no roll."""
+    roll = run.roll
+    if roll is None:
+        return None
+    if s.roll is None:
+        win = s.st.win
+        s.roll = eng.roll_at(
+            s.F,
+            win.wy0,
+            win.wx0,
+            win.ch,
+            win.cw,
+            s.st.motion.arc_i,
+            roll.lays,
+            roll.share,
+            roll.row0,
+            roll.mid,
+        )
+    return s.roll
+
+
 def _wandering_bands(run: _Run, F, st, part: eng.Window):
     """Where across the blade (-1..1) the paint a knife lays on each pixel of
     the ``part`` (wy0, wx0, ch, cw) of the window of step ``st`` (footprint
@@ -1387,10 +1687,10 @@ def _drag_film(run: _Run, s: _Step, level, hang, film, riding=None, ridges=None)
         gaps = eng.flow_under_blade(*flow)
         return _Met(gaps, None, None, level, hang) if gaps.size else None
     fill, _skim, _n = _fill_share(run, s)
-    coat = _bead_coat(run, s, film)
+    coat, rolled, kept = _bead_coat(run, s, film)
     if not (run.brush.tip[:, IV].sum() > 0 and run.bt.deposits):
         # (a blade with no paint on it lays none)
-        fill = coat = _NO_COAT
+        fill = coat = rolled = kept = _NO_COAT
     spill = (
         np.ascontiguousarray(s.lat_px[wsl]),
         # (the share of what stands above the blade that a pass moves, as
@@ -1404,7 +1704,7 @@ def _drag_film(run: _Run, s: _Step, level, hang, film, riding=None, ridges=None)
         *flow,
         riding,
         s.subs if s.subs is not None else (0, 0.0),
-        (fill, coat, _KNIFE_CATCH),
+        (fill, coat, _KNIFE_CATCH, rolled, kept),
         spill,
         _mine(run, s),
     )
@@ -1645,10 +1945,16 @@ def _slab(
         surf = surf - _own_paint(run, s)
         touch = np.clip((surf - (hang - bead)) / np.maximum(bead, 1e-6), 0.0, 1.0)
         touch = touch * _bead_streaks(run, s)
+        caught = touch**_KNIFE_CATCH
+        # (at the lightest touch the bead is a roll, which lays where the
+        # stroke has it lay: see _Roll)
+        roll = _rolled(run, s)
+        if roll is not None:
+            caught = roll[1] * caught + roll[0]
         # the bead leaves paint wherever it passes, in proportion to how
         # much of a pass this step is (for the same reason)
         pass_bead = n * (1.0 - np.exp(-4.0 / n))
-        beaded = skim * _KNIFE_BEAD * pass_bead * bead * touch**_KNIFE_CATCH * expo_c
+        beaded = skim * _KNIFE_BEAD * pass_bead * bead * caught * expo_c
         if laid is not None:
             # (where the blade rode on wet paint, what its bead left as it
             # went is laid with its film: see _drag_film)
@@ -1674,14 +1980,21 @@ def _bead_coat(run: _Run, s: _Step, film):
     """What the bead on a skimming blade's edge leaves over each pixel in
     this step where it is pressed flat against the surface (see
     :func:`_slab`), the ``film`` on the blade being what it is; empty if the
-    blade does not skim."""
+    blade does not skim. And, where the bead is a roll (see :class:`_Roll`),
+    what the roll leaves over the step and the share of the first that is
+    left there; both empty for a stroke with no roll."""
     _fill, skim, n = _fill_share(run, s)
     if not (skim > 0 and run.bt.clumps == 0):
-        return _NO_COAT
+        return _NO_COAT, _NO_COAT, _NO_COAT
     bead = np.minimum(film, _KNIFE_BEAD_HEIGHT)
     pass_bead = n * (1.0 - np.exp(-4.0 / n))
     streaks = _bead_streaks(run, s) ** _KNIFE_CATCH
-    return skim * _KNIFE_BEAD * pass_bead * bead * streaks * s.expo[s.wsl]
+    coat = skim * _KNIFE_BEAD * pass_bead * bead * streaks * s.expo[s.wsl]
+    roll = _rolled(run, s)
+    if roll is None:
+        return coat, _NO_COAT, _NO_COAT
+    whole = skim * _KNIFE_BEAD * pass_bead * bead * s.expo[s.wsl]
+    return coat, whole * roll[0], np.ascontiguousarray(roll[1])
 
 
 def _fill_share(run: _Run, s: _Step) -> tuple[Any, float, Any]:

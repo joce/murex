@@ -20,10 +20,11 @@ from . import brushes, palette, surfaces
 from .brush import Brush, BrushType
 from .canvas import Canvas
 from .paint import Paint
-from .stroke import Stroke
+from .stroke import SKIM, Stroke
 from .surface import Surface
 
 __all__ = [
+    "SKIM",
     "Bezier",
     "Brush",
     "BrushType",

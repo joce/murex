@@ -181,6 +181,28 @@ SERIES = {
         _knife_pull([(x + dx, y) for x, y in (OFF, ONTO)[i % 2]], seed=10 + i)
         for i, dx in enumerate((-30, -10, 10, 30))
     ],
+    # (barely touching: the roll of the blade's edge reads the surface as it
+    # lay before the stroke, past the edge too; murex-dnj)
+    "skim on and off": [
+        _knife_pull((ONTO, OFF)[i % 2], load=3.0, pressure=0.03, seed=10 + i)
+        for i in range(3)
+    ],
+    "skim through a corner": [
+        _knife_pull(
+            (CORNER[::-1], CORNER)[i % 2], -45.0, load=3.0, pressure=0.03, seed=10 + i
+        )
+        for i in range(2)
+    ],
+    "skim along": [
+        _knife_pull(
+            (ALONG, ALONG[::-1])[i % 2],
+            -90.0,
+            load=3.0,
+            pressure=[0.02, 0.06],
+            seed=10 + i,
+        )
+        for i in range(2)
+    ],
     "knife stopped at the edge": [
         _knife_pull([(90.0, 120.0), (90.0, 50.0), (90.0, 6.0)], load=4.0, pressure=0.9),
         _knife_pull(
@@ -218,6 +240,8 @@ SERIES = {
 CASES = [
     *(("brushed", name, 0) for name in SERIES),
     ("knifed", "knife on", 1),
+    ("knifed", "skim on and off", 1),
+    ("bare", "skim on and off", 3),
     ("knifed", "knife off and on", 2),
     ("knifed", "brush off and on", 3),
     ("bare", "knife on, loaded", 0),

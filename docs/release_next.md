@@ -325,6 +325,31 @@ one pull to another). A brush lays as much paint at every cut (within 1%;
 carries off still depends on its steps, as it did: that is not changed
 here, see the changelog.
 
+## Breaking, in oil paintings of skims: a knife barely touching breaks in patches
+
+Snow goes on a mountain with one pull of a knife carrying a small roll of
+white, with almost no pressure, over a thin wet dark: the paint "breaks",
+and the dark shows through the holes as bare rock. A knife at such a touch
+laid specks one thread across, on the lattice of the canvas. It now lays a
+thin sheet of one thickness with ragged holes, a little longer along the
+pull than across: `pressure=SKIM` (`from murex.huile import SKIM`; it is
+0.03, and anything up to 0.04 lays so). The holes fall where the ground
+dips under the blade's edge and where the hand lifts, and are the same
+however the stroke is cut into steps.
+
+Only skims change: every stroke pressed 0.07 or harder is painted as
+before, to the bit, and so are brushes, combs and dabs. Between 0.04 and
+0.07 the new way gives over to the old. `examples/huile/bob_ross_style.py`
+lays its snow this way now. See the changelog for what was measured, and
+for where it falls short: it wants a thin dark or a brushed one (over a
+thick knifed dark the white follows the ridges of the slab and is not one
+sheet); a second pull over the same place fills most of the holes; a knife
+pressed a little harder than a skim can lay less than the skim does (by a
+quarter to three quarters on glass and other grounds with no tooth, by a
+tenth on bare coarse linen with a middling load, and whenever the blade carries
+very little paint); and the sizes of the holes are in pixels, set for a
+painting at about 2 px to the millimetre.
+
 ## Breaking: NumPy 2 is required
 
 NumPy 1.x is no longer supported: murex requires `numpy>=2.0` and

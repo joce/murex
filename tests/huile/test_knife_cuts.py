@@ -32,6 +32,7 @@ import numpy as np
 import pytest
 
 import murex.huile.stroke as stm
+from murex.filters import box_blur
 from murex.huile import Brush, Canvas, Paint, brushes
 from murex.huile import palette as P
 from murex.huile._engine import IV
@@ -266,6 +267,123 @@ def test_a_loaded_skim_over_its_own_colour_lays_as_much_at_every_cut():
         first=(0.5, 1.5),
     )
     _within(got, what, (0.01, 0.01))
+
+
+# --- murex-dnj: the roll of a blade barely touching ----------------------------------
+SKIM_WAY = [(70.0, 70.0), (231.8, 187.7)]  # (200 px down a slant)
+SKIM_CURVE = [(60.0, 70.0), (150.0, 100.0), (250.0, 205.0)]
+
+
+def _skim_cuts(ground, pressure=0.03, path=SKIM_WAY, load=8.0, **how):
+    """White skimmed over ``ground`` (what gives the canvas) at
+    ``pressure`` with a knife 110 px wide, the blade across the pull: for
+    each of CAPS, how far what it lays is from what it lays in steps of
+    FINE, in all (a share) and place by place (the root mean square of
+    the difference, each smoothed over 7 px, as a share of that of what
+    the fine one lays). Every pull keeps its paint."""
+    blade = {
+        "angle": math.degrees(math.atan2(80.0, 110.0)) - 90.0,
+        "follow_path": False,
+    }
+    blade.update(how)
+    laid = {}
+    for cap in (FINE, *CAPS):
+        c = ground()
+        knife = Brush(brushes.knife("straight", 110, flex=0.5))
+        knife.load(P.TITANIUM_WHITE, load)
+        wet = c.wet_thickness.astype(np.float64)
+        before = _totals(c, knife)
+        longest = stm._MAX_STEP
+        stm._MAX_STEP = cap
+        try:
+            c.stroke(path, brush=knife, pressure=pressure, seed=100, lift=0.0, **blade)
+        finally:
+            stm._MAX_STEP = longest
+        after = _totals(c, knife)
+        assert np.abs(after - before).max() / np.abs(before).max() < 1e-7, cap
+        laid[cap] = c.wet_thickness.astype(np.float64) - wet
+    fine = _smoothed(laid[FINE])
+    out = {}
+    for cap in CAPS:
+        off = _smoothed(laid[cap]) - fine
+        out[cap] = (
+            laid[cap].sum() / laid[FINE].sum() - 1.0,
+            math.sqrt((off**2).mean() / (fine**2).mean()),
+        )
+    return out
+
+
+def _smoothed(a):
+    """``a`` averaged over 7 by 7 pixels."""
+    return box_blur(a, 3)
+
+
+@pytest.mark.parametrize("base", ["knifed", "brushed"])
+@pytest.mark.parametrize("surface", [None, "LINEN_COARSE"])
+def test_a_skim_lays_the_same_sheet_at_every_cut(dark_ground, surface, base):
+    """White skimmed at pressure 0.03, where the bead on the blade's edge
+    lays as a roll (_knife._Roll), on the default canvas and on
+    LINEN_COARSE, over a dark knifed thin and over one brushed rough and
+    textured: it lays the same white in steps of 8, 4, 2 and 1 px as in
+    steps of half a pixel, in all (to 0.003% on the four grounds, and the
+    test allows 0.1%) and place by place (to 0.32% root mean square at a
+    stroke's own steps, smoothed over 7 px, 0.13% in steps of 4 px and
+    0.05% in steps of 2; 1% allowed).
+
+    Where the roll lays is settled before the stroke, over the stroke,
+    from the surface as it lay then: no step reads anything of it that
+    changes while the stroke lasts. (The bead as it was, on the same four
+    grounds with the same textures: 0.03 to 0.11% in all and 0.4 to 0.6%
+    place by place. The study of murex-dnj found its prototype 1.3% off in
+    all and 6% place by place on the brushed LINEN_COARSE, and the bead as
+    it was 84% off place by place there: it was measured before a
+    stroke's textures were the same at every cut, murex-9t4, when every
+    cut had other nicks.)"""
+    got = _skim_cuts(lambda: dark_ground(surface, base))
+    for cap, (total, place) in got.items():
+        assert abs(total) < 0.001, (cap, total)
+        assert place < 0.01, (cap, place)
+
+
+@pytest.mark.parametrize(
+    ("pull", "most"),
+    [
+        ({"pressure": 0.0}, (0.001, 0.01)),
+        ({"pressure": 0.055}, (0.002, 0.01)),
+        ({"pressure": [0.0, 0.04]}, (0.001, 0.01)),
+        ({"pressure": [0.02, 0.09]}, (0.006, 0.025)),
+        ({"path": SKIM_CURVE, "angle": 0, "follow_path": True}, (0.001, 0.01)),
+        ({"path": SKIM_CURVE}, (0.001, 0.01)),
+    ],
+    ids=[
+        "no pressure",
+        "between the two rules",
+        "pressed harder, the roll alone",
+        "pressed harder, past the roll",
+        "round a curve",
+        "round a curve, the blade held",
+    ],
+)
+def test_a_skim_lays_the_same_at_every_cut_whatever_the_pull(dark_ground, pull, most):
+    """On the brushed LINEN_COARSE, the roughest of the four grounds, at
+    every cut against steps of half a pixel, in all and place by place
+    (see :func:`_skim_cuts`): a pull with no pressure at all (0.01% and
+    0.38%); one at pressure 0.055, where the roll is going out and the
+    bead's catching coming in (0.03% and 0.30%); one pressed from nothing
+    at its start to 0.04 at its end, which reads the pressure where each
+    place is; one round a curve, its blade turning with it (0.006% and
+    0.12%) or held as it was set down (0.003% and 0.28%). The test allows
+    0.1% and 1% (0.2% between the two rules).
+
+    A pull pressed from 0.02 to 0.09 is 0.30% and 1.55% off at a stroke's
+    own steps (0.14% and 0.72% in steps of 4 px), and the test allows 0.6%
+    and 2.5%: that is not the roll's. Past 0.05 the blade spreads its
+    film, by the pressure of each step, which is the mean of its two
+    ends': with no roll at all the same pull is 0.30% and 1.59% off."""
+    got = _skim_cuts(lambda: dark_ground("LINEN_COARSE", "brushed"), **pull)
+    for cap, (total, place) in got.items():
+        assert abs(total) < most[0], (cap, total)
+        assert place < most[1], (cap, place)
 
 
 # --- murex-h6u: the ripple down a slant -----------------------------------------------

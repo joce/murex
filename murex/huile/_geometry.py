@@ -155,6 +155,7 @@ class _Step:
     subs: Any
     fill: Any
     mine: Any
+    roll: Any
 
     along = _plane(eng.F_ALONG, "position along the motion (px)")
     lat_px = _plane(eng.F_LAT, "position across the motion (px)")
@@ -181,3 +182,6 @@ class _Step:
         self.subs = None
         self.fill = None
         self.mine = None
+        # (and what the roll on a skimming blade's edge leaves there: see
+        # _knife._rolled)
+        self.roll = None

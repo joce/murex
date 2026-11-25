@@ -515,7 +515,18 @@ def test_a_skimming_knife_lays_what_it_did():
     # more and 3% less than in steps of half a pixel, which lay 150, 194
     # and 255 with the same textures; they are now within 0.2% of that:
     # murex-5gw, and steps of 2 px at most over a dried relief.)
-    assert 145 < _skim([0.1, 0.05, 0.02]) < 225
+    # (Eased off from 0.1 to 0.02 the pull lays 301, where it laid 150: below
+    # pressure 0.07 the bead comes to lay as a roll, a sheet with holes and
+    # no longer specks on the high points, see _knife._Roll and murex-dnj.
+    # The two pulls at one pressure are what they were. So this pull, with
+    # so little paint on its blade, now lays more than one held at 0.1 or
+    # at 0.3, and no pressure up to 0.3 lays as much as a skim does: 312
+    # at 0.04, 279 at 0.06, 172 at 0.07, 196 at 0.1, 241 at 0.2, 257 at 0.3,
+    # where it rose all the way before, from 97 at no pressure. The roll
+    # lays nine tenths of what such a blade carries, and the bead as it
+    # was never more than three quarters.)
+    assert 270 < _skim([0.1, 0.05, 0.02]) < 335
+    assert _skim(0.04) > _skim(0.3)
     assert 185 < _skim(0.1) < 255
     assert 215 < _skim(0.3) < 285
 
