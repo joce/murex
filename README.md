@@ -73,6 +73,14 @@ they go.
 <td><em>Broadway in SoHo on an autumn afternoon, in soft pastel on toned paper.</em></td>
 <td><em>After Whistler's</em> Falling Rocket<em>: thin washes of night, and the sparks spattered on.</em></td>
 </tr>
+<tr>
+<td><img src="examples/fusain/output/deco.png" alt="An art deco tower in charcoal"></td>
+<td><img src="examples/huile/output/towering_peaks.png" alt="After Bob Ross's Towering Peaks"></td>
+</tr>
+<tr>
+<td><em>An imagined art deco tower in charcoal, seen from the street so that it towers.</em></td>
+<td><em>After Bob Ross's</em> Towering Peaks<em>, painted step by step the way he paints it on the show.</em></td>
+</tr>
 </table>
 
 ## Installing

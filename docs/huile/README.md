@@ -146,6 +146,16 @@ the colour that brings the canvas closer (`examples/huile/_studies.py`).
   and the sparks flicked on with `canvas.spatter`, a flick for each shower of
   sparks in the photograph, falling from just above it (about 3,200 brush
   strokes, then 160 flicks and 1,700 drops; ~1 minute).
+* `examples/huile/towering_peaks.py`: Bob Ross's *Towering Peaks* (The Joy
+  of Painting, series 10, episode 1), painted the way he paints it in the
+  episode, step by step from his own words, with the places read off a frame
+  of the finished painting: the sky in criss-crosses and the water pulled in
+  from the sides; clouds scrubbed, blended and lifted; the mountain knifed on,
+  scraped and pulled down, its snow skimmed one pull a face (its breaks
+  measure as his do with `tools/huile/break_stats.py`); foothills tapped with
+  the oval brush; little evergreens tapped down with their reflections pulled
+  from them; tall evergreens, leaf trees blocked in dark and leafed, and a
+  path (about 35,000 strokes, ~7 minutes).
 
 ![after seurat](../../examples/huile/output/seurat_grande_jatte.png)
 
@@ -156,6 +166,11 @@ nearly pure colour, tapped on side by side.*
 
 *After Whistler's* Nocturne in Black and Gold: The Falling Rocket*: thin washes
 of night and smoke, and the falling sparks spattered on.*
+
+![after bob ross](../../examples/huile/output/towering_peaks.png)
+
+*After Bob Ross's* Towering Peaks*: one painting, copied the way he painted
+it on the show.*
 
 ## API
 
