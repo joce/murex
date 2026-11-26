@@ -66,11 +66,11 @@ his manner, like the Bruegel, and painted on the back of glass, in reverse.
   episode, step by step from his own words, with the places read off a frame
   of the finished painting: the sky in criss-crosses and the water pulled in
   from the sides; clouds scrubbed, blended and lifted; the mountain knifed on,
-  scraped and pulled down, its snow skimmed one pull a face (its breaks
-  measure as his do with `tools/huile/break_stats.py`); foothills tapped with
-  the oval brush; little evergreens tapped down with their reflections pulled
-  from them; tall evergreens, leaf trees blocked in dark and leafed, and a
-  path (about 35,000 strokes, ~7 minutes).
+  scraped and pulled down, its snow skimmed in short pulls down along each
+  ridge; foothills tapped with the oval brush; little evergreens tapped down
+  with their reflections pulled from them; tall evergreens in tufts of little
+  arms, leaf trees blocked in dark and tapped on in soft masses, a path of
+  grey stones, and a signature (about 21,500 strokes, ~10 minutes).
 * `examples/huile/rembrandt_self_portrait.py`: a study after Rembrandt's
   *Self-Portrait* of 1659 (National Gallery of Art, Washington; public
   domain), painted from a reproduction (`examples/huile/reference`) the way he
