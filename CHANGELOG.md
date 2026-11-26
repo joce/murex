@@ -28,6 +28,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   leaves lit on top over darker green, taken from the close-ups of the
   episode rather than the blurred frame of the whole; and the mountain's
   ridges sag a little between peak and notch instead of running ruled.
+- *Towering Peaks*, after an independent grading against his painting: the
+  main peak slender, with a deep notch before the second peak; the snow on
+  the ridge within its face lit on the right side, pulled in longer,
+  flatter strokes, pinker; the mist with no top edge; the leaves brighter
+  and greener over a dark green ground instead of black, the red bush a
+  dull rust; the path a band of grey stones skimmed with the knife.
 
 ## [0.3.0] - 2026-11-26
 

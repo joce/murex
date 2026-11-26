@@ -466,26 +466,25 @@ def clouds():
 # ===========================================================================
 RIDGE = ridge(
     (60, 262), (110, 228), (150, 200), (195, 168), (230, 138), (252, 150),
-    (275, 146), (350, 90), (370, 100), (405, 50), (432, 72), (455, 82),
+    (275, 146), (350, 90), (372, 104), (405, 50), (435, 96), (457, 83),
     (520, 122), (590, 165), (660, 200),
 )  # fmt: skip
 MOUNTAIN_BASE = 290 * K
-# the faces that take the light (from the right): each from its top down
+# the faces that take the light (from the right): each ridge from its top
+# down, and on which side of it the lit face lies (1: below it, -1: above)
 LIT = [
-    ridge((405, 50), (432, 72), (455, 82)),
-    ridge((455, 82), (520, 122), (590, 165), (650, 196)),
-    ridge(
-        (230, 138), (300, 180), (370, 214), (440, 234), (520, 244)
-    ),  # the peak brought in front
-    ridge((400, 52), (415, 80), (432, 120), (453, 168)),  # (ridges within the
-    ridge((343, 173), (400, 195), (460, 220), (527, 237)),  # faces, lit too)
+    (ridge((405, 50), (435, 96)), 1),
+    (ridge((457, 83), (520, 122), (590, 165), (650, 196)), 1),
+    (ridge((230, 138), (300, 180), (370, 214), (440, 234), (520, 244)), 1),
+    (ridge((400, 52), (415, 80), (432, 120), (453, 168)), -1),  # (ridges within
+    (ridge((343, 173), (400, 195), (460, 220), (527, 237)), 1),  # the faces)
 ]
 # and those in shadow, the other side of each
 SHADOW = [
     ridge((405, 50), (385, 82), (370, 100)),
     ridge((350, 90), (310, 118), (275, 146)),
     ridge((230, 138), (195, 168), (150, 200), (100, 236)),
-    ridge((455, 82), (430, 110), (410, 140)),
+    ridge((457, 83), (430, 110), (410, 140)),
     ridge(
         (350, 90), (390, 128), (440, 158), (500, 172)
     ),  # the ridge that pushes the peak back
@@ -493,9 +492,9 @@ SHADOW = [
 # (alizarin and ultramarine: the pink-violet of his lit snow; cerulean and
 # Prussian blue would turn it green)
 SNOW = mix(
-    (TITANIUM_WHITE, 9),
-    (ALIZARIN, 1.0),
-    (P.ULTRAMARINE_BLUE, 1.2),
+    (TITANIUM_WHITE, 10),
+    (ALIZARIN, 1.2),
+    (P.ULTRAMARINE_BLUE, 0.8),
 )
 SHADE = mix(
     (TITANIUM_WHITE, 1.3),
@@ -547,15 +546,18 @@ def mountain():
         st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p)
     for k, line in enumerate(SHADOW):
         snow(line, SHADE, seed=70 + k, rows=5)
-    for k, line in enumerate(LIT):
-        snow(line, SNOW, seed=80 + k, rows=2)
+    for k, (line, side) in enumerate(LIT):
+        snow(line, SNOW, seed=80 + k, rows=2, side=side)
     # mist: the base tapped and lifted, then blended with a clean brush
     r = np.random.default_rng(32)
-    haze = mix((TITANIUM_WHITE, 6), (P.ULTRAMARINE_BLUE, 0.5), (ALIZARIN, 0.15))
+    haze = mix((TITANIUM_WHITE, 6), (P.ULTRAMARINE_BLUE, 0.4), (ALIZARIN, 0.25))
     blender = MIST_BRUSH.sized(110)
+    xs = np.arange(130 * K, W + 60, 60)
     for y in np.arange(240 * K, 300 * K, 12):
         f = ((y - 240 * K) / (60 * K)) ** 1.5
-        line = [(x, y + r.normal(0, 5)) for x in np.arange(130 * K, W + 60, 60)]
+        # (rows that rise and fall, so the mist has no top edge)
+        wave = np.convolve(r.normal(0, 14, len(xs) + 4), np.ones(5) / 5, "valid")
+        line = [(x, y + dy) for x, dy in zip(xs, wave, strict=True)]
         path = scrub_along(line, 20, 24, r)
         brush = Brush(blender).load(haze, (0.45 * f + 0.03) * path_length(path) / 600)
         st(path, None, brush=brush, pressure=0.05 + 0.25 * f**0.5, mixing=0.5)
@@ -603,7 +605,7 @@ def knife_in(ridge, base, dark, seed=0):
         )
 
 
-def snow(line, colour, seed=0, blade=None, rows=1):
+def snow(line, colour, seed=0, blade=None, rows=1, side=1):
     """As he lays it: the knife with a small roll of paint on its edge, held
     across the ridge with its tip just under it, and pulled down along the
     ridge with no pressure at all (``SKIM``), a short way, then again a
@@ -618,15 +620,15 @@ def snow(line, colour, seed=0, blade=None, rows=1):
     for row in range(rows):
         d = r.uniform(0, 10) + row * 15
         while d < total - 10:
-            ln = min(60 * r.uniform(0.6, 1.4), total - d)
+            ln = min(90 * r.uniform(0.6, 1.4), total - d)
             ds = np.linspace(d, d + ln, 6)
             x, y = (np.interp(ds, along, pts[:, k]) for k in (0, 1))
             tx, ty = x[-1] - x[0], y[-1] - y[0]
             nx, ny = np.array([-ty, tx]) / np.hypot(tx, ty)
-            if ny < 0:
-                nx, ny = -nx, -ny  # (into the mountain, below the ridge)
+            if ny * side < 0:
+                nx, ny = -nx, -ny  # (into the face: below the ridge, or above)
             reach = blade.width * r.uniform(0.3, 0.7) * max(0.4, 1 - 0.12 * row)
-            off = 3 + row * blade.width * 0.55 + reach / 2
+            off = row * blade.width * 0.55 + reach / 2
             path = [
                 (xi + nx * off + r.normal(0, 1), yi + ny * off + r.normal(0, 1))
                 for xi, yi in zip(x, y, strict=True)
@@ -637,7 +639,7 @@ def snow(line, colour, seed=0, blade=None, rows=1):
                     None,
                     brush=Brush(blade).load(colour, 4.0),
                     width=reach,
-                    angle=30 * r.uniform(0.5, 1.5),
+                    angle=12 * r.uniform(0.5, 1.5),
                     follow_path=True,
                     pressure=[0.0, SKIM, SKIM, SKIM, SKIM, 0.0],
                     lift=0.0,
@@ -901,21 +903,20 @@ BIG_DARK = mix(
 # the dark under the leaf trees: warmer, with more sap green and Van Dyke
 # brown, so the yellow-greens over it stay yellow
 LEAF_DARK = mix(
-    (MIDNIGHT_BLACK, 1),
-    (VAN_DYKE_BROWN, 1),
-    (SAP_GREEN, 2.5),
-    (PRUSSIAN_BLUE, 0.3),
-    (ALIZARIN, 0.2),
+    (MIDNIGHT_BLACK, 0.5),
+    (VAN_DYKE_BROWN, 0.3),
+    (SAP_GREEN, 3),
+    (PHTHALO_GREEN, 0.2),
 )
 # sap green and cadmium yellow (with yellow ochre, Indian yellow, bright red),
 # each list from dark to light
 S, Y = SAP_GREEN, CADMIUM_YELLOW
 GREENS = [
-    mix((S, 2), (LEAF_DARK, 1)),
-    mix((S, 3), (LEAF_DARK, 0.5), (YELLOW_OCHRE, 0.5)),
+    mix((S, 3), (MIDNIGHT_BLACK, 0.3), (PHTHALO_GREEN, 0.1)),
     S,
-    mix((S, 3), (Y, 0.25)),
-    mix((S, 2), (Y, 0.35)),
+    mix((S, 3), (Y, 0.4), (PHTHALO_GREEN, 0.1)),
+    mix((S, 2), (Y, 0.8), (PHTHALO_GREEN, 0.1)),
+    mix((S, 2), (Y, 1.3), (PHTHALO_GREEN, 0.1)),
 ]
 OCHRE = [S, mix((S, 1), (YELLOW_OCHRE, 1)), mix((YELLOW_OCHRE, 2), (S, 1))]
 YELLOW = [
@@ -924,10 +925,10 @@ YELLOW = [
     mix((Y, 2), (S, 1), (YELLOW_OCHRE, 0.5)),
     mix((Y, 2), (YELLOW_OCHRE, 1), (S, 0.5)),
 ]
-RED = [
-    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (S, 0.5), (LEAF_DARK, 0.2)),
-    mix((BRIGHT_RED, 2), (YELLOW_OCHRE, 1), (S, 0.3)),
-    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (Y, 0.3)),
+RED = [  # (a dull rust, not a scarlet)
+    mix((DARK_SIENNA, 1), (BRIGHT_RED, 0.5), (LEAF_DARK, 0.2)),
+    mix((DARK_SIENNA, 1), (BRIGHT_RED, 1), (YELLOW_OCHRE, 0.5)),
+    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (DARK_SIENNA, 0.5)),
 ]
 # leaf trees and bushes (x, base, width, height, colours), the farthest first
 LEAF_TREES = [
@@ -1170,7 +1171,7 @@ def leaves(x, base, w, h, colours, seed=0):
             if frac < 0.6:  # the darker, over all of the form
                 for _ in range(int(2.0 * size**2 / 110)):
                     b = r.uniform(0, 2 * np.pi)
-                    s_ = min(1.1, abs(r.normal(0, 0.5)))
+                    s_ = min(0.9, abs(r.normal(0, 0.42)))  # (no dark rim)
                     pts.append(
                         (
                             fx + s_ * size * np.cos(b),
@@ -1206,7 +1207,8 @@ def block_in(x, base, w, h, seed=0):
     pushed, so the bristles bend."""
     r = np.random.default_rng(seed)
     for _ in range(int(w * h / 400) + 6):
-        a, rr = r.uniform(0, 2 * np.pi), np.sqrt(r.uniform(0, 0.9))
+        # (inside the leaves, so no dark rim shows round them)
+        a, rr = r.uniform(0, 2 * np.pi), np.sqrt(r.uniform(0, 0.55))
         q = (x + rr * 0.5 * w * np.cos(a), base - h / 2 + rr * 0.5 * h * np.sin(a))
         st(
             [q, (q[0], q[1] - 6)],
@@ -1254,23 +1256,25 @@ def path():
                 pressure=p,
             )
     greys = [
-        mix((VAN_DYKE_BROWN, 0.5), (TITANIUM_WHITE, w), (PRUSSIAN_BLUE, 0.5))
-        for w in (1.0, 1.6, 2.4)
+        mix((VAN_DYKE_BROWN, 0.5), (TITANIUM_WHITE, w), (PRUSSIAN_BLUE, 0.6))
+        for w in (0.6, 1.0, 1.5)
     ]
     us = np.linspace(0, len(way) - 1, 120)
     xs = np.interp(us, np.arange(len(way)), way[:, 0])
     ys = np.interp(us, np.arange(len(way)), way[:, 1])
-    for _ in range(260):  # (each stone its own size)
+    for _ in range(80):  # (each stone its own size)
         i = int(r.integers(len(xs)))
         a = (xs[i] + r.normal(0, 30), ys[i] + r.normal(0, 14))
-        ln = r.uniform(18, 50)
+        ln = r.uniform(30, 70)
+        line = [(a[0] + ln * f, a[1] + r.normal(0, 1.5)) for f in (0, 0.33, 0.66, 1)]
         st(
-            [a, (a[0] + ln, a[1] + r.normal(0, 1.5))],
-            greys[int(r.integers(3))],
-            brush=SMALL_KNIFE.sized(r.uniform(4, 8)),
-            amount=1.5,
-            angle=0,
-            pressure=r.uniform(0.45, 0.6),
+            line,
+            None,
+            brush=Brush(SMALL_KNIFE).load(greys[int(r.integers(3))], 3.0),
+            width=r.uniform(12, 24),
+            angle=10 * r.uniform(-1, 1),
+            follow_path=True,
+            pressure=[0.0, SKIM, SKIM, 0.0],  # (barely touching: it breaks)
             lift=0.0,
         )
     for k, (x, b, w, h, c) in enumerate(FRONT_BUSHES):
