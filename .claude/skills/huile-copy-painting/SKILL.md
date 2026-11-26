@@ -93,8 +93,11 @@ crops, and use the region numbers to say what to change.
   into the next. `pickup=0.0` gave the swatch's colour back. Swatch the mix,
   then measure the painted region; if they differ, the canvas is changing
   it.
-- **Soft masses** (clouds, foliage, mist) come from tools of the right size,
-  scrubbed or tapped many times, not from many small dabs.
+- **Copy how a form is built, not only how it ends up.** His clouds are
+  crowns of little puffs made with the brush's corner, blended down from
+  below. Small dabs in a regular row looked cartoonish; one big soft brush
+  scrubbed along the crown gave round cotton balls. The frames of him at
+  work showed the puffs; the finished frame, blurred, did not.
 - **A knife's blade is long.** Held level on a sloping ridge, one end rises
   above the ridge and scrapes the sky. Take the highest point of the ridge
   under the whole blade.

@@ -15,24 +15,28 @@ sides; a clean brush over both. Nothing here needed changing for likeness.
 
 ## Clouds (`cloud`, `crown`)
 
-- He scrubs the crowns with a one-inch brush, then blends the bottoms with
-  a clean two-inch brush in tiny circles and lifts. The crown is an
-  irregular line of lumps of different widths, never a row of circles.
-- What worked: `scrub_along` the crown with `SOFT_ROUND.sized(64)` (a
-  feathered round the width of his brush), circles of radius 14, loaded by
-  path length; the body in rows 0.4 brush widths apart, less paint lower
-  down, stopping 0.3 of the height above the base; the crown's edge barely
-  touched with the mist brush (`pressure=0.3`, `mixing=1.0`); the bottoms
-  blended in four passes, pressure falling as they rise.
-- What did not: dabs of 18 to 30 px (rows of little puffs, "comically
-  cartoonish"); a crown band following the outline down both ends (an
-  outlined sausage); the body scrubbed to the base (a hard flat bottom).
+- From the frames: the corner of the one-inch brush, loaded with white and
+  a touch of red, makes tiny circles, a puff at a time, along the crown; the
+  crown is lumps edged with these little puffs. Then the clean two-inch
+  brush blends the bottom in tiny circles, higher and lighter each time,
+  never over the top, and lifts. Lower masses lie over the bodies of the
+  ones behind, which gives the cumulus its tiers.
+- What worked: an outline of big lumps (bell curves 0.06 to 0.2 of the
+  width) edged with puffs of radius 5 to 13 px (`PUFF` = 9 at 1200 px),
+  each a few small circles of `SOFT_ROUND.sized(20)` loaded with the pink
+  crown white, `pickup=0`; two thinner passes just under the crown; a thin
+  body fading down (`load` falling as the 1.5 power); the blending rows and
+  lift strokes kept below 0.45 of the local depth, so they never reach the
+  crown.
+- What did not: dabs of 18 to 30 px in a regular scalloped row (comically
+  cartoonish); a crown scrubbed with a brush as wide as his whole brush
+  (round cotton balls, no puffs); blending rows that reach the crown (they
+  wipe the puffs off every lump but the highest); a crown band following
+  the outline down both ends (an outlined sausage).
 - Colour: his clouds are thin (the sky shows through) and lavender, pink
   on the crowns, and they fill most of the sky. Cerulean in the white turns
-  them cyan; ultramarine and alizarin keep them lavender. Their lights are
-  set by the mix, not the load: less titanium in it (25 to 35 parts to 2 or
-  3 of colour) brought them down to his; halving the load hardly did. The crown is scrubbed with `mixing=0.15`, so
-  its pink is not lost in the wet blue; the body with 0.4.
+  them cyan; ultramarine and alizarin keep them lavender. Too much bright
+  red in the crown white turns the puffs salmon.
 - The blending rows wander (a smoothed noise of 0.12 of the height): run
   level, each left a bright streak at its lower rim.
 

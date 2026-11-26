@@ -320,30 +320,42 @@ CLOUD_WHITE = mix(
     (TITANIUM_WHITE, 25), (BRIGHT_RED, 0.2), (ALIZARIN, 1.0), (P.ULTRAMARINE_BLUE, 1.4)
 )
 CROWN_WHITE = mix(
-    (TITANIUM_WHITE, 35), (BRIGHT_RED, 1.6), (ALIZARIN, 1.8), (P.ULTRAMARINE_BLUE, 0.8)
+    (TITANIUM_WHITE, 25), (BRIGHT_RED, 0.5), (ALIZARIN, 1.6), (P.ULTRAMARINE_BLUE, 0.8)
 )
 # the masses of cloud (x0, x1, base, height, lumps, white) in the reference
 # frame, the farthest first
 CLOUDS = [
-    (250, 430, 125, 105, 6, 0.08),
-    (260, 440, 215, 140, 5, 0.15),
-    (360, 660, 140, 175, 7, 0.15),
-    (-20, 330, 190, 190, 8, 0.1),
+    (150, 420, 125, 100, 6, 0.15),
+    (-20, 320, 155, 150, 7, 0.15),
+    (420, 660, 115, 125, 6, 0.15),
+    (190, 380, 205, 90, 5, 0.12),
+    (540, 660, 190, 100, 4, 0.12),
 ]
+PUFF = 9  # px: the little puffs the corner of his one-inch brush makes
 
 
 def crown(x0, x1, base, height, lumps, r):
     """The top of a cloud: lumps of random widths heaped along x0..x1 (canvas
-    px), ragged at small scale, falling to the base at both ends."""
+    px), falling to the base at both ends, and along them little puffs, each
+    its own size: a cauliflower edge. Returns xs, the edge, the line under
+    the puffs, and the puffs (x, radius)."""
     xs = np.arange(x0, x1, 2.0)
     u = (xs - x0) / (x1 - x0)
-    env = np.sin(np.pi * u) ** 0.4  # (rounded, not peaked)
-    top = np.zeros_like(xs)
+    env = np.sin(np.pi * u) ** 0.5
+    big = np.zeros_like(xs)
     for _ in range(lumps):
-        c, wd = r.uniform(0.05, 0.95), r.uniform(0.08, 0.25)
-        top = np.maximum(top, r.uniform(0.45, 1.0) * np.exp(-(((u - c) / wd) ** 2)))
-    rag = np.convolve(r.normal(0, 1, len(xs) + 6), np.ones(7) / 7, "valid")
-    return xs, base - height * env * (0.35 + 0.65 * top) + 3.0 * rag
+        c, wd = r.uniform(0.05, 0.95), r.uniform(0.06, 0.2)
+        big = np.maximum(big, r.uniform(0.4, 1.0) * np.exp(-(((u - c) / wd) ** 2)))
+    under = base - height * env * (0.3 + 0.7 * big)
+    bump = np.zeros_like(xs)
+    puffs, cx = [], x0 + r.uniform(0, 6)
+    while cx < x1:
+        rp = PUFF * r.uniform(0.6, 1.4)
+        d = np.abs(xs - cx)
+        bump = np.maximum(bump, 0.7 * np.sqrt(np.maximum(rp**2 - d**2, 0)))
+        puffs.append((cx, rp))
+        cx += rp * r.uniform(0.6, 1.1)
+    return xs, under - bump, under, puffs
 
 
 # a soft round brush: a dab of it is feathered all round
@@ -353,55 +365,71 @@ SOFT_ROUND = brushes.make(
 
 
 def cloud(x0, x1, base, height, lumps, white, seed=0):
-    """A cloud the way he paints one: a brush loaded with a lot of white (and
-    the least touch of bright red), touched along the top, where its crown
-    will be, then little circular strokes on down into it as the brush runs
-    out; then a clean, dry two-inch brush, tiny little circles to blend the
-    bottom into the sky, higher and lighter each time, never at the top; then
-    lifted, which fluffs it right up. The crown is an irregular line, lumps
-    heaped along it, never a circle, scrubbed with a soft brush as wide as
-    his, and its edge is barely touched with the clean brush, so it has no
-    hard edge."""
+    """A cloud the way he paints one: the corner of the one-inch brush loaded
+    with white and the least touch of red, tiny little circles along the top,
+    puff after puff, where the crown will be, then on down into it as the
+    brush runs out; then a clean, dry two-inch brush, tiny circles to blend
+    the bottom into the sky, higher and lighter each time, never at the top;
+    then lifted, which fluffs it right up. The crown is an irregular line of
+    lumps edged with little puffs, never a row of circles."""
     r = np.random.default_rng(seed)
     x0, x1, base, height = x0 * K, x1 * K, base * K, height * K
-    xs, tops = crown(x0, x1, base, height, lumps, r)
-    depth = base - tops
+    xs, _, under, puffs = crown(x0, x1, base, height, lumps, r)
+    depth = base - under
+    corner = SOFT_ROUND.sized(2.2 * PUFF)
+    for cx, rp in puffs:  # the crown, puff by puff
+        i = int(np.clip((cx - x0) / 2, 0, len(xs) - 1))
+        if depth[i] < 2 * PUFF:
+            continue
+        cy = under[i] - 0.15 * rp
+        turns = np.linspace(0, 2 * np.pi * r.uniform(1.2, 2.0), 9) + r.uniform(0, 7)
+        pts = [
+            (cx + 0.45 * rp * np.cos(a) + r.normal(0, 1), cy + 0.45 * rp * np.sin(a))
+            for a in turns
+        ]
+        brush = Brush(corner).load(thin(CROWN_WHITE), 0.35 * white * rp)
+        st(pts, None, brush=brush, pressure=r.uniform(0.3, 0.45), mixing=0.15, pickup=0)
+    sel = np.flatnonzero(depth > 2 * PUFF)[::5]
+    for inset, f in ((1.2, 0.6), (2.4, 0.3)) if len(sel) > 2 else ():
+        # (just under the crown, thinner, as the brush runs out)
+        y = under[sel] + inset * PUFF + r.normal(0, 2, len(sel))
+        path = scrub_along(np.stack([xs[sel], y], 1), 5, 5, r)
+        for k in range(0, len(path) - 2, 40):
+            part = path[k : k + 42]
+            amount = f * 0.5 * white * path_length(part) / 6
+            brush = Brush(corner).load(thin(CLOUD_WHITE), amount)
+            st(part, None, brush=brush, pressure=0.3, mixing=0.3, pickup=0.0)
     w = 64  # (his one-inch brush, at this size)
-
-    def scrub(line, paint, load, mixing):
-        path = scrub_along(line, 14, 8.4, r)
-        for k in range(0, len(path) - 2, 50):  # (reloaded every so often)
-            part = path[k : k + 52]
-            amount = load * path_length(part)
-            brush = Brush(SOFT_ROUND.sized(w)).load(thin(paint), amount)
-            st(part, None, brush=brush, pressure=0.3, mixing=mixing, pickup=0.05)
-
-    top = np.flatnonzero(depth > max(0.5 * w, 0.6 * depth.max()))[::5]
-    scrub(np.stack([xs[top], tops[top] + 0.35 * w], 1), CROWN_WHITE, white / 80, 0.15)
-    for row, inset in enumerate(np.arange(0.8 * w, depth.max(), 0.4 * w)):  # body
-        keep = np.flatnonzero(tops + inset < base - 0.3 * height)[::6]
+    for row, inset in enumerate(np.arange(4 * PUFF, depth.max(), 0.4 * w)):  # body
+        keep = np.flatnonzero(under + inset < base - 0.3 * height)[::6]
         if len(keep) < 3:
             continue
-        line = np.stack([xs[keep], tops[keep] + inset + r.normal(0, 3, len(keep))], 1)
-        load = (1 - inset / depth.max()) ** 0.7
-        scrub(line[::-1] if row % 2 else line, CLOUD_WHITE, white * load / 50, 0.4)
+        line = np.stack([xs[keep], under[keep] + inset + r.normal(0, 3, len(keep))], 1)
+        load = (1 - inset / depth.max()) ** 1.5
+        path = scrub_along(line[::-1] if row % 2 else line, 14, 8.4, r)
+        for k in range(0, len(path) - 2, 50):  # (reloaded every so often)
+            part = path[k : k + 52]
+            amount = white * load * path_length(part) / 50
+            brush = Brush(SOFT_ROUND.sized(w)).load(thin(CLOUD_WHITE), amount)
+            st(part, None, brush=brush, pressure=0.3, mixing=0.5, pickup=0.05)
     blender = MIST_BRUSH.sized(70)
-    w = blender.width
-    for inset, p in ((0.0, 0.3), (0.45, 0.2)):  # the crown barely touched
-        line = np.stack([xs[top], tops[top] + inset * w], 1)
-        path = scrub_along(line, w * 0.15, w * 0.25, r)
-        st(path, None, brush=Brush(blender), pressure=p, mixing=1.0, pickup=0.0)
-    for k, (up, p) in enumerate(
-        ((-0.25, 0.75), (0.0, 0.68), (0.25, 0.57), (0.5, 0.45))
-    ):
+    bw = blender.width
+    if len(sel) > 2:  # the crown touched very lightly, to soften it
+        path = scrub_along(np.stack([xs[sel], under[sel]], 1), 8, 12, r)
+        st(path, None, brush=Brush(blender), pressure=0.25, mixing=1.0, pickup=0.0)
+    for k, (up, p) in enumerate(((-0.2, 0.75), (0.05, 0.65), (0.3, 0.55), (0.55, 0.4))):
         n = len(xs[::10])
         wave = np.convolve(r.normal(0, 0.12 * height, n + 4), np.ones(5) / 5, "valid")
-        line = np.stack([xs[::10], base - up * height + wave], 1)  # (never level)
-        path = scrub_along(line[:: -1 if k % 2 else 1], w * 0.2, w * 0.3, r)
+        # (never level, and never over the top part of the cloud)
+        y = np.maximum(base - up * height + wave, under[::10] + 0.45 * depth[::10])
+        path = scrub_along(
+            np.stack([xs[::10], y], 1)[:: -1 if k % 2 else 1], bw * 0.2, bw * 0.3, r
+        )
         st(path, None, brush=Brush(blender), pressure=p, mixing=1.0, pickup=0.0)
     for x in np.arange(x0 + 10, x1 - 10, 24):
         y = base + r.normal(0, 5)
-        up = r.uniform(0.3, 0.75) * height  # (each lifted off at its own height)
+        i = int(np.clip((x - x0) / 2, 0, len(xs) - 1))
+        up = r.uniform(0.3, 0.55) * depth[i]  # (each lifted off at its own height)
         pts, p = hand([(x, y + 10), (x, y - up)], [0.25, 0.02], r=r, sway=2)
         st(pts, None, brush=Brush(blender), pressure=p, mixing=1.0, pickup=0.0)
 
