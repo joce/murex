@@ -6963,7 +6963,8 @@ def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
     step was over, it let a skimming blade drag the paint under it 2 to 4%
     further in steps of 8 px.) A roll leaves the sub-step's part of what
     it leaves over the step, whatever the surface is now: where it lays
-    was settled before the stroke."""
+    was settled before the stroke. Of the two, the catching and the roll,
+    the bead leaves the larger, not their sum (see _knife._ROLL_LATE)."""
     top, und = cv.top, cv.und
     in_lo, in_hi = in_rows
     lev, film, shares, laid = filling
@@ -6980,7 +6981,7 @@ def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
                 continue
             Y, X = at[0] + y, at[1] + x
             surface = np.float64(floor[y, x] + top[Y, X, IV] + und[Y, X, IV])
-            lays = 0.0
+            lays, caught = 0.0, 0.0
             if fills:
                 lays = _share_now(w, rate[y, x], whole[y, x]) * film_gap(
                     lev[y, x], surface + laid[y, x], film[y, x]
@@ -6989,20 +6990,12 @@ def _lay_as_met(cv, floor, filling, beading, inside, in_rows, at):
                 hangs = lev[y, x] - level[y, x] + hang[y, x]
                 b = bead[y, x]
                 touch = (b - bead_gap(hangs, surface, b)) / np_max(b, 1e-6)
+                caught = coat[y, x] * (w / over[y, x]) * clip(touch, 0.0, 1.0) ** catch
                 if rolls:
-                    lays += (
-                        kept[y, x]
-                        * coat[y, x]
-                        * (w / over[y, x])
-                        * clip(touch, 0.0, 1.0) ** catch
-                    )
-                else:
-                    lays += (
-                        coat[y, x] * (w / over[y, x]) * clip(touch, 0.0, 1.0) ** catch
-                    )
+                    caught *= kept[y, x]
             if rolls:
-                lays += rolled[y, x] * (w / over[y, x])
-            laid[y, x] += lays
+                caught = max(caught, rolled[y, x] * (w / over[y, x]))
+            laid[y, x] += lays + caught
 
 
 @njit(cache=True, error_model="numpy")

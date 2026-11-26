@@ -392,7 +392,7 @@ def _knifed(canvas, step, seed, pressure, load=0.3):
             [START, tuple(np.add(START, END) / 2), END],
             None,
             brush=brush,
-            angle=float(np.degrees(np.arctan2(way[1], way[0]))) - 90.0,
+            angle=90.0 - float(np.degrees(np.arctan2(way[1], way[0]))),
             follow_path=False,
             pressure=pressure,
             lift=0.0,

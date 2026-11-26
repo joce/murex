@@ -108,7 +108,7 @@ def _pull(cap, way, width, load, pressure, seed=100, bare=False, first=None):
     (x0, y0), heading, length = way
     d = np.array([math.cos(heading), math.sin(heading)])
     pts = [(x0, y0), (x0 + length * d[0], y0 + length * d[1])]
-    angle = math.degrees(heading) - 90.0
+    angle = 90.0 - math.degrees(heading)
     c = Canvas(*SIZE, seed=1) if bare else _ground().copy()
     bt = brushes.knife("straight", width, flex=0.5)
     blade = {"angle": angle, "follow_path": False, "lift": 0.0}
@@ -282,7 +282,7 @@ def _skim_cuts(ground, pressure=0.03, path=SKIM_WAY, load=8.0, **how):
     the difference, each smoothed over 7 px, as a share of that of what
     the fine one lays). Every pull keeps its paint."""
     blade = {
-        "angle": math.degrees(math.atan2(80.0, 110.0)) - 90.0,
+        "angle": 90.0 - math.degrees(math.atan2(80.0, 110.0)),
         "follow_path": False,
     }
     blade.update(how)
@@ -582,7 +582,7 @@ def _skimmed(ground, pressure, cap):
             brush=knife,
             pressure=pressure,
             seed=1,
-            angle=-40,
+            angle=40,
             follow_path=False,
             lift=0.0,
         )

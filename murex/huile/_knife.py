@@ -81,15 +81,18 @@ _KNIFE_SKIM_PX = 8.0
 # was, to the bit. Between the two the catching comes in evenly and the roll
 # goes out late: by the smoothstep of the way from the one pressure to the
 # other, that way raised to the power _ROLL_LATE for the roll (see _Roll).
-# (At 1, the two summing to 1, a pull of a knife loaded with 8 laid 1.2%
-# less at 0.05 than at 0.045 on the bare canvas, and one loaded with 3,
-# 1.6% less; at 1.6 the one loaded with 3 laid 1.6% less at 0.065 than at
-# 0.0575, and at 2, 6.6% less: the roll still there when the blade has
-# little more to give. At 1.3 both rise all the way, there and over a
-# knifed dark and a brushed one on LINEN_COARSE; not on every ground, nor
-# with every load: see _Roll.)
+# At each place the bead leaves the larger of the two, not their sum
+# (murex-cwa): summed, a roll kept late lay on top of the catching, and a
+# pull laid more midway than at _ROLL_GONE. (Summed, with _ROLL_LATE at 1.3,
+# a pull loaded with 8 laid 2.7% less at 0.055 than at 0.0475 on the bare
+# LINEN_COARSE and 38% less on a ground with no tooth. The larger of the
+# two: at 2 a pull loaded with 8 lays 0.15% less at one pressure than at
+# the one before on the bare canvas; at 3, one loaded with 3 lays 0.7%
+# less over a brushed dark on LINEN_COARSE; at 2.5 both rise all the way,
+# there and over a knifed dark and on the bare LINEN_COARSE loaded with 8;
+# not on every ground, nor with every load: see _Roll.)
 _ROLL_ALONE, _ROLL_GONE = 0.04, 0.07
-_ROLL_LATE = 1.3
+_ROLL_LATE = 2.5
 # How wide the roll is (px, a whole odd number): it reads the surface
 # smoothed over that, in which the threads of a canvas are lost.
 _ROLL_WIDTH = 5
@@ -115,6 +118,14 @@ _ROLL_SOFT = 0.15
 # How hard the roll is pressed against the surface where it lays (0 to 1,
 # as the touch of a bead: see _slab): how thick the white lies.
 _ROLL_PRESS = 0.091
+# How thick the film on the blade must be for the roll to lay its whole
+# sheet (paint thickness units): with a thinner film the roll is pressed
+# that much less (a ramp), so that a blade with little paint lays a thinner
+# sheet all along its pull and does not lay all it has as a roll (it then
+# laid more barely touching than pressed harder: murex-cwa). A 110 px
+# blade loaded with 8 carries a film of 40, and 32 when a pull of 270 px
+# is over; loaded with 1, 5 and less as it goes.
+_ROLL_FILM = 10.0
 # The standard deviation of a number drawn evenly between -0.5 and 0.5.
 _EVEN_SD = 1.0 / math.sqrt(12.0)
 # How many rows of a roll's surface are read off the canvas at a time (see
@@ -1013,20 +1024,25 @@ class _Roll(NamedTuple):
     (see :func:`_rolled`): nothing in them hangs on how the stroke is cut
     into steps, and nothing is kept from one step to the next.
 
+    The sheet is as thick as that only under a blade with paint to spare:
+    with a film thinner than _ROLL_FILM on it the roll is pressed that much
+    less (see :func:`_roll_thin`), where the blade is and as its film is
+    in the step, as the bead's height is.
+
     Between the two pressures the bead's catching comes in evenly
-    (smoothstep) and the roll goes out late (_ROLL_LATE): so that the
-    paint a pull lays rises with the pressure all the way where a blade at
-    _ROLL_GONE lays well more than a roll does: over a wet dark and on the
-    bare default canvas, under a blade loaded with 3 or more. Where it
-    does not, no way of going from the one to the other rises all the
-    way, and a pull pressed harder lays less: on a ground with no tooth
-    (glass, a canvas made with ``texture=0``), where the catching comes to
-    next to nothing before 0.06 (by 28 to 79%, the more the less paint on
-    the blade); on the bare LINEN_COARSE (0.5 to 3% loaded with 8, 8 to
-    15% loaded with 3); and under a blade with little paint, all of which
-    a roll lays (a load of 1: up to 9% on other grounds). How far varies
-    with the stroke's seed. The figures are in
-    docs/huile/README.md, and tests/huile/test_skim.py holds some."""
+    (smoothstep) and the roll goes out late (_ROLL_LATE), and at each place
+    the bead leaves the larger of what the two would, not their sum: so
+    that the paint a pull lays rises with the pressure all the way where a
+    blade at _ROLL_GONE lays more than a roll does: over a wet dark, on
+    the bare default canvas and, loaded with 8 or more, on the bare
+    LINEN_COARSE. Where it does not, no way of going from the one to the
+    other rises all the way, and a pull pressed harder lays less: on a
+    ground with no tooth (glass, a canvas made with ``texture=0``), where
+    the catching comes to next to nothing before 0.06 (by 9 to 25% loaded
+    with 8 or 20, 35 to 66% loaded with 3 or 1); and on the bare
+    LINEN_COARSE loaded with 3 (3 to 10%). How far varies with the
+    stroke's seed. The figures are in docs/huile/README.md, and
+    tests/huile/test_skim.py holds some."""
 
     lays: np.ndarray
     share: np.ndarray
@@ -1950,7 +1966,7 @@ def _slab(
         # stroke has it lay: see _Roll)
         roll = _rolled(run, s)
         if roll is not None:
-            caught = roll[1] * caught + roll[0]
+            caught = np.maximum(roll[1] * caught, roll[0] * _roll_thin(film))
         # the bead leaves paint wherever it passes, in proportion to how
         # much of a pass this step is (for the same reason)
         pass_bead = n * (1.0 - np.exp(-4.0 / n))
@@ -1994,7 +2010,13 @@ def _bead_coat(run: _Run, s: _Step, film):
     if roll is None:
         return coat, _NO_COAT, _NO_COAT
     whole = skim * _KNIFE_BEAD * pass_bead * bead * s.expo[s.wsl]
-    return coat, whole * roll[0], np.ascontiguousarray(roll[1])
+    return coat, whole * roll[0] * _roll_thin(film), np.ascontiguousarray(roll[1])
+
+
+def _roll_thin(film):
+    """How much of its sheet the roll of a blade with ``film`` on it leaves
+    (0 to 1; see :class:`_Roll` and _ROLL_FILM)."""
+    return np.minimum(film / _ROLL_FILM, 1.0) ** _KNIFE_CATCH
 
 
 def _fill_share(run: _Run, s: _Step) -> tuple[Any, float, Any]:

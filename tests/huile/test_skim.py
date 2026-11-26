@@ -81,7 +81,7 @@ def _skim(
     tool = how.pop("knife", KNIFE)
     knife = Brush(tool).load(P.TITANIUM_WHITE, load) if load > 0 else Brush(tool)
     blade = {
-        "angle": math.degrees(HEADING) - 90.0,
+        "angle": 90.0 - math.degrees(HEADING),
         "follow_path": False,
         "lift": 0.0,
         **how,
@@ -521,21 +521,21 @@ def _falls(ground, load, knife=KNIFE):
     )
 
 
-#: Where a pull lays less white pressed harder, between the roll and the
-#: bead's catching: the ground, the load, and the fall measured (see
-#: _falls: of the white, of the cover).
+#: Where a pull laid less white pressed harder, between the roll and the
+#: bead's catching, before murex-cwa, and what is left of it: the ground,
+#: the load, and the fall measured (see _falls: of the white, of the cover).
 FALLS = {
-    "bare canvas, load 1": (lambda: _bare(), 1.0, (0.073, 0.47)),
-    "bare LINEN_COARSE, load 8": (lambda: _bare("LINEN_COARSE"), 8.0, (0.027, 0.0)),
-    "bare LINEN_COARSE, load 3": (lambda: _bare("LINEN_COARSE"), 3.0, (0.142, 0.0)),
-    "no tooth, load 8": (lambda: _bare("GESSO_PANEL", 0), 8.0, (0.385, 0.0)),
-    "no tooth, load 3": (lambda: _bare("GESSO_PANEL", 0), 3.0, (0.640, 0.0)),
+    "bare canvas, load 1": (lambda: _bare(), 1.0, (0.0, 0.57)),
+    "bare LINEN_COARSE, load 8": (lambda: _bare("LINEN_COARSE"), 8.0, (0.0, 0.0)),
+    "bare LINEN_COARSE, load 3": (lambda: _bare("LINEN_COARSE"), 3.0, (0.103, 0.0)),
+    "no tooth, load 8": (lambda: _bare("GESSO_PANEL", 0), 8.0, (0.248, 0.0)),
+    "no tooth, load 3": (lambda: _bare("GESSO_PANEL", 0), 3.0, (0.579, 0.0)),
 }
 
 
 @pytest.mark.parametrize("case", list(FALLS))
 def test_where_a_pull_lays_less_pressed_harder_is_as_measured(case):
-    """Where it does not hold that a pull lays more the harder it is
+    """Where it did not hold that a pull lays more the harder it is
     pressed: what the white falls by between pressures 0.03 and 0.1, as
     measured, so that a worsening is caught (the test allows from 0.6 to
     1.3 times each fall, and half a point; and a tenth more of the face
@@ -546,16 +546,46 @@ def test_where_a_pull_lays_less_pressed_harder_is_as_measured(case):
     units thick over four fifths of the face: then no way from the one to
     the other rises all the way. On a ground with no tooth (GESSO_PANEL
     made with ``texture=0``) the bead as it was catches on next to nothing
-    before 0.06: a pull loaded with 8 lays 38% less at 0.0625 than at
-    0.0425, and one loaded with 3, which then has less of a film to spread,
-    64% less. On the bare LINEN_COARSE, whose threads stand far apart, 2.7%
-    and 14% less. And a blade with little paint (a load of 1) lays all it
-    has as a roll and not as a bead: 7% less on the bare canvas, where it
-    then covers half as much of the face, running dry along the way."""
+    before 0.06: a pull loaded with 8 lays 25% less at 0.0675 than at
+    0.05 (17% less at 0.07 itself, which is as it was), and one loaded
+    with 3, which then has less of a film to spread, 58% less, at 0.07. On the bare
+    LINEN_COARSE, whose threads stand far apart, a pull loaded with 3 lays
+    10% less at 0.0675 than at 0.06.
+
+    Two of these rise all the way since murex-cwa, and are held to that.
+    The roll and the catching summed, the bare LINEN_COARSE loaded with 8
+    laid 2.7% less; of the two the bead now leaves the larger at each
+    place, and the roll goes out later. And a blade with little paint (a
+    load of 1) laid all it had as a roll, 7% more than at 0.065 on the
+    bare canvas: its roll is now pressed by the film it carries, and lays
+    a sheet 0.4 times as thick. It still covers less of the face pressed
+    harder (by 0.57 of it: the sheet gives way to specks on thread tops,
+    with no more paint to lay)."""
     ground, load, (white, cover) = FALLS[case]
     got = _falls(ground, load)
     assert 0.6 * white - 0.005 < got[0] < 1.3 * white + 0.01, got
     assert got[1] < cover + 0.1, got
+
+
+def test_a_roll_is_pressed_by_the_film_on_the_blade(dark_ground):
+    """The roll of a blade with less than _ROLL_FILM of a film on it is
+    pressed that much less, along a ramp (murex-cwa); with more, as it
+    was: a skim loaded with 8 lays what it did before, and one loaded
+    with 1 a sheet 0.4 times as thick (its film is 5 units and less as it
+    goes) over as much of the face."""
+    film = np.array([40.0, 32.0, 10.0, 5.0, 0.0])
+    thin = _knife._roll_thin(film)
+    assert (thin[:3] == 1.0).all() and thin[4] == 0.0
+    assert thin[3] == pytest.approx(0.5**_knife._KNIFE_CATCH)
+    full = _skim(dark_ground(), SKIM)[0]
+    assert full.sum() == pytest.approx(13817.3, abs=0.5)  # (as before murex-cwa)
+    yy, xx = np.mgrid[0:280, 0:330]
+    inside = stats.inside(_face(), xx + 0.5, yy + 0.5)
+    little = _skim(dark_ground(), SKIM, load=1.0)[0]
+    sheets = [np.median(on[inside][on[inside] > 0.15]) for on in (full, little)]
+    assert 0.35 < sheets[1] / sheets[0] < 0.55
+    covers = [(on[inside] > 0.15).mean() for on in (full, little)]
+    assert abs(covers[1] - covers[0]) < 0.05
 
 
 def test_skims_keep_their_paint_over_the_edge(dark_ground):

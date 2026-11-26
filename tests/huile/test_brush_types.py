@@ -68,6 +68,46 @@ def test_fixed_angle_calligraphy_thick_and_thin():
     assert _row_width(c, 200) > 24  # vertical stroke: wide
 
 
+def _long_side(heading, angle, brush, **how):
+    """The direction on the canvas (degrees from x towards y, 0 to 180) of
+    the long side of ``brush`` held at ``angle`` with ``follow_path=False``
+    and moved 4 px on ``heading`` (degrees): the main axis of what it lays."""
+    c = Canvas(300, 300, seed=1)
+    dx, dy = 2 * np.cos(np.radians(heading)), 2 * np.sin(np.radians(heading))
+    c.stroke(
+        [(150 - dx, 150 - dy), (150 + dx, 150 + dy)],
+        brush=brush,
+        angle=angle,
+        follow_path=False,
+        pressure=0.4,
+        seed=3,
+        **how,
+    )
+    wet = c.wet_thickness.astype(np.float64)
+    yy, xx = np.nonzero(wet > 0.05 * wet.max())
+    (cxx, cxy), (_, cyy) = np.cov(np.vstack([xx, yy]))
+    return float(np.degrees(0.5 * np.arctan2(2 * cxy, cxx - cyy)) % 180)
+
+
+@pytest.mark.parametrize("tool", ["knife", "flat"])
+@pytest.mark.parametrize("heading", [0, 30, 60, 90, 135, 250])
+def test_a_fixed_angle_is_the_one_given_on_every_heading(tool, heading):
+    """With ``follow_path=False`` the long side of a brush or a blade lies
+    at ``angle`` on the canvas, counter-clockwise from the horizontal as
+    the picture is seen (so against the path's points, whose y runs down),
+    whichever way it is moved. (It did only on level and upright strokes:
+    on a heading it lay twice that heading away, murex-1w8.)"""
+    for angle in (0, 20, 45, 90, 160):
+        if tool == "knife":
+            knife = Brush(brushes.knife("straight", 120, flex=0.5))
+            got = _long_side(heading, angle, knife.load(P.TITANIUM_WHITE, 8.0), lift=0)
+        else:
+            flat = brushes.FLAT_HOG.sized(60)
+            got = _long_side(heading, angle, flat, paint=P.TITANIUM_WHITE, amount=8.0)
+        off = (got + angle + 90) % 180 - 90
+        assert abs(off) < 4, (heading, angle, got)
+
+
 def test_pointed_round_thins_with_light_pressure():
     def width_at(p):
         c = Canvas(200, 100, seed=5)

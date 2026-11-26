@@ -345,10 +345,25 @@ for where it falls short: it wants a thin dark or a brushed one (over a
 thick knifed dark the white follows the ridges of the slab and is not one
 sheet); a second pull over the same place fills most of the holes; a knife
 pressed a little harder than a skim can lay less than the skim does (by a
-quarter to three quarters on glass and other grounds with no tooth, by a
-tenth on bare coarse linen with a middling load, and whenever the blade carries
-very little paint); and the sizes of the holes are in pixels, set for a
+tenth to a quarter on glass and other grounds with no tooth with a full
+blade, by a third to two thirds there with little paint on it, and by up
+to a tenth on bare coarse linen with a middling load; nowhere else that
+was measured); and the sizes of the holes are in pixels, set for a
 painting at about 2 px to the millimetre.
+
+## Breaking, in oil paintings: a tool held at a fixed angle lies at that angle
+
+With `follow_path=False` a brush or a knife keeps its angle on the canvas
+whichever way it goes, as a calligraphy nib does. It did so only on level
+and upright strokes and in dabs: on a slant it lay twice the stroke's
+heading away. It now lies at the angle given everywhere, counted from the
+horizontal, counter-clockwise as the picture is seen (the way a tool turns
+with `follow_path=True`). An upright stroke is painted as before, to the
+bit; a level stroke and a dab keep their angle with the tool's two sides
+swapped (add 180 to the angle to have them to the bit). A stroke on a
+slant changes: if its angle was worked out in the path's coordinates (a
+blade across a pull heading h, as `h - 90`), negate it (`90 - h`), and
+the stroke is what it was.
 
 ## Breaking: NumPy 2 is required
 

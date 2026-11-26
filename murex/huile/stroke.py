@@ -1396,8 +1396,13 @@ class _Run:
         r0, r1 = radii[i - 1], radii[i]
         r = 0.5 * (r0 + r1)
         # orientation of the brush's long side relative to the stroke's cross direction
+        # (the footprint's long side lies at the cross direction's angle
+        # less phi, from x towards y: fixed on the canvas at ang, counted
+        # counter-clockwise as the picture is seen, phi is ang plus that
+        # direction's angle. It was ang less it, which laid the long side
+        # twice the heading away from there: murex-1w8)
         ang = 0.5 * (angles[i] + angles[i - 1])
-        phi = ang if self.eff["follow_path"] else ang - math.atan2(tx, -ty)
+        phi = ang if self.eff["follow_path"] else ang + math.atan2(tx, -ty)
         side, phi = _sides(phi)
         first, last = i == 1, i == len(pts) - 1
         return _Segment(

@@ -511,7 +511,7 @@ def _skimmed(
         knife = c.stroke(
             list(path),
             brush=knife,
-            angle=-54,
+            angle=54,
             follow_path=False,
             pressure=pressure,
             lift=0.0,
