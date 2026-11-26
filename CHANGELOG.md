@@ -6,6 +6,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The Bob Ross example is now `examples/huile/towering_peaks.py`: his
+  *Towering Peaks* (The Joy of Painting, series 10, episode 1), painted step
+  by step the way he paints it in the episode. `examples/huile/bob_ross_style.py`,
+  a mountain lake made up in his manner, and its image are gone; what the new
+  example used of it (the palette, the brushes, the canvas, the sky's
+  criss-crosses, the clouds' scrubbing, the evergreens) moved into it.
+
 ## [0.3.0] - 2026-11-26
 
 ### Added

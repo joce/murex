@@ -24,26 +24,350 @@ he paints it on the show, on an 18 x 24 inch canvas covered in Liquid White:
    and grey, and bushes pushed over it.
 
 Positions are read off a frame of the finished painting (640 x 480) and
-scaled to this canvas. The brushes, paints and wet-on-wet techniques are
-those of ``bob_ross_style.py``, which paints on the same canvas.
+scaled to this canvas, 1200 x 900, about 0.5 mm per pixel for his 18 x 24
+inch canvas. Every mark is a ``canvas.stroke(...)``; numpy only decides
+where they go.
 
     python examples/huile/towering_peaks.py [output.png] [stages]
 """
 
+import itertools
 import os
 import sys
 import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-import bob_ross_style as B
+from murex.huile import SKIM, Brush, Canvas, Paint, brushes, surfaces
+from murex.huile import palette as P
 
-from murex.huile import SKIM, Brush
+W, H = 1200, 900
+rng = np.random.default_rng(1983)
 
-mix, thin, st, loaded = B.mix, B.thin, B.st, B.loaded
-W, H = B.W, B.H
+
+# ===========================================================================
+# His palette (the nearest paints in huile.palette, and simple mixes), his
+# brushes at the scale of this canvas (about 0.5 mm per pixel), and his canvas
+# ===========================================================================
+def mix(*parts):
+    return Paint.mix(*parts)
+
+
+TITANIUM_WHITE = P.TITANIUM_WHITE
+PRUSSIAN_BLUE = mix((P.PHTHALO_BLUE, 3), (P.IVORY_BLACK, 1))
+MIDNIGHT_BLACK = P.IVORY_BLACK
+PHTHALO_GREEN = P.PHTHALO_GREEN
+SAP_GREEN = P.SAP_GREEN
+ALIZARIN = P.ALIZARIN_CRIMSON
+VAN_DYKE_BROWN = mix((P.BURNT_UMBER, 3), (P.IVORY_BLACK, 1))
+DARK_SIENNA = mix((P.BURNT_SIENNA, 2), (P.BURNT_UMBER, 1))
+CADMIUM_YELLOW = P.CADMIUM_YELLOW
+YELLOW_OCHRE = P.YELLOW_OCHRE
+INDIAN_YELLOW = mix((P.CADMIUM_YELLOW, 2), (P.CADMIUM_ORANGE, 1))
+BRIGHT_RED = P.CADMIUM_RED
+# Liquid White: white thinned to a creamy fluid that stays wet and blends
+LIQUID_WHITE = mix((TITANIUM_WHITE, 1), (P.MEDIUM, 1.2)).with_body(0.15)
+
+# mixes he makes on the palette
+# mixes he makes on the palette
+MOUNTAIN_DARK = mix(
+    (PRUSSIAN_BLUE, 2),
+    (VAN_DYKE_BROWN, 1.5),
+    (ALIZARIN, 1),
+    (MIDNIGHT_BLACK, 0.3),
+    (TITANIUM_WHITE, 1.6),
+)
+
+TWO_INCH = brushes.make(
+    "flat", 100, "hog", length=0.75, capacity=1.6, name="two-inch brush"
+)
+FAN = brushes.make("fan", 48, "hog", length=0.7, clumps=7, name="fan brush")
+MIST_BRUSH = brushes.MOP.sized(120).with_(softness=0.8, name="soft blender, for mist")
+LINER = brushes.RIGGER.sized(3).with_(name="liner brush")
+CLOUD_BRUSH = brushes.make(
+    "round", 60, "squirrel", length=0.5, softness=0.85, name="cloud brush"
+)
+TAPPER = brushes.make(
+    "round", 30, "hog", length=0.5, softness=0.25, name="brush corner, tapping"
+)
+EDGE_KNIFE = brushes.knife("straight", 40, flex=0.5, aspect=0.04, name="knife edge")
+KNIFE = brushes.knife("straight", 70, flex=0.5, name="painting knife")
+SMALL_KNIFE = brushes.knife("straight", 40, flex=0.5, name="small painting knife")
+
+# pre-primed cotton canvas, as he used: an irregular weave, primed so it drinks no oil
+CANVAS = surfaces.COTTON_DUCK.with_(
+    absorbency=0.0,
+    tooth=0.5,
+    relief=1.0,
+    scale=3.5,
+    irregularity=0.35,
+    ground="#f6f4ee",
+    name="primed cotton canvas",
+)
+canvas = Canvas(W, H, surface=CANVAS, seed=1983)
+N_STROKES = [0]
+
+
+def st(pts, paint, width=None, brush=None, **kw):
+    N_STROKES[0] += 1
+    pts = [tuple(map(float, p)) for p in np.atleast_2d(pts)]
+    return canvas.stroke(pts, paint=paint, width=width, brush=brush, **kw)
+
+
+def loaded(tool, paint, amount, across=None):
+    return Brush(tool).load(paint, amount, across=across)
+
+
+def stage(name):
+    print(
+        f"[{time.strftime('%H:%M:%S')}] {name}  (strokes so far: {N_STROKES[0]})",
+        flush=True,
+    )
+
+
+RELIEF = 0.25  # how the finished canvas is lit (and GLOSS, below)
+
+
+def thin(paint):
+    """Paint thinned to a soft, buttery consistency for wet-on-wet work."""
+    return mix((paint, 1), (P.MEDIUM, 0.15)).with_body(0.45)
+
+
+def liquid_white():
+    """A thin, even film over the whole canvas: long horizontal passes with the
+    two-inch brush, each loaded with just enough to cover it."""
+    stage("liquid white")
+    for y in np.arange(30, H + 50, 55):
+        b = loaded(TWO_INCH, LIQUID_WHITE, (W + 160) / 100 * 0.6)
+        st(
+            [(-80, y), (W / 2, y + rng.normal(0, 2)), (W + 80, y)],
+            None,
+            brush=b,
+            pressure=0.15,
+        )
+
+
+def criss_cross(
+    brush, y0, y1, x0=-60, x1=W + 60, size=110, pressure=0.55, reload=None, step=0.45
+):
+    """Little X strokes across a band, as he scrubs in a sky or water,
+    going back to the palette for a touch more paint after each one."""
+    for y in np.arange(y0, y1, size * step):
+        for x in np.arange(x0, x1, size * 0.8):
+            jx, jy = rng.normal(0, size * 0.1, 2)
+            d = size * 0.5
+            st(
+                [(x + jx - d, y + jy - d * 0.55), (x + jx + d, y + jy + d * 0.55)],
+                None,
+                brush=brush,
+                pressure=pressure,
+            )
+            st(
+                [(x + jx - d, y + jy + d * 0.55), (x + jx + d, y + jy - d * 0.55)],
+                None,
+                brush=brush,
+                pressure=pressure,
+            )
+            if reload is not None:
+                reload(brush, y)
+
+
+def cloud_top(billows):
+    """The top edge of a mass of cloud: round billows (x, y, radius) heaped together."""
+
+    def top(x):
+        x = np.asarray(x, float)
+        t = np.full(x.shape, np.inf)
+        for px, py, pr in billows:
+            d = pr**2 - (x - px) ** 2
+            t = np.where(d > 0, np.minimum(t, py - np.sqrt(np.clip(d, 0, None))), t)
+        return t
+
+    return top
+
+
+def cloud_base(billows, xs, drop):
+    """How far down the white of a mass of cloud is carried, at each of ``xs``:
+    ``drop`` radii below the middles of its billows, an uneven line, rising to
+    meet the top at both ends, where the cloud is thinner."""
+    base = np.full(xs.shape, -np.inf)
+    for px, py, pr in billows:
+        base = np.where(np.abs(xs - px) < pr, np.maximum(base, py + drop * pr), base)
+    known = np.isfinite(base)
+    base = np.interp(xs, xs[known], base[known])
+    base = np.convolve(np.pad(base, 20, mode="edge"), np.ones(41) / 41, "valid")
+    ends = np.minimum(xs - xs[0], xs[-1] - xs)
+    r_end = min(billows[0][2], billows[-1][2])
+    return base - 0.8 * drop * r_end * np.clip(1 - ends / (1.2 * r_end), 0, 1) ** 2
+
+
+def scrub_path(a, b, rr, advance, r):
+    """Little scrubbing circles of radius ``rr``, travelling from a to b."""
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    ln = np.linalg.norm(b - a)
+    n = max(1, int(ln / advance))
+    t = np.linspace(0, 2 * np.pi * n, 7 * n + 1)
+    phase = r.uniform(0, 2 * np.pi)
+    c = a + (b - a) * (t / t[-1])[:, None]
+    return c + np.stack([rr * np.cos(t + phase), rr * 0.8 * np.sin(t + phase)], 1)
+
+
+def scrub_along(pts, rr, advance, r):
+    """Little scrubbing circles travelling along the line through ``pts``."""
+    path = []
+    for p, q in itertools.pairwise(pts):
+        path.extend(scrub_path(p, q, rr, advance, r))
+    return np.array(path)
+
+
+def cloud_rim(billows, inset):
+    """The line a brush follows to draw the top edge of a mass of cloud: over
+    the top of each billow in turn, from left to right, ``inset`` inside it."""
+    pts = []
+    for k, (px, py, pr) in enumerate(billows):
+        others = [b for j, b in enumerate(billows) if j != k]
+        rr = max(pr - inset, 1.0)
+        for a in np.linspace(np.pi, 2 * np.pi, max(4, int(np.pi * rr / 8))):
+            x, y = px + rr * np.cos(a), py + rr * np.sin(a)
+            if all(
+                np.hypot(x - ox, y - oy) > max(orr - inset, 1.0)
+                for ox, oy, orr in others
+            ):
+                pts.append((x, y))
+    return np.array(pts)
+
+
+def scrub_rows(billows, base, xs, size, r):
+    """The path of the brush that scrubs in a mass of cloud: along its top edge
+    first, billow by billow, then the inside, row after row down to the base,
+    back and forth."""
+    inset = size * 0.42  # the brush's middle stays this far inside the top edge
+    upper, lower = cloud_top(billows)(xs), base(xs)
+    pts, flip = (
+        list(scrub_along(cloud_rim(billows, inset), size * 0.18, size * 0.32, r)),
+        True,
+    )
+    for y in np.arange(upper.min() + inset + size * 0.42, lower.max(), size * 0.42):
+        y += r.normal(0, size * 0.04)
+        inside = (upper + inset <= y) & (y <= lower)
+        edges = np.flatnonzero(np.diff(np.r_[0, inside.astype(int), 0]))
+        runs = [
+            (xs[s] + size * 0.12, xs[e - 1] - size * 0.12)
+            for s, e in zip(edges[::2], edges[1::2], strict=True)
+            if xs[e - 1] - xs[s] > size * 0.3
+        ]
+        if flip:
+            runs = [(b, a) for a, b in runs[::-1]]
+        for a, b in runs:
+            knots = np.linspace(a, b, max(2, int(abs(b - a) / size) + 1))
+            ys = y + r.normal(0, size * 0.05, len(knots))
+            pts.extend(
+                scrub_along(np.stack([knots, ys], 1), size * 0.18, size * 0.32, r)
+            )
+        flip = not flip
+    return np.array(pts)
+
+
+def path_length(pts):
+    return float(np.linalg.norm(np.diff(pts, axis=0), axis=1).sum())
+
+
+def ridge_segments(ridge_ctrl, step):
+    """Points along a ridge line every ``step`` px, with the ridge's slope
+    there as a brush angle on the canvas (degrees, positive rising to the right)."""
+    ctrl = np.asarray(ridge_ctrl, float)
+    d = np.concatenate(
+        [[0.0], np.cumsum(np.linalg.norm(np.diff(ctrl, axis=0), axis=1))]
+    )
+    out = []
+    for t in np.arange(0.0, d[-1], step):
+        i = min(int(np.searchsorted(d, t, side="right")) - 1, len(ctrl) - 2)
+        (x0, y0), (x1, y1) = ctrl[i], ctrl[i + 1]
+        f = (t - d[i]) / max(d[i + 1] - d[i], 1e-9)
+        # (the canvas measures a fixed brush angle the other way round from image y)
+        out.append(
+            (
+                x0 + f * (x1 - x0),
+                y0 + f * (y1 - y0),
+                -float(np.degrees(np.arctan2(y1 - y0, x1 - x0))),
+            )
+        )
+    return out
+
+
+def evergreen(x, base, h, dark, hi_green, scale=1.0, seed=0):
+    """An evergreen the way he paints them: a trunk line with the knife, then
+    the fan brush loaded with dark green, starting at the top with a touch of
+    the corner and pressing harder as it works down, the branches growing
+    wider, drooping a little; then highlights on one side, barely touching."""
+    r = np.random.default_rng(seed)
+    st(
+        [(x, base), (x + r.normal(0, 2), base - h)],
+        VAN_DYKE_BROWN,
+        width=3 * scale,
+        brush=LINER.sized(4 * scale),
+        amount=60,
+        pressure=0.4,
+    )
+    y = base - h
+    k = 0
+    while y < base - 0.04 * h:
+        t = (y - (base - h)) / h  # 0 at the top
+        span = (4 + t * 0.3 * h) * r.uniform(0.75, 1.25)
+        for side in (-1, 1):
+            if r.random() < 0.1 and t > 0.1:
+                continue  # a gap: light shows through the tree
+            # a pull from the trunk out and down, and one at the tip
+            for j in range(2):
+                a0 = j * 0.45 * span
+                ln = span * (1.0 if j == 0 else 0.6) * r.uniform(0.8, 1.1)
+                droop = np.radians(r.uniform(18, 38))
+                p0 = (x + side * a0, y + a0 * 0.3 + r.normal(0, 1.5))
+                p1 = (p0[0] + side * ln * np.cos(droop), p0[1] + ln * np.sin(droop))
+                st(
+                    [
+                        p0,
+                        ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2 + r.normal(0, 1.5)),
+                        p1,
+                    ],
+                    dark,
+                    width=[(9 + 16 * t) * scale, (4 + 6 * t) * scale],
+                    brush=FAN,
+                    angle=0,
+                    amount=10,
+                    pressure=0.45 + 0.35 * t,
+                    mixing=0.04,
+                    pickup=0.05,
+                )
+        y += (5 + 7 * t) * scale * r.uniform(0.6, 1.4)
+        k += 1
+    rows = k
+    # highlights: lighter green on the side towards the light, at the ends of
+    # the branches, barely touching
+    hi = mix((dark, 1), (hi_green, 1.8))
+    for k in range(int(rows * 0.7)):
+        t = 0.15 + 0.85 * k / (rows * 0.7)
+        y = base - h + t * h * 0.93
+        span = (3 + t * 0.3 * h) * r.uniform(0.6, 1.0)
+        side = -1 if r.random() < 0.8 else 1
+        p0 = (x + side * span * r.uniform(0.3, 0.6), y + span * 0.12)
+        ln = span * r.uniform(0.3, 0.55)
+        p1 = (p0[0] + side * ln * 0.85, p0[1] + ln * 0.45)
+        st(
+            [p0, p1],
+            hi,
+            width=[(6 + 10 * t) * scale, 3 * scale],
+            brush=FAN,
+            angle=0,
+            amount=3,
+            pressure=0.15,
+            mixing=0.04,
+            pickup=0.05,
+        )
+
+
 K = W / 640  # the reference frame is 640 px wide
 
 
@@ -53,7 +377,7 @@ def hand(path, pressure, r=None, n=None, sway=4.0, wander=0.25):
     across it, ``sway`` px) and never evenly pressed (the pressure profile
     given rises and falls by up to ``wander``). ``sway=0, wander=0`` gives
     the stroke exactly as drawn. Returns the points and the pressures."""
-    r = B.rng if r is None else r
+    r = rng if r is None else r
     path = np.asarray(path, float)
     seg = np.linalg.norm(np.diff(path, axis=0), axis=1)
     along = np.r_[0, np.cumsum(seg)] / max(seg.sum(), 1e-9)
@@ -91,13 +415,11 @@ def ref(*pts):
 # ===========================================================================
 # His phthalo blue: huile's greys with white, so cerulean with a little
 # ultramarine stands in for it, and keeps his clean, bright blue
-BLUE = mix((B.P.CERULEAN_BLUE, 1), (B.P.ULTRAMARINE_BLUE, 1.0))
+BLUE = mix((P.CERULEAN_BLUE, 1), (P.ULTRAMARINE_BLUE, 1.0))
 SKY = mix(
-    (B.P.CERULEAN_BLUE, 1), (B.P.COBALT_BLUE, 1)
+    (P.CERULEAN_BLUE, 1), (P.COBALT_BLUE, 1)
 )  # (his phthalo blue in the sky: clean and bright)
-WATER_BLUE = mix(
-    (B.P.CERULEAN_BLUE, 1), (B.PHTHALO_GREEN, 0.3), (B.P.ULTRAMARINE_BLUE, 0.2)
-)
+WATER_BLUE = mix((P.CERULEAN_BLUE, 1), (PHTHALO_GREEN, 0.3), (P.ULTRAMARINE_BLUE, 0.2))
 BAND = 285 * K  # the light band across the middle, where sky meets water
 
 
@@ -108,14 +430,14 @@ def sky():
     phthalo green low down, pulled very gently from the outside in, so a
     light band stays across the middle. Then a clean brush blends it, still
     in criss-crosses, and lightly right across the bottom."""
-    B.stage("sky")
+    stage("sky")
 
     def reload(br, y):
         t = float(np.clip(y / BAND, 0, 1))
         br.load(thin(SKY), 2.4 * (1 - t) ** 1.5)
 
-    b = loaded(B.TWO_INCH, thin(SKY), 2.4)
-    B.criss_cross(b, -40, BAND - 40, size=120, reload=reload)
+    b = loaded(TWO_INCH, thin(SKY), 2.4)
+    criss_cross(b, -40, BAND - 40, size=120, reload=reload)
 
     # (each pull lifts off as it nears the middle, so the ends fade)
     for y in np.arange(BAND + 25, H + 40, 28):
@@ -123,7 +445,7 @@ def sky():
         for side in (-1, 1):
             x0 = W / 2 + side * (W / 2 + 80)
             x1 = W / 2 - side * W * 0.1 * depth
-            br = loaded(B.TWO_INCH, thin(WATER_BLUE), 5 + 12 * depth)
+            br = loaded(TWO_INCH, thin(WATER_BLUE), 5 + 12 * depth)
             pts, p = hand(
                 [(x0, y), (x1, y)], [0.25 + 0.4 * depth, 0.05 + 0.2 * depth, 0.0]
             )
@@ -131,19 +453,19 @@ def sky():
     # (the brush laid broad, angle 0, as it travels across)
     for y in np.arange(BAND, H + 40, 11):
         pts, p = hand([(-80, y), (W + 80, y)], [0.3], sway=3)
-        st(pts, None, brush=Brush(B.TWO_INCH), angle=0, pressure=p)
+        st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p)
 
     # a clean brush: criss-crosses over the sky, then long, light strokes across
-    B.criss_cross(Brush(B.TWO_INCH), -40, BAND, size=120, pressure=0.25)
+    criss_cross(Brush(TWO_INCH), -40, BAND, size=120, pressure=0.25)
     for y in np.arange(-10, BAND + 20, 14):
         pts, p = hand([(-80, y), (W + 80, y)], [0.22], sway=3)
-        st(pts, None, brush=Brush(B.TWO_INCH), angle=0, pressure=p)
+        st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p)
 
 
 # ===========================================================================
 # 2. Clouds: white with the least touch of bright red
 # ===========================================================================
-CLOUD_WHITE = mix((B.TITANIUM_WHITE, 60), (B.BRIGHT_RED, 0.5), (B.P.CERULEAN_BLUE, 1.5))
+CLOUD_WHITE = mix((TITANIUM_WHITE, 60), (BRIGHT_RED, 0.5), (P.CERULEAN_BLUE, 1.5))
 CLOUDS = [  # billows (x, y, radius) in the reference frame, how far down each
     # mass goes in radii, and how much white; the farthest first: a thin haze
     # of cloud across the top, then the masses on it (the corners stay sky)
@@ -172,8 +494,8 @@ def cloud(billows, drop, white=0.75, seed=0):
     xs = np.arange(
         min(x - rad for x, _, rad in bil), max(x + rad for x, _, rad in bil), 2.0
     )
-    base = B.cloud_base(bil, xs, drop)
-    path = B.scrub_rows(bil, lambda x: np.interp(x, xs, base), xs, size, r)
+    base = cloud_base(bil, xs, drop)
+    path = scrub_rows(bil, lambda x: np.interp(x, xs, base), xs, size, r)
     # the white: fullest at the top, running thin towards the base
     along = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))] / size
     y_top, y_base = path[:, 1].min(), path[:, 1].max()
@@ -183,11 +505,11 @@ def cloud(billows, drop, white=0.75, seed=0):
             continue
         part = path[go]
         depth = (part[:, 1] - y_top) / max(1.0, y_base - y_top)
-        amount = white * (1 - depth.mean()) ** 2 * B.path_length(part) / size
-        b = loaded(B.CLOUD_BRUSH.sized(size), thin(CLOUD_WHITE), amount)
+        amount = white * (1 - depth.mean()) ** 2 * path_length(part) / size
+        b = loaded(CLOUD_BRUSH.sized(size), thin(CLOUD_WHITE), amount)
         st(part, None, brush=b, pressure=list(0.14 - 0.04 * depth))
     # blend: little circles, from below the base up to the middle of it
-    blender = B.MIST_BRUSH.sized(size * 1.4)
+    blender = MIST_BRUSH.sized(size * 1.4)
     w = blender.width
     line = np.stack([xs[::8], base[::8]], 1)
     for k, (up, pressure) in enumerate(
@@ -195,7 +517,7 @@ def cloud(billows, drop, white=0.75, seed=0):
     ):
         pts = line - [0, up * w] + r.normal(0, [0, 3], line.shape)
         st(
-            B.scrub_along(pts[:: -1 if k % 2 else 1], w * 0.2, w * 0.3, r),
+            scrub_along(pts[:: -1 if k % 2 else 1], w * 0.2, w * 0.3, r),
             None,
             brush=Brush(blender),
             pressure=pressure,
@@ -207,10 +529,10 @@ def cloud(billows, drop, white=0.75, seed=0):
         pts, p = hand([(x, y + w * 0.3), (x, y - w * 0.6)], [0.22, 0.03], r=r, sway=2)
         st(pts, None, brush=Brush(blender), pressure=p, mixing=1.0, pickup=0.0)
     # the edge of the crown softened: little circles along it, just outside
-    rim = B.cloud_rim(bil, -0.1 * size)
+    rim = cloud_rim(bil, -0.1 * size)
     if len(rim) > 2:
         st(
-            B.scrub_along(rim, size * 0.15, size * 0.25, r),
+            scrub_along(rim, size * 0.15, size * 0.25, r),
             None,
             brush=Brush(blender.sized(size * 0.8)),
             pressure=0.2,
@@ -224,7 +546,7 @@ def cloud(billows, drop, white=0.75, seed=0):
             [(xs[0], y), ((xs[0] + xs[-1]) / 2, y + r.normal(0, 4)), (xs[-1], y)]
         )
         st(
-            B.scrub_along(line[:: -1 if k % 2 else 1], w * 0.25, w * 0.35, r),
+            scrub_along(line[:: -1 if k % 2 else 1], w * 0.25, w * 0.35, r),
             None,
             brush=Brush(blender.sized(w * 1.3)),
             pressure=0.1,
@@ -234,7 +556,7 @@ def cloud(billows, drop, white=0.75, seed=0):
 
 
 def clouds():
-    B.stage("clouds")
+    stage("clouds")
     for seed, (billows, drop, white) in enumerate(CLOUDS, start=1):
         cloud(billows, drop, white, seed=seed)
 
@@ -269,25 +591,25 @@ SHADOW = [
 # (alizarin and ultramarine: the pink-violet of his lit snow; cerulean and
 # Prussian blue would turn it green)
 SNOW = mix(
-    (B.TITANIUM_WHITE, 15),
-    (B.ALIZARIN, 2.2),
-    (B.P.ULTRAMARINE_BLUE, 0.6),
+    (TITANIUM_WHITE, 15),
+    (ALIZARIN, 2.2),
+    (P.ULTRAMARINE_BLUE, 0.6),
 )
 SHADE = mix(
-    (B.TITANIUM_WHITE, 1.1),
-    (B.P.ULTRAMARINE_BLUE, 1.1),
-    (B.PRUSSIAN_BLUE, 0.3),
-    (B.ALIZARIN, 0.1),
+    (TITANIUM_WHITE, 1.1),
+    (P.ULTRAMARINE_BLUE, 1.1),
+    (PRUSSIAN_BLUE, 0.3),
+    (ALIZARIN, 0.1),
 )
 # black, Prussian blue, Van Dyke brown and alizarin crimson, a little white
 ROCK = mix(
-    (B.P.ULTRAMARINE_BLUE, 1.5),
-    (B.P.CERULEAN_BLUE, 1.2),
-    (B.PRUSSIAN_BLUE, 0.5),
-    (B.VAN_DYKE_BROWN, 0.4),
-    (B.ALIZARIN, 0.5),
-    (B.MIDNIGHT_BLACK, 0.3),
-    (B.TITANIUM_WHITE, 0.8),
+    (P.ULTRAMARINE_BLUE, 1.5),
+    (P.CERULEAN_BLUE, 1.2),
+    (PRUSSIAN_BLUE, 0.5),
+    (VAN_DYKE_BROWN, 0.4),
+    (ALIZARIN, 0.5),
+    (MIDNIGHT_BLACK, 0.3),
+    (TITANIUM_WHITE, 0.8),
 )
 
 
@@ -298,7 +620,7 @@ def mountain():
     the two-inch brush grabs it and pulls down, so it is lighter at the
     bottom. Snow with no pressure, the light from the right; shadows of white
     and Prussian blue on the other sides; mist tapped in at the base."""
-    B.stage("mountain")
+    stage("mountain")
     knife_in(RIDGE, MOUNTAIN_BASE - 60 * K, ROCK, seed=3)
     r = np.random.default_rng(31)
     xs, ys = np.array(RIDGE).T
@@ -307,7 +629,7 @@ def mountain():
     for x in np.arange(xs[0] + 10, xs[-1], 24):
         top = float(np.interp(x, xs, ys)) + r.uniform(10, 40)
         pts, p = hand([(x, top), (x, MOUNTAIN_BASE)], [0.0, 0.4, 0.4, 0.0], r=r, sway=2)
-        st(pts, None, brush=Brush(B.KNIFE), angle=0, pressure=p)
+        st(pts, None, brush=Brush(KNIFE), angle=0, pressure=p)
     for x in np.arange(xs[0] + 10, xs[-1], 34):
         top = float(np.interp(x, xs, ys)) + r.uniform(30, 90)
         if MOUNTAIN_BASE - top < 40:
@@ -315,16 +637,14 @@ def mountain():
         pts, p = hand(
             [(x, top), (x, MOUNTAIN_BASE)], [0.0, 0.22, 0.15, 0.0], r=r, sway=2
         )
-        st(pts, None, brush=Brush(B.TWO_INCH), angle=0, pressure=p)
+        st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p)
     for k, line in enumerate(SHADOW):
         snow(line, SHADE, seed=70 + k)
     for k, line in enumerate(LIT):
         snow(line, SNOW, seed=80 + k, rows=5)
     # mist: the base tapped and lifted, then blended with a clean brush
     r = np.random.default_rng(32)
-    haze = mix(
-        (B.TITANIUM_WHITE, 6), (B.P.ULTRAMARINE_BLUE, 0.5), (B.P.CERULEAN_BLUE, 0.4)
-    )
+    haze = mix((TITANIUM_WHITE, 6), (P.ULTRAMARINE_BLUE, 0.5), (P.CERULEAN_BLUE, 0.4))
     for y in np.arange(235 * K, 300 * K, 14):
         for x in np.arange(130 * K, W + 30, 30):
             q = (x + r.normal(0, 8), y + r.normal(0, 5))
@@ -332,7 +652,7 @@ def mountain():
             st(
                 [q],
                 None,
-                brush=loaded(B.MIST_BRUSH.sized(110), haze, amount),
+                brush=loaded(MIST_BRUSH.sized(110), haze, amount),
                 pressure=0.2,
                 mixing=0.5,
             )
@@ -341,11 +661,10 @@ def mountain():
 def knife_in(ridge, base, dark, seed=0):
     """The dark cut in with the knife, a small roll of paint on its edge:
     set down along the ridge line, just under it, and pulled square to
-    itself into the mountain, then turned to come straight down (the knife
-    strokes of bob_ross_style's knife_mountain, without its haze)."""
+    itself into the mountain, then turned to come straight down."""
     r = np.random.default_rng(seed)
-    segs = B.ridge_segments(ridge, 22)
-    lower = mix((dark, 1), (B.TITANIUM_WHITE, 4))
+    segs = ridge_segments(ridge, 22)
+    lower = mix((dark, 1), (TITANIUM_WHITE, 4))
     for j, (x, y, slope) in enumerate(segs):
         if base - y < 8:
             continue
@@ -353,15 +672,15 @@ def knife_in(ridge, base, dark, seed=0):
             0.75, 0.92
         )  # (all the way down: the dark covers the mountain)
         k = (
-            Brush(B.KNIFE)
-            .load(dark, 0.25 * ln / B.KNIFE.width)
-            .load(lower, 0.2 * ln / B.KNIFE.width, depth="heel")
+            Brush(KNIFE)
+            .load(dark, 0.25 * ln / KNIFE.width)
+            .load(lower, 0.2 * ln / KNIFE.width, depth="heel")
         )
         lo, hi = max(0, j - 2), min(len(segs) - 1, j + 2)
         bend = abs(segs[hi][2] - segs[lo][2])
-        width = B.KNIFE.width * (1.0 if bend < 25 else 0.45)
+        width = KNIFE.width * (1.0 if bend < 25 else 0.45)
         nx, ny = np.sin(np.radians(slope)), np.cos(np.radians(slope))
-        inset = 0.5 * B.KNIFE.aspect * width + (3 if bend >= 25 else 0)
+        inset = 0.5 * KNIFE.aspect * width + (3 if bend >= 25 else 0)
         x0, y0 = x + nx * inset, y + ny * inset
         x1, y1 = x0 + nx * 0.3 * ln, y0 + ny * 0.3 * ln
         pts = [
@@ -393,7 +712,7 @@ def snow(line, colour, seed=0, blade=None, rows=2):
     second one lower down, beside it. (huile's measured recipe: see
     docs/huile/README.md, Knives.)"""
     r = np.random.default_rng(seed)
-    blade = blade or B.KNIFE
+    blade = blade or KNIFE
     pts = np.asarray(line, float)
     along = np.r_[0, np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))]
     total = along[-1]
@@ -423,7 +742,7 @@ def snow(line, colour, seed=0, blade=None, rows=2):
         if len(path) < 3:
             continue
         path, _ = hand(path, [SNOW_PRESSURE], r=r, sway=1.5, wander=0)
-        ln = B.path_length(np.array(path))
+        ln = path_length(np.array(path))
         k = Brush(blade).load(colour, max(3.0, 0.42 * ln / width * 3))
         st(
             path,
@@ -444,7 +763,7 @@ def mist(line, height, seed=0):
     """A clean, dry brush tapped along the base, then lifted gently upward:
     the tap marks go and the base melts into a soft mist."""
     r = np.random.default_rng(seed)
-    brush = B.MIST_BRUSH.sized(110)
+    brush = MIST_BRUSH.sized(110)
     (x0, y0), (x1, y1) = line[0], line[-1]
     for x in np.arange(x0, x1, 18):
         y = y0 + (y1 - y0) * (x - x0) / (x1 - x0) + r.normal(0, 6)
@@ -470,14 +789,14 @@ def mist(line, height, seed=0):
 # ===========================================================================
 # 4. Foothills, with the oval brush
 # ===========================================================================
-OVAL = B.brushes.make("filbert", 34, "hog", length=0.6, capacity=1.4, name="oval brush")
+OVAL = brushes.make("filbert", 34, "hog", length=0.6, capacity=1.4, name="oval brush")
 # the mountain colour, the least touch of sap green, and white
 # (his blues as huile's cerulean and ultramarine: Prussian blue greys here)
 FOOT = mix(
-    (B.MOUNTAIN_DARK, 1),
-    (B.P.CERULEAN_BLUE, 0.8),
-    (B.P.ULTRAMARINE_BLUE, 1.0),
-    (B.SAP_GREEN, 0.05),
+    (MOUNTAIN_DARK, 1),
+    (P.CERULEAN_BLUE, 0.8),
+    (P.ULTRAMARINE_BLUE, 1.0),
+    (SAP_GREEN, 0.05),
 )
 HILLS = [  # top line, depth, and how much white; the farthest first
     (
@@ -561,9 +880,9 @@ def foothill(top, depth, colour, seed=0):
 
 
 def foothills():
-    B.stage("foothills")
+    stage("foothills")
     for k, (top, depth, white) in enumerate(HILLS):
-        foothill(top, depth, mix((FOOT, 1), (B.TITANIUM_WHITE, white)), seed=40 + k)
+        foothill(top, depth, mix((FOOT, 1), (TITANIUM_WHITE, white)), seed=40 + k)
 
 
 # ===========================================================================
@@ -571,19 +890,19 @@ def foothills():
 # ===========================================================================
 WATER = 392 * K
 TREE_DARK = mix(
-    (B.MIDNIGHT_BLACK, 1.3),
-    (B.P.CERULEAN_BLUE, 1.5),
-    (B.PHTHALO_GREEN, 0.7),
-    (B.SAP_GREEN, 0.4),
-    (B.ALIZARIN, 0.1),
+    (MIDNIGHT_BLACK, 1.3),
+    (P.CERULEAN_BLUE, 1.5),
+    (PHTHALO_GREEN, 0.7),
+    (SAP_GREEN, 0.4),
+    (ALIZARIN, 0.1),
 )
 
 
 def little_evergreens():
-    B.stage("little evergreens")
+    stage("little evergreens")
     r = np.random.default_rng(50)
     # (the fan, tapped on its corner: a small, stiff, full brush)
-    fan = B.brushes.make(
+    fan = brushes.make(
         "round", 8, "hog", length=0.5, spread=0.3, name="fan brush, corner"
     )
     # (heights read off the painting: taller at the left end and at the right)
@@ -649,12 +968,12 @@ def little_evergreens():
         pts, p = hand(
             [(x, WATER + 3), (x, WATER + depth)], [0.5, 0.4, 0.0], r=r, sway=1.0
         )
-        st(pts, None, brush=Brush(B.TWO_INCH), angle=0, pressure=p, mixing=0.3)
+        st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p, mixing=0.3)
     for y in np.arange(WATER + 6, WATER + 75 * K, 12):
         pts, p = hand(
             [(215 * K, y), (495 * K, y)], [0.0, 0.06, 0.06, 0.0], r=r, sway=1.0
         )
-        st(pts, None, brush=Brush(B.TWO_INCH), angle=0, pressure=p)
+        st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p)
     # the water's edge, cut with liquid white dulled with dark sienna
     for a, b in ((230, 300), (300, 390), (380, 485)):
         water_line(ref((a, 393), ((a + b) / 2, 393.5), (b, 393)), r, amount=0.2)
@@ -663,7 +982,7 @@ def little_evergreens():
 
 
 # liquid white with the least touch of dark sienna, to dull it down
-WATER_LINE = mix((B.TITANIUM_WHITE, 3), (B.DARK_SIENNA, 0.1), (BLUE, 0.5))
+WATER_LINE = mix((TITANIUM_WHITE, 3), (DARK_SIENNA, 0.1), (BLUE, 0.5))
 
 
 def water_line(pts, r, amount=0.8):
@@ -673,7 +992,7 @@ def water_line(pts, r, amount=0.8):
     st(
         pts,
         None,
-        brush=Brush(B.EDGE_KNIFE).load(WATER_LINE, amount),
+        brush=Brush(EDGE_KNIFE).load(WATER_LINE, amount),
         angle=90,
         pressure=[2 * v for v in p],
     )
@@ -686,25 +1005,25 @@ TALL = [(22, 80, 1.4), (75, 28, 1.6), (157, 65, 1.4)]  # x, top, size
 TREE_BASE = 340 * K
 # midnight black, Prussian blue, Van Dyke brown, alizarin crimson, sap green
 BIG_DARK = mix(
-    (B.MIDNIGHT_BLACK, 1),
-    (B.PRUSSIAN_BLUE, 1),
-    (B.VAN_DYKE_BROWN, 0.5),
-    (B.ALIZARIN, 0.2),
-    (B.SAP_GREEN, 2),
-    (B.PHTHALO_GREEN, 0.3),
+    (MIDNIGHT_BLACK, 1),
+    (PRUSSIAN_BLUE, 1),
+    (VAN_DYKE_BROWN, 0.5),
+    (ALIZARIN, 0.2),
+    (SAP_GREEN, 2),
+    (PHTHALO_GREEN, 0.3),
 )
 # the dark under the leaf trees: warmer, with more sap green and Van Dyke
 # brown, so the yellow-greens over it stay yellow
 LEAF_DARK = mix(
-    (B.MIDNIGHT_BLACK, 1),
-    (B.VAN_DYKE_BROWN, 1),
-    (B.SAP_GREEN, 2.5),
-    (B.PRUSSIAN_BLUE, 0.3),
-    (B.ALIZARIN, 0.2),
+    (MIDNIGHT_BLACK, 1),
+    (VAN_DYKE_BROWN, 1),
+    (SAP_GREEN, 2.5),
+    (PRUSSIAN_BLUE, 0.3),
+    (ALIZARIN, 0.2),
 )
 # sap green and cadmium yellow (with yellow ochre, Indian yellow, bright red),
 # each list from dark to light
-S, Y = B.SAP_GREEN, B.CADMIUM_YELLOW
+S, Y = SAP_GREEN, CADMIUM_YELLOW
 GREENS = [
     mix((S, 2), (LEAF_DARK, 0.6)),
     mix((S, 2), (LEAF_DARK, 0.2)),
@@ -712,17 +1031,17 @@ GREENS = [
     mix((S, 3), (Y, 1)),
     mix((S, 2), (Y, 1)),
 ]
-OCHRE = [S, mix((S, 1), (B.YELLOW_OCHRE, 1)), mix((B.YELLOW_OCHRE, 2), (S, 1))]
+OCHRE = [S, mix((S, 1), (YELLOW_OCHRE, 1)), mix((YELLOW_OCHRE, 2), (S, 1))]
 YELLOW = [
     mix((S, 2), (Y, 1)),
     mix((S, 1), (Y, 1)),
     mix((Y, 2), (S, 0.5)),
-    mix((B.INDIAN_YELLOW, 1), (Y, 1)),
+    mix((INDIAN_YELLOW, 1), (Y, 1)),
 ]
 RED = [
-    mix((B.BRIGHT_RED, 1), (B.YELLOW_OCHRE, 1), (S, 0.8)),
-    mix((B.BRIGHT_RED, 1), (B.YELLOW_OCHRE, 1), (S, 0.3)),
-    mix((B.YELLOW_OCHRE, 2), (B.BRIGHT_RED, 0.5)),
+    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (S, 0.8)),
+    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (S, 0.3)),
+    mix((YELLOW_OCHRE, 2), (BRIGHT_RED, 0.5)),
 ]
 # leaf trees and bushes (x, base, width, height, colours), the farthest first
 LEAF_TREES = [
@@ -756,7 +1075,7 @@ FRONT_BUSHES = [
 
 
 EVERGREEN = mix(
-    (BIG_DARK, 1), (B.PHTHALO_GREEN, 0.4), (B.SAP_GREEN, 0.5), (B.P.CERULEAN_BLUE, 0.6)
+    (BIG_DARK, 1), (PHTHALO_GREEN, 0.4), (SAP_GREEN, 0.5), (P.CERULEAN_BLUE, 0.6)
 )
 
 
@@ -764,26 +1083,21 @@ def tall_evergreens():
     """The big brush loaded to a chisel edge with the dark (black, Prussian
     blue, Van Dyke brown, alizarin, sap green); a touch at the top, then the
     corner, back and forth, the bristles bent downward, wider as it goes;
-    later, sap green on the chisel edge for the highlights. (bob_ross_style's
-    evergreen, in these colours.)"""
-    B.stage("tall evergreens")
-    # (bob_ross_style's evergreens take their colours from its module)
-    keep = B.EVERGREEN_DARK, B.HI_GREEN
-    B.EVERGREEN_DARK = EVERGREEN
-    B.HI_GREEN = mix((B.SAP_GREEN, 3), (B.CADMIUM_YELLOW, 0.4))
-    try:
-        for k, (x, top, size) in enumerate(TALL):
-            # (twice over: his branches are full, the sky hardly shows through)
-            for again in (0, 1, 2):
-                B.evergreen(
-                    x * K,
-                    TREE_BASE,
-                    TREE_BASE - top * K,
-                    size,
-                    seed=60 + k + 10 * again,
-                )
-    finally:
-        B.EVERGREEN_DARK, B.HI_GREEN = keep
+    later, sap green on the chisel edge for the highlights."""
+    stage("tall evergreens")
+    highlight = mix((SAP_GREEN, 3), (CADMIUM_YELLOW, 0.4))
+    for k, (x, top, size) in enumerate(TALL):
+        # (three times over: his branches are full, the sky hardly shows through)
+        for again in (0, 1, 2):
+            evergreen(
+                x * K,
+                TREE_BASE,
+                TREE_BASE - top * K,
+                EVERGREEN,
+                highlight,
+                size,
+                seed=60 + k + 10 * again,
+            )
 
 
 # where the land begins, down from the top (reference frame): all of it lies
@@ -805,7 +1119,7 @@ LAND_TOP = np.array(
 
 def land():
     """The dark under the trees and bushes, blocked in with the big brush."""
-    B.stage("land")
+    stage("land")
     r = np.random.default_rng(65)
     for y in np.arange(150 * K, H + 30, 22):
         for x in np.arange(-20, W + 20, 22):
@@ -817,7 +1131,7 @@ def land():
                 [q],
                 LEAF_DARK,
                 width=r.uniform(32, 46),
-                brush=B.TAPPER,
+                brush=TAPPER,
                 amount=3,
                 pressure=0.4,
                 mixing=0.03,
@@ -828,12 +1142,12 @@ def land():
 def trunks(x, base, h, seed=0):
     """A trunk or two (dark sienna and white), and sticks and twigs."""
     r = np.random.default_rng(seed)
-    bark = mix((B.DARK_SIENNA, 2), (B.TITANIUM_WHITE, 1), (B.PRUSSIAN_BLUE, 0.2))
+    bark = mix((DARK_SIENNA, 2), (TITANIUM_WHITE, 1), (PRUSSIAN_BLUE, 0.2))
     st(
         [(x, base), (x + r.normal(0, 4), base - 0.6 * h)],
         bark,
         width=[7, 2],
-        brush=B.LINER.sized(7),
+        brush=LINER.sized(7),
         amount=6,
         pressure=0.5,
     )
@@ -844,7 +1158,7 @@ def trunks(x, base, h, seed=0):
             [(x, y), (x + side * r.uniform(10, 30), y - r.uniform(10, 30))],
             bark,
             width=2,
-            brush=B.LINER,
+            brush=LINER,
             amount=2,
             pressure=0.3,
         )
@@ -892,7 +1206,7 @@ def leaves(x, base, w, h, colours, seed=0):
                 [q, up],
                 col,
                 width=r.uniform(9, 15),
-                brush=B.TAPPER,
+                brush=TAPPER,
                 amount=1.6,
                 pressure=[r.uniform(0.15, 0.28), 0.05],
                 mixing=0.25,
@@ -911,7 +1225,7 @@ def block_in(x, base, w, h, seed=0):
             [q, (q[0], q[1] - 6)],
             LEAF_DARK,
             width=r.uniform(30, 44),
-            brush=B.TAPPER,
+            brush=TAPPER,
             amount=3,
             pressure=[0.45, 0.1],
             mixing=0.03,
@@ -920,7 +1234,7 @@ def block_in(x, base, w, h, seed=0):
 
 
 def leaf_trees():
-    B.stage("leaf trees and bushes")
+    stage("leaf trees and bushes")
     specs = [(x * K, b * K, w * K, h * K, c) for x, b, w, h, c in LEAF_TREES]
     for k, (x, b, w, h, _) in enumerate(specs):
         block_in(x, b, w, h, seed=70 + k)
@@ -932,7 +1246,7 @@ def leaf_trees():
 
 
 def path():
-    B.stage("path")
+    stage("path")
     r = np.random.default_rng(100)
     way = np.array(ref((95, 380), (140, 400), (180, 425), (215, 450), (245, 482)))
     xs = np.interp(np.linspace(0, 4, 40), np.arange(5), way[:, 0])
@@ -941,15 +1255,15 @@ def path():
         for _ in range(3):
             st(
                 [(x + r.normal(0, 12), y + r.normal(0, 6))],
-                B.VAN_DYKE_BROWN,
+                VAN_DYKE_BROWN,
                 width=r.uniform(20, 30),
-                brush=B.TAPPER,
+                brush=TAPPER,
                 amount=3,
                 pressure=0.4,
             )
     # brown, white and a touch of blue: grey, barely touching with the knife
     greys = [
-        mix((B.VAN_DYKE_BROWN, 1), (B.TITANIUM_WHITE, w), (B.PRUSSIAN_BLUE, 0.3))
+        mix((VAN_DYKE_BROWN, 1), (TITANIUM_WHITE, w), (PRUSSIAN_BLUE, 0.3))
         for w in (1.5, 2.5, 3.5)
     ]
     for _ in range(30):  # rocks: touches along the way, each its own size
@@ -966,7 +1280,7 @@ def path():
         st(
             [a, b],
             col,
-            brush=B.SMALL_KNIFE.sized(r.uniform(14, 26)),
+            brush=SMALL_KNIFE.sized(r.uniform(14, 26)),
             amount=0.4,
             angle=70,
             pressure=r.uniform(0.05, 0.12),
@@ -977,12 +1291,12 @@ def path():
         leaves(x * K, b * K, w * K, h * K, c, seed=110 + k)
 
 
-# (lit with less gloss than bob_ross_style: the tapped paint of the little
-# evergreens is thick, and glints in white specks where his shows none)
+# (little gloss: the tapped paint of the little evergreens is thick, and
+# glints in white specks where his shows none)
 GLOSS = 0.2
 
 STAGES = [
-    B.liquid_white,
+    liquid_white,
     sky,
     clouds,
     mountain,
@@ -999,8 +1313,8 @@ def main(out, upto=None):
     t0 = time.time()
     for stage in STAGES[:upto]:
         stage()
-    B.canvas.save(out, relief=B.RELIEF, gloss=GLOSS)
-    print(f"wrote {out}: {B.N_STROKES[0]} strokes in {time.time() - t0:.0f}s")
+    canvas.save(out, relief=RELIEF, gloss=GLOSS)
+    print(f"wrote {out}: {N_STROKES[0]} strokes in {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":
