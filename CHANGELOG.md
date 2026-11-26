@@ -24,6 +24,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   the sky; the snow in narrow bands under the ridges with blue rock between,
   and leaves that keep their colour (they no longer pick up the wet blue
   under them), tapped dark first over the whole tree.
+- *Towering Peaks*: the bushes show his detail again, little clumps of
+  leaves lit on top over darker green, taken from the close-ups of the
+  episode rather than the blurred frame of the whole; and the mountain's
+  ridges sag a little between peak and notch instead of running ruled.
 
 ## [0.3.0] - 2026-11-26
 
