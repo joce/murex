@@ -71,7 +71,7 @@ BASE_KNIFE = brushes.knife("straight", 160, flex=0.5)
 SNOW_KNIFE = brushes.knife("straight", 110, flex=0.5)
 # the blade lies across the pull, as snow is laid: the pulls below run down
 # and to the right, about 36 degrees under the horizontal
-ACROSS = -54
+ACROSS = 54
 
 
 def dark_base(canvas: Canvas, load: float, body: float | None = None) -> None:

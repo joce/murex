@@ -73,7 +73,7 @@ def _knifed_thin(canvas):
     canvas.stroke(
         [(10, h / 2), (w - 10, h / 2)],
         brush=scraper,
-        angle=90,
+        angle=-90,
         follow_path=False,
         pressure=0.85,
         lift=0.0,

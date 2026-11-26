@@ -217,9 +217,12 @@ class BrushType:
         pulled along its length (a narrow mark the width of the blade).
     follow_path:
         If True the angle is relative to the stroke's direction (the brush
-        turns with the hand). If False it is fixed on the canvas, measured from
-        horizontal, like a calligraphy nib: the stroke thickens and thins as it
-        changes direction.
+        turns with the hand). If False it is fixed on the canvas, like a
+        calligraphy nib: the long side lies at that angle from the
+        horizontal, counter-clockwise as the picture is seen (the way it
+        turns with ``follow_path=True``; against the path's points, whose
+        y runs down), whichever way the stroke goes, and the stroke
+        thickens and thins as it changes direction.
     stiffness:
         0 = very soft (sable, squirrel) to 1 = very stiff (hog bristle, knife).
         Stiff tools leave stronger ridges and ragged edges, push more paint

@@ -72,6 +72,41 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking, in huile's pictures of tools held at a fixed angle:** with
+  `follow_path=False` a brush's or a blade's long side lies at the `angle`
+  given, on every heading (murex-1w8). The angle is counted from the
+  horizontal, counter-clockwise as the picture is seen: the way a tool
+  turns with `follow_path=True`, and the way a level or an upright stroke
+  and a dab took it already. On any other heading the tool lay twice that
+  heading away: at 90 degrees for a blade asked to lie level on a pull
+  down a slope of 45. Callers had allowed for it by giving the angle the
+  other way round (a blade across a pull heading h, in the path's
+  coordinates, as `h - 90`): such an angle is now given as `90 - h`,
+  and the stroke is then the same to the bit. So:
+  - a stroke on a slant (heading h, in the path's coordinates) with its
+    angle left as it was is painted with the tool turned twice h: give
+    `angle - 2h` to have the tool where it lay, which for a blade across
+    its way is the angle negated;
+  - an upright stroke (drawn up or down) is unchanged to the bit;
+  - a level stroke and a dab keep their angle, with the tool turned half
+    a turn, its sides swapped: the same mark with another texture. Add
+    180 to the angle to have it to the bit.
+
+  `tools/huile/bench.py --compare` is identical on its 16 scenes, none of
+  which holds a tool so. In `tests/huile/` the pulls across a slanting way
+  give their angle as `90 - h` and the scrape of the shared dark ground
+  as -90 where it was 90, and no value held by a test changes but those
+  of `tests/huile/test_relief.py`, whose pull is given the angle that was
+  meant (40: its -40 lay mirrored about its way) and lays 0.2% more white
+  at pressures 0.1 and 0.3; `tools/huile/knife_probe.py` gives 54
+  where it gave -54 and measures what it did. Of the example images two
+  change: `brush_uses.png` (the calligraphy loop of
+  `examples/huile/demo.py`, whose nib now keeps its 40 degrees all round
+  the loops; the line is as thick and as thin where it was, its ends and
+  its texture are not) and `knives.png` (the grass of its meadow, blades
+  dabbed at 90 degrees give or take 14: each leans as it did, turned
+  half a turn, so its texture is another).
+
 - **Breaking, in huile's pictures of skims:** a knife barely touching lays
   white that breaks in patches, as snow goes on a mountain (murex-dnj).
   Below pressure 0.07 the bead on a loaded blade's edge comes to lay as a
@@ -107,7 +142,12 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   px across), and a step only reads it where its pixels lie: nothing is
   kept along the stroke. Between 0.04 and 0.07 the bead's catching on
   thread tops comes in evenly and the roll goes out later
-  (`_ROLL_LATE`), by the pressure at each place along the stroke.
+  (`_ROLL_LATE`), by the pressure at each place along the stroke, and at
+  each place the bead leaves the larger of what the two would, not their
+  sum. The sheet is that thick under a blade with paint to spare: with a
+  film thinner than 10 units on it (`_ROLL_FILM`; a 110 px blade loaded
+  with 8 carries 40) the roll is pressed in proportion, and a load of 1
+  lays a sheet 0.3 units thick.
 
   **Measured** with the new `tools/huile/break_stats.py` on the picture, at
   about 2 px/mm, against the eleven bounds of murex-dnj (taken from eight
@@ -162,29 +202,50 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   **Against pressure** a pull does not always lay more the harder it is
   pressed, and cannot while 0.07 is left as it is: from there a blade lays
   as it did, in places less than its roll lays at 0.04, and no way from
-  the one to the other then rises all the way. Measured from 0 to 0.1 in
-  steps of 0.0025, blades of 40 and 110 px, loads of 1, 3, 8 and 20, the
-  furthest the white falls below what a lighter pull laid (over two sets
-  of pulls: the fall varies with the stroke's seed):
+  the one to the other then rises all the way. Two things keep the fall
+  small (murex-cwa). Between 0.04 and 0.07 the bead leaves, at each
+  place, the larger of what the roll and the catching would, not their
+  sum, and the roll goes out late (`_ROLL_LATE`, 2.5): summed, a roll
+  kept late lay on top of the catching and a pull laid more midway than
+  at 0.07, and let go early it left a dip. And the roll of a blade with
+  a film under 10 units is pressed in proportion (`_ROLL_FILM`): such a
+  blade laid all it had as a skim, and less pressed harder. A skim at
+  0.04 or under with a load of 8 is what it was before these two, to the
+  bit. Measured from 0 to 0.1 in steps of 0.0025, blades of 40 and 110
+  px, loads of 1, 3 and 8 (and 20 under the 110 px blade), the furthest
+  the white falls below what a lighter pull laid (two to four pulls each:
+  the fall varies with the stroke's seed), and in brackets what it was
+  with the two summed and the roll pressed alike under every blade:
 
   | ground | load 1 | load 3 | loads 8 and 20 |
   |---|---|---|---|
-  | dark knifed thin; brushed rough (default canvas, LINEN_COARSE); thick slab; bare default canvas | 0.4 to 9% (none on one) | none (0.6% for the 40 px blade on the bare canvas) | none |
-  | bare LINEN_COARSE | 13 to 19% | 8 to 15% | 0.5 to 3% |
-  | no tooth (GESSO_PANEL made with `texture=0`), bare or under a thin dark | 56 to 79% | 53 to 64% | 28 to 39% |
+  | dark knifed thin; brushed rough on LINEN_COARSE; bare default canvas | none (1.5 to 7.5%) | none (none) | none (none) |
+  | bare LINEN_COARSE | 0 to 0.4% (10 to 20%) | 3 to 10% (7 to 14%) | none (0.2 to 3%) |
+  | no tooth (GESSO_PANEL made with `texture=0`), bare | 35 to 66% (53 to 79%) | 41 to 58% (53 to 64%) | 9 to 25% (27 to 39%) |
 
-  With very little paint a blade lays more of it as a skim than at any
-  pressure up to 0.3: the pull of `tests/huile/test_relief.py` (a 40 px
-  knife loaded with 0.22, over dried ridges) lays 312 units at 0.04, 279
-  at 0.06, 172 at 0.07, 196 at 0.1 and 257 at 0.3, where it rose all the
-  way from 97; loaded with 2, 1775 at 0.05 and 1417 at 0.07. The share of
-  a face covered falls too, and where the white does not: a 40 px blade
-  loaded with 3 covers 0.9 of its face at 0.055 and under half at 0.065.
+  What is left on a ground with no tooth is mostly the old way itself:
+  loaded with 8 a 110 px blade lays 15% less at 0.07 than its roll does
+  at 0.04, and loaded with 3, 57% less, whatever lies between. (A dark
+  brushed on the default canvas, a thick slab and a thin dark over a
+  ground with no tooth were measured before these two and not again.)
+  With very little paint: the pull of `tests/huile/test_relief.py` (a 40
+  px knife loaded with 0.22, over dried ridges) lays 164 units at 0.04,
+  193 at 0.06, 172 at 0.07, 197 at 0.1 and 258 at 0.3 (with the roll
+  pressed alike under every blade, 312 at 0.04: more than at any pressure
+  up to 0.3; before the roll it rose all the way from 97); loaded with 2,
+  1493 at 0.06 and 1416 at 0.07 (1775 at 0.05). The share of a face
+  covered still falls where the white does not: a 40 px blade loaded
+  with 3 covers as much of its face up to 0.0625 as a skim does and half
+  of that at 0.0675 (it was half from 0.0625 on), and a 110 px blade
+  loaded with 1, at its worst, 0.5 to 0.57 of the face less than as a
+  skim (0.40 to 0.47 before: its skim then ran dry along the way), where
+  the sheet has given way to specks on thread tops.
   `tests/huile/test_skim.py` holds a pull to rising all the way over two
-  darks at loads of 3 and 8, and holds five of the falls above to what
-  was measured, so that a worsening is caught. (The roll going out as the
-  catching comes in, the two summing to 1, there was a fall of 1.2 to
-  1.6% on the bare default canvas as well; `_ROLL_LATE`.)
+  darks at loads of 3 and 8, and holds five pulls on bare grounds to
+  what was measured (two of them to rising all the way), so that a
+  worsening is caught. (The roll going out as the catching comes in, the
+  two summing to 1, there was a fall of 1.2 to 1.6% on the bare default
+  canvas as well.)
 
   **Cost.** Working a roll out takes 9 ms for a pull 270 px long under a
   blade 110 px wide (18 ms where it reaches past the edge), and reading it
@@ -202,19 +263,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   then turned to come down: pulled straight down askew to its own edge, a
   blade left a bead of paint standing above the ridge line at its upper
   end, a row of dark posts that the old snow had covered. A pull eased
-  off from 0.1 to 0.02 over dried ridges with very little paint lays twice
-  what it did, and more than one held at 0.1 or at 0.3
-  (`tests/huile/test_relief.py`). The sizes above are pixels: huile has no
+  off from 0.1 to 0.02 over dried ridges with very little paint lays 178
+  units where it laid 150 (`tests/huile/test_relief.py`). The sizes above
+  are pixels: huile has no
   scale to turn millimetres into pixels by (its surfaces assume 0.3 mm to
   the pixel, and this rule was set at 0.5).
 
   **Not changed, and seen while at it:** a blade's two ends print a
   straight rail across an earlier pull; ribs across a pull (murex-bja); a
-  comb's cut (murex-ffp). With `follow_path=False` a tool's angle is the
-  one given only for pulls along x or y: on a pull heading h it lies at 2h
-  less the angle given (a blade given the angle of a ridge and pulled down
-  a slant lies across it), which the examples had allowed for without
-  saying so.
+  comb's cut (murex-ffp).
 
 - **Breaking, in huile's pictures:** a stroke's random textures no longer
   show how it is cut into steps (murex-9t4). The wobble of a stroke's width

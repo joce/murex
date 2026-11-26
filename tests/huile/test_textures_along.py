@@ -25,7 +25,7 @@ TOOLS = {
     "knife": (brushes.knife("straight", 60, flex=0.5), {"lift": 0.0}),
     "wide knife": (
         brushes.knife("straight", 110, flex=0.5),
-        {"lift": 0.0, "angle": -40, "follow_path": False, "pressure": 0.05},
+        {"lift": 0.0, "angle": 40, "follow_path": False, "pressure": 0.05},
     ),
     "flat": (brushes.FLAT_HOG.sized(30), {}),
     # (a soft round splays under pressure, and this one is pressed harder

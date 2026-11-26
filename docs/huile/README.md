@@ -222,7 +222,7 @@ Useful members:
 | `width`    | Brush width in px; defaults to the brush's own size. A number, one value per control point, or `f(u)` with `u` in 0..1 along the stroke. `f` is called once with the array of all `u`; if it only takes one number (`lambda u: 30 if u < 0.5 else 10`), it is called for each `u` in turn. |
 | `pressure` | 0..1, same forms as `width`. Light pressure lays paint *on top of* wet paint. Heavy pressure releases more paint and churns it *into* the wet paint below. Soft, pointed brushes also get wider under pressure. An overloaded brush pressed hard squeezes paint out into ridges at its edges. A knife's pressure sets how thick its slab is: light leaves it thick, hard scrapes close to the canvas. Barely touching (`pressure=SKIM`, which is 0.03; anything up to 0.04), a loaded knife lays a thin sheet that breaks in patches (see Knives). |
 | `angle`    | Brush angle in degrees, same forms as `width`: 0 drags a flat broadside, 90 on its edge. Vary it to twist the brush mid-stroke. |
-| `follow_path` | `True`: the angle turns with the stroke. `False`: the angle is fixed on the canvas, like a calligraphy nib. |
+| `follow_path` | `True`: the angle turns with the stroke. `False`: the angle is fixed on the canvas, like a calligraphy nib: the long side lies at that angle from the horizontal, counter-clockwise as the picture is seen (the way it turns with `True`; the path's y runs down, so a blade across a pull heading h in the path's coordinates is at `90 - h`), whichever way the stroke goes. |
 | `roll`     | Round brushes only: how far the brush is rolled between the fingers, in degrees, same forms as `width`. Rolling turns a different side of the bundle to the canvas (see `Brush`). |
 | `mixing`   | How readily the stroke stirs into the wet paint below. |
 | `pickup`   | How much wet paint the brush lifts and carries along (brushes; a knife drags wet paint instead). A brush barely touching lifts much less than one pressed into the paint. |
@@ -794,7 +794,7 @@ the blade is filled up to the blade and everything above it is pushed away, so:
   from murex.huile import SKIM
   knife = Brush(brushes.knife("straight", 110)).load(P.TITANIUM_WHITE, 8)
   canvas.stroke([(330, 160), (440, 240), (540, 315)], brush=knife,
-                angle=-54, follow_path=False, pressure=SKIM, lift=0)
+                angle=54, follow_path=False, pressure=SKIM, lift=0)
   ```
 
   The roll reads the surface as it lay before the stroke, smoothed over its
@@ -819,8 +819,11 @@ the blade is filled up to the blade and everything above it is pushed away, so:
   What to know:
 
   * Give the blade paint to spare (a load of 3 or more for a face; the roll
-    lays just under a fifth of a load of 8 in a pull 270 px long), or it
-    runs dry in streaks, which is a way to end a pull.
+    lays just under a fifth of a load of 8 in a pull 270 px long). With
+    little on it the roll is pressed less and the sheet is thinner: under
+    a film of 10 units (a 110 px blade loaded with 2), in proportion to
+    the film, so that a load of 1 lays a sheet 0.3 units thick over as
+    much of the face, and thinner as the blade runs low.
   * It wants a thin dark, or a brushed one. Over a dark knifed thin every
     pull measured is one sheet with holes of the size of those in the
     paintings it was judged against (see the changelog). Over a dark
@@ -1159,27 +1162,39 @@ off towards white rather than clip.
   had its roll, and that is in places less than the roll lays at 0.04 (a
   sheet 0.7 units thick over four fifths of a face); the roll gives over to
   the old way between 0.04 and 0.07, and no way of doing that rises all the
-  way where the far end is the lower. Measured in steps of 0.0025 of
+  way where the far end is the lower. Two things keep the fall small
+  (murex-cwa): at each place the bead leaves the larger of what the roll
+  and the old way would, not their sum, the roll going out late; and the
+  roll of a blade with little paint is pressed less, so that such a blade
+  no longer lays all it has as a skim. Measured in steps of 0.0025 of
   pressure from 0 to 0.1, with blades 40 and 110 px long, the furthest the
-  white a pull lays falls below what a lighter pull laid (over two sets of
-  pulls: it varies with the stroke's seed):
-  * over a dark knifed thin or brushed rough, over a thick slab, and on the
-    bare default canvas: nothing with a load of 3 or more (but 0.6% for
-    the 40 px blade loaded with 3 on the bare canvas); with a load of 1,
-    which the roll uses up, 0.4 to 9%;
-  * on the bare LINEN_COARSE, whose threads stand far apart: 0.5 to 3% with
-    loads of 8 and 20, 8 to 15% with 3, 13 to 19% with 1;
+  white a pull lays falls below what a lighter pull laid (two to four
+  pulls each: it varies with the stroke's seed):
+  * over a dark knifed thin, over a brushed one on LINEN_COARSE and on the
+    bare default canvas: nothing, with loads of 1, 3 and 8 (it was 1.5 to
+    7.5% with a load of 1);
+  * on the bare LINEN_COARSE, whose threads stand far apart: nothing with
+    loads of 8 and 20 (it was 0.2 to 3%), 3 to 10% with 3 (7 to 14%), 0 to
+    0.4% with 1 (10 to 20%);
   * on a ground with no tooth (glass, a surface made with `texture=0`),
-    where the old way lays next to nothing before 0.06: 28 to 39% with
-    loads of 8 and 20, 53 to 64% with 3, 56 to 79% with 1.
+    where the old way lays next to nothing before 0.06: 9 to 25% with
+    loads of 8 and 20 (it was 27 to 39%), 41 to 58% with 3 (53 to 64%),
+    35 to 66% with 1 (53 to 79%). With a load of 8
+    most of what is left is the old way itself, which at 0.07 lays 15%
+    less than the roll does at 0.04; with 3 and under, nearly all of it.
 
-  A blade with very little paint lays more of it as a skim than at any
-  pressure up to 0.3: a 40 px knife loaded with 0.22 over dried ridges lays
-  312 units at 0.04, 172 at 0.07 and 257 at 0.3 (before, it rose all the
-  way, from 97 at no pressure). And the share of a face that is covered
-  can fall where the white laid does not: a 40 px blade loaded with 3
-  covers nine tenths of its face at 0.055 and under half at 0.065, where
-  it begins to spread its film and runs dry along the way.
+  A blade with very little paint: a 40 px knife loaded with 0.22 over
+  dried ridges lays 164 units at 0.04, 193 at 0.06, 172 at 0.07 and 258 at
+  0.3 (it laid 312 at 0.04, more than at any pressure up to 0.3; before
+  the roll it rose all the way, from 97 at no pressure). And the share of
+  a face that is covered still falls where the white laid does not: a
+  40 px blade loaded with 3 covers as much of its face up to 0.0625 as a
+  skim does and half of that at 0.0675 and 0.07, where it lays as it
+  did, on thread tops; and a 110 px blade loaded with 1 covers, at its
+  worst, 0.5 to 0.57 of the face less than as a skim (0.40 to 0.47
+  before: its skim then ran dry along the way). (Over a thick slab,
+  where nothing fell with a load of 3 or more, this was not measured
+  again.)
 * Knives lie flat on the canvas (or, with a tiny `aspect`, on their edge);
   the tilt of the blade (spreading with the trailing edge down vs scraping
   with the leading edge) is folded into pressure.

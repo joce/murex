@@ -90,7 +90,7 @@ def _knife_pull(path, angle=0.0, load=0.0, blade=60, paint=P.TITANIUM_WHITE, **o
             [tuple(np.add(_turned(p, turns), shift)) for p in path],
             None,
             brush=knife,
-            angle=angle + 90.0 * turns,
+            angle=angle - 90.0 * turns,
             follow_path=False,
             lift=0.0,
             **options,
@@ -168,14 +168,14 @@ SERIES = {
         _knife_pull((OFF, ONTO)[i % 2], pressure=0.9, seed=10 + i) for i in range(4)
     ],
     "knife through a corner": [
-        _knife_pull((CORNER[::-1], CORNER)[i % 2], -45.0, seed=10 + i) for i in range(3)
+        _knife_pull((CORNER[::-1], CORNER)[i % 2], 45.0, seed=10 + i) for i in range(3)
     ],
     "knife along": [
         _knife_pull((ALONG, ALONG[::-1])[i % 2], -90.0, load=0.3, seed=10 + i)
         for i in range(2)
     ],
     "knife set down": [
-        _knife_pull(DOWN, -45.0, load=0.3, seed=10 + i) for i in range(2)
+        _knife_pull(DOWN, 45.0, load=0.3, seed=10 + i) for i in range(2)
     ],
     "knife side by side": [
         _knife_pull([(x + dx, y) for x, y in (OFF, ONTO)[i % 2]], seed=10 + i)
@@ -551,7 +551,7 @@ def test_what_crosses_the_edge_under_a_knife_is_counted_and_is_out_there():
         (OFF, 0.0, 3.0, 0.9),
         (ONTO, 0.0, 0.0, 0.9),
         (ALONG, -90.0, 2.0, 0.5),
-        (CORNER, -45.0, 0.0, 0.5),
+        (CORNER, 45.0, 0.0, 0.5),
     ]
     canvas, _ = _pair("brushed")
     most = 0.0
@@ -592,7 +592,7 @@ def test_a_knife_keeps_every_pigment_with_what_crosses_the_edge():
     """A loaded knife at the edge: what it held and what lay on the canvas
     is, afterwards, on the canvas, on the blade or counted as gone over the
     edge (``Canvas.edge_loss``), every channel, to 1e-6 of the largest."""
-    for path, angle in ((OFF, 0.0), (ONTO, 0.0), (ALONG, -90.0), (CORNER, -45.0)):
+    for path, angle in ((OFF, 0.0), (ONTO, 0.0), (ALONG, -90.0), (CORNER, 45.0)):
         canvas, _ = _pair("brushed")
         knife = Brush(brushes.knife("straight", 60, flex=0.5))
         knife = knife.load(P.TITANIUM_WHITE, 2.0)

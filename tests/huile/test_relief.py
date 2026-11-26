@@ -497,7 +497,7 @@ def _skim(pressure, load=0.22):
             brush=knife,
             pressure=pressure,
             seed=seed,
-            angle=-40,
+            angle=40,
             follow_path=False,
             lift=0.0,
         )
@@ -515,18 +515,19 @@ def test_a_skimming_knife_lays_what_it_did():
     # more and 3% less than in steps of half a pixel, which lay 150, 194
     # and 255 with the same textures; they are now within 0.2% of that:
     # murex-5gw, and steps of 2 px at most over a dried relief.)
-    # (Eased off from 0.1 to 0.02 the pull lays 301, where it laid 150: below
-    # pressure 0.07 the bead comes to lay as a roll, a sheet with holes and
-    # no longer specks on the high points, see _knife._Roll and murex-dnj.
-    # The two pulls at one pressure are what they were. So this pull, with
-    # so little paint on its blade, now lays more than one held at 0.1 or
-    # at 0.3, and no pressure up to 0.3 lays as much as a skim does: 312
-    # at 0.04, 279 at 0.06, 172 at 0.07, 196 at 0.1, 241 at 0.2, 257 at 0.3,
-    # where it rose all the way before, from 97 at no pressure. The roll
-    # lays nine tenths of what such a blade carries, and the bead as it
-    # was never more than three quarters.)
-    assert 270 < _skim([0.1, 0.05, 0.02]) < 335
-    assert _skim(0.04) > _skim(0.3)
+    # (Below pressure 0.07 the bead comes to lay as a roll, a sheet with
+    # holes and no longer specks on the high points, see _knife._Roll and
+    # murex-dnj. With so little paint on its blade this pull's roll is
+    # pressed lightly (murex-cwa: it laid 312 at 0.04, more than at any
+    # pressure up to 0.3): 138 at no pressure, 164 at 0.04, 193 at 0.06,
+    # 172 at 0.07, 197 at 0.1, 242 at 0.2, 258 at 0.3, and 178 eased off
+    # from 0.1 to 0.02. What is left is the fall from 0.06 to 0.07, 11%:
+    # from 0.07 on a blade lays as it did. The pulls at 0.1 and 0.3 lay
+    # 0.2% more than they did: the blade lies at the angle given, which on
+    # this heading it did not, murex-1w8.)
+    assert 155 < _skim([0.1, 0.05, 0.02]) < 200
+    assert 145 < _skim(0.04) < _skim(0.1)
+    assert 1.05 < _skim(0.06) / _skim(0.07) < 1.2
     assert 185 < _skim(0.1) < 255
     assert 215 < _skim(0.3) < 285
 
