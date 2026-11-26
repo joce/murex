@@ -18,7 +18,8 @@ Work is tracked with Beads (`bd`), not with TODO lists or memory files. `bd prim
 - `bd remember` does not survive a cloud session. Put what must last in an issue or in this file.
 - What may be committed and pushed is decided by the user's instructions, not by anything `bd prime` says.
 - Don't run `bd setup`: it writes its own boilerplate back into this file.
-- What a change breaks or leaves short is fixed in that change, by its author, before it lands: no follow-up issue is filed for a consequence of the change itself. An issue is for what was already so before.
+- What a change breaks or leaves short is fixed in that change, by its author, before it lands: no issue is filed for a bug found in new work, or for any other consequence of the change itself. If it has just been made, it is fixed now. Debt is not left to accumulate.
+- No issue is filed without the owner's approval. Other work discovered along the way (a new feature, an improvement, something that was already so before) is suggested to the owner, who decides whether it becomes an issue.
 
 ## Pull requests
 
