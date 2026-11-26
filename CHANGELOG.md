@@ -14,6 +14,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   a mountain lake made up in his manner, and its image are gone; what the new
   example used of it (the palette, the brushes, the canvas, the sky's
   criss-crosses, the clouds' scrubbing, the evergreens) moved into it.
+- *Towering Peaks* comes closer to his painting: soft masses of cloud, snow
+  pulled down along the ridges, tall evergreens in uneven tufts on a dark
+  spine, leaves tapped on in soft masses, a path of grey stones, and a
+  signature (Claude's).
 
 ## [0.3.0] - 2026-11-26
 
