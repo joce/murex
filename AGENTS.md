@@ -93,6 +93,7 @@ A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `e
 - `_engine.py`: the numba kernels that move paint at each step of a stroke. `_render.py`: the kernels that light the picture.
 - `surface.py`, `surfaces.py`: grounds and supports.
 - `examples/huile/`: the example paintings and their rendered images. `tools/huile/bench.py`: the benchmark scenes.
+- `.claude/skills/huile-copy-painting/`: how to copy a painting from a video or photograph (as `examples/huile/towering_peaks.py` does), with scripts to paint stages from saved canvases, put crops beside the reference and measure tones by region.
 
 ## Conventions
 

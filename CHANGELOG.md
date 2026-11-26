@@ -18,6 +18,11 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   pulled down along the ridges, tall evergreens in uneven tufts on a dark
   spine, leaves tapped on in soft masses, a path of grey stones, and a
   signature (Claude's).
+- *Towering Peaks* comes closer to his colours, measured region by region
+  against a frame of his painting: thinner, lavender clouds over more of the
+  sky, the snow in narrow bands under the ridges with blue rock between,
+  and leaves that keep their colour (they no longer pick up the wet blue
+  under them), tapped dark first over the whole tree.
 
 ## [0.3.0] - 2026-11-26
 
