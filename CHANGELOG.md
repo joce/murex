@@ -6,6 +6,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-26
+
 ### Added
 
 - `murex.huile.SKIM`: the pressure of a knife that barely touches (0.03),
@@ -2016,6 +2018,7 @@ be used twice.
 - `Pigment`: oilpaint's `Paint` without what is particular to oil paint
   (its body).
 
-[Unreleased]: https://github.com/joce/murex/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/joce/murex/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/joce/murex/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/joce/murex/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/joce/murex/releases/tag/v0.1.1
