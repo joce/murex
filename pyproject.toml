@@ -204,5 +204,5 @@ max-complexity = 13
 "examples/huile/*" = ["complex-structure"]
 
 [build-system]
-requires = ["hatchling>=1.29,<2.0", "hatch-vcs>=0.4,<1.0"]
+requires = ["hatchling>=1.33.0,<2.0", "hatch-vcs>=0.4,<1.0"]
 build-backend = "hatchling.build"
