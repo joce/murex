@@ -1,7 +1,7 @@
 [project]
 name = "murex"
 dynamic = ["version"]
-description = "Simulations of artists' media and what they share: pigments that mix like the real thing (spectral Kubelka-Munk), stroke paths, textures and reference images; dry media (pencils, charcoal, pastel, crayon) on a paper with tooth; oil paint laid by brushes and knives."
+description = "Simulations of artists' media: dry media (pencils, charcoal, pastel, crayon, ballpoint) on a paper with tooth, and oil paint laid by brushes and knives, with pigments that mix like the real thing (spectral Kubelka-Munk)."
 readme = "README.md"
 authors = [{ name = "Jocelyn Legault", email = "jocelynlegault@gmail.com" }]
 license = "MIT"
