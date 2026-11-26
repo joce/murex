@@ -259,6 +259,27 @@ def ref(*pts):
     return [(x * K, y * K) for x, y in pts]
 
 
+def ridge(*pts, sag=0.06):
+    """A ridge through points of the reference frame, on this canvas: from
+    peak to notch it does not run straight but sags a little, and wavers.
+    A stretch between two points bends the same way in every line that
+    holds it, so the snow laid along the skyline stays on it."""
+    out = [pts[0]]
+    for a, b in itertools.pairwise(pts):
+        length = float(np.hypot(b[0] - a[0], b[1] - a[1]))
+        n = max(2, int(length / 4))
+        (x0, y0), (x1, y1) = sorted((a, b))
+        r = np.random.default_rng(int(x0 * 7919 + y0 * 104729 + x1 * 31 + y1))
+        t = np.linspace(0, 1, n + 1)[1:]
+        wave = np.convolve(r.normal(0, 0.8, n + 4), np.ones(5) / 5, "valid")
+        down = (sag * length + wave) * np.sin(np.pi * t)
+        out += [
+            (a[0] + (b[0] - a[0]) * ti, a[1] + (b[1] - a[1]) * ti + di)
+            for ti, di in zip(t, down, strict=True)
+        ]
+    return ref(*out)
+
+
 # ===========================================================================
 # 1. Sky and water
 # ===========================================================================
@@ -443,7 +464,7 @@ def clouds():
 # ===========================================================================
 # 3. The mountain
 # ===========================================================================
-RIDGE = ref(
+RIDGE = ridge(
     (60, 262), (110, 228), (150, 200), (195, 168), (230, 138), (252, 150),
     (275, 146), (350, 90), (370, 100), (405, 50), (432, 72), (455, 82),
     (520, 122), (590, 165), (660, 200),
@@ -451,21 +472,21 @@ RIDGE = ref(
 MOUNTAIN_BASE = 290 * K
 # the faces that take the light (from the right): each from its top down
 LIT = [
-    ref((405, 50), (432, 72), (455, 82)),
-    ref((455, 82), (520, 122), (590, 165), (650, 196)),
-    ref(
+    ridge((405, 50), (432, 72), (455, 82)),
+    ridge((455, 82), (520, 122), (590, 165), (650, 196)),
+    ridge(
         (230, 138), (300, 180), (370, 214), (440, 234), (520, 244)
     ),  # the peak brought in front
-    ref((400, 52), (415, 80), (432, 120), (453, 168)),  # (ridges within the
-    ref((343, 173), (400, 195), (460, 220), (527, 237)),  # faces, lit too)
+    ridge((400, 52), (415, 80), (432, 120), (453, 168)),  # (ridges within the
+    ridge((343, 173), (400, 195), (460, 220), (527, 237)),  # faces, lit too)
 ]
 # and those in shadow, the other side of each
 SHADOW = [
-    ref((405, 50), (385, 82), (370, 100)),
-    ref((350, 90), (310, 118), (275, 146)),
-    ref((230, 138), (195, 168), (150, 200), (100, 236)),
-    ref((455, 82), (430, 110), (410, 140)),
-    ref(
+    ridge((405, 50), (385, 82), (370, 100)),
+    ridge((350, 90), (310, 118), (275, 146)),
+    ridge((230, 138), (195, 168), (150, 200), (100, 236)),
+    ridge((455, 82), (430, 110), (410, 140)),
+    ridge(
         (350, 90), (390, 128), (440, 158), (500, 172)
     ),  # the ridge that pushes the peak back
 ]
@@ -1120,11 +1141,12 @@ LEAF_TAP = brushes.make(
 def leaves(x, base, w, h, colours, seed=0):
     """Leaves tapped on with the one-inch brush (with a little Liquid White,
     so it sticks to the dark): a few rounded forms, each lower one
-    overlapping the one above; the darker colours first over all of them,
-    then the lighter ones higher up on each form and towards the light,
-    where it falls, so the dark stays in the hollows and never comes back
-    over a light. Tapped lightly, the brush prints the tips of its bristles,
-    as his does."""
+    overlapping the one above. The darker colours first, over all of them;
+    then the lighter ones on little clumps of leaves, on the top of each
+    clump, more of them high up and towards the light, where it falls, the
+    lightest in small touches; so each clump has a lit top over its shadow,
+    and the dark stays in the hollows and never comes back over a light.
+    Tapped lightly, the brush prints the tips of its bristles, as his does."""
     r = np.random.default_rng(seed)
     n = max(3, min(6, int(w * h / 4000) + 3))
     forms = []
@@ -1132,33 +1154,47 @@ def leaves(x, base, w, h, colours, seed=0):
         v = (k + r.uniform(0.2, 0.8)) / n
         size = r.uniform(0.8, 1.2) * 0.5 * min(w, h) + 10
         fy = base - h + 0.6 * size + v * (h - 0.6 * size) * 0.85
-        forms.append((x + r.uniform(-0.3, 0.3) * w, fy, size))
+        fx = x + r.uniform(-0.3, 0.3) * w
+        a = r.uniform(0, 2 * np.pi, 12)
+        d = np.sqrt(r.uniform(0, 1, 12))
+        clumps = [
+            (fx + di * 0.9 * size * np.cos(ai), fy + di * 0.65 * size * np.sin(ai))
+            for ai, di in zip(a, d, strict=True)
+        ]
+        sizes = size * r.uniform(0.15, 0.28, 12)
+        forms.append((fx, fy, size, clumps, sizes))
     for c, col in enumerate(colours):
         frac = c / max(1, len(colours) - 1)  # 0 dark .. 1 light
-        for fx, fy, size in forms:
-            m = int(2.0 * size**2 / 110 * (0.9 + 0.1 * frac))
+        for fx, fy, size, clumps, sizes in forms:
             pts = []
-            for _ in range(m):
-                if r.random() < 0.6 + 0.35 * frac:  # (the lighter, the higher)
-                    b = r.uniform(
-                        np.pi * (1 - 0.1 * (1 - frac)), np.pi * (2 + 0.1 * (1 - frac))
-                    )
-                else:
+            if frac < 0.6:  # the darker, over all of the form
+                for _ in range(int(2.0 * size**2 / 110)):
                     b = r.uniform(0, 2 * np.pi)
-                # (thinning out past the form's edge, not stopping at it)
-                s_ = min(1.1, abs(r.normal(0, 0.5))) * (1 - 0.2 * frac)
-                pts.append(
-                    (
-                        fx + s_ * size * np.cos(b) + 0.15 * size * frac,
-                        fy + s_ * size * 0.7 * np.sin(b) + 0.2 * size * (1 - frac),
+                    s_ = min(1.1, abs(r.normal(0, 0.5)))
+                    pts.append(
+                        (
+                            fx + s_ * size * np.cos(b),
+                            fy + s_ * size * 0.7 * np.sin(b) + 0.15 * size,
+                        )
                     )
-                )
+            else:  # the lights, on the tops of the clumps
+                for (cx, cy), rc in zip(clumps, sizes, strict=True):
+                    lit = 0.6 - 0.9 * (cy - fy) / size + 0.4 * (cx - fx) / size
+                    if r.random() > lit - 0.6 * (frac - 0.6):
+                        continue
+                    for _ in range(int(rc**2 / 30 * (1.4 - frac))):
+                        b = r.uniform(np.pi * 1.05, np.pi * 1.95)  # (its top)
+                        s_ = rc * r.uniform(0.3, 1.0) * (1 - 0.3 * frac)
+                        pts.append((cx + s_ * np.cos(b), cy + s_ * np.sin(b)))
+            if not pts:
+                continue
             pressure = 1.3 * r.uniform(0.18, 0.32, len(pts)) * (1.1 - 0.3 * frac)
+            tap = (16, 24) if frac < 0.6 else (12, 18) if frac < 0.9 else (8, 12)
             canvas.stipple(
                 pts,
                 col,
-                amount=5 + 0.03 * m,
-                brush=LEAF_TAP.sized(r.uniform(16, 24)),
+                amount=5 + 0.03 * len(pts),
+                brush=LEAF_TAP.sized(r.uniform(*tap)),
                 pressure=list(pressure),
                 mixing=0.05,
                 pickup=0.0,
