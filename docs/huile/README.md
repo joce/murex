@@ -53,22 +53,24 @@ decides where the strokes go.
 
 Each was also made a different way. The Bruegel is painted from memory: a
 winter village made up in his manner, with no picture to look at. The Bob Ross
-follows his method, step by step as he taught it on television, rather than
-any particular painting. The Rembrandt copies one real painting, matching a
+copies one of his own paintings, made step by step the way he painted it on
+television. The Rembrandt copies one real painting, matching a
 photograph of it as closely as the strokes allow. The Kandinsky is made up in
 his manner, like the Bruegel, and painted on the back of glass, in reverse.
 
 * `examples/huile/bruegel_winter.py`: a winter village in the manner of Pieter
   Bruegel the Elder, painted thinly on an oak panel with soft sable brushes,
   back to front, letting layers dry (about 21,000 strokes, ~2 minutes).
-* `examples/huile/bob_ross_style.py`: a mountain lake painted wet-on-wet in the
-  manner of Bob Ross, in the order he worked on the show: Liquid White over
-  the whole canvas; the sky in criss-cross strokes with a two-inch brush;
-  clouds scrubbed in and blended; the mountain cut in with the knife, its snow
-  laid on with almost no pressure so it breaks; a misty tree line tapped in;
-  evergreens built with the fan brush from the top down; happy little bushes
-  tapped dark and then highlighted; water lines cut with the knife edge
-  (about 32,000 strokes, ~3 minutes).
+* `examples/huile/towering_peaks.py`: Bob Ross's *Towering Peaks* (The Joy
+  of Painting, series 10, episode 1), painted the way he paints it in the
+  episode, step by step from his own words, with the places read off a frame
+  of the finished painting: the sky in criss-crosses and the water pulled in
+  from the sides; clouds scrubbed, blended and lifted; the mountain knifed on,
+  scraped and pulled down, its snow skimmed one pull a face (its breaks
+  measure as his do with `tools/huile/break_stats.py`); foothills tapped with
+  the oval brush; little evergreens tapped down with their reflections pulled
+  from them; tall evergreens, leaf trees blocked in dark and leafed, and a
+  path (about 35,000 strokes, ~7 minutes).
 * `examples/huile/rembrandt_self_portrait.py`: a study after Rembrandt's
   *Self-Portrait* of 1659 (National Gallery of Art, Washington; public
   domain), painted from a reproduction (`examples/huile/reference`) the way he
@@ -100,12 +102,10 @@ his manner, like the Bruegel, and painted on the back of glass, in reverse.
 memory with no picture to look at: thin paint on an oak panel, soft sable
 brushes, back to front, each layer left to dry. About 21,000 strokes.*
 
-![bob ross style](../../examples/huile/output/bob_ross_style.png)
+![after bob ross](../../examples/huile/output/towering_peaks.png)
 
-*A mountain lake in the manner of Bob Ross, following his method step by step
-rather than any one painting: wet-on-wet over Liquid White, criss-cross sky,
-the mountain cut in with the knife, a misty tree line, fan-brush evergreens,
-happy little bushes, and water lines cut with the knife edge.*
+*After Bob Ross's* Towering Peaks*: one painting, copied the way he painted
+it on the show.*
 
 ![after rembrandt](../../examples/huile/output/rembrandt_self_portrait.png)
 
@@ -146,16 +146,6 @@ the colour that brings the canvas closer (`examples/huile/_studies.py`).
   and the sparks flicked on with `canvas.spatter`, a flick for each shower of
   sparks in the photograph, falling from just above it (about 3,200 brush
   strokes, then 160 flicks and 1,700 drops; ~1 minute).
-* `examples/huile/towering_peaks.py`: Bob Ross's *Towering Peaks* (The Joy
-  of Painting, series 10, episode 1), painted the way he paints it in the
-  episode, step by step from his own words, with the places read off a frame
-  of the finished painting: the sky in criss-crosses and the water pulled in
-  from the sides; clouds scrubbed, blended and lifted; the mountain knifed on,
-  scraped and pulled down, its snow skimmed one pull a face (its breaks
-  measure as his do with `tools/huile/break_stats.py`); foothills tapped with
-  the oval brush; little evergreens tapped down with their reflections pulled
-  from them; tall evergreens, leaf trees blocked in dark and leafed, and a
-  path (about 35,000 strokes, ~7 minutes).
 
 ![after seurat](../../examples/huile/output/seurat_grande_jatte.png)
 
@@ -166,11 +156,6 @@ nearly pure colour, tapped on side by side.*
 
 *After Whistler's* Nocturne in Black and Gold: The Falling Rocket*: thin washes
 of night and smoke, and the falling sparks spattered on.*
-
-![after bob ross](../../examples/huile/output/towering_peaks.png)
-
-*After Bob Ross's* Towering Peaks*: one painting, copied the way he painted
-it on the show.*
 
 ## API
 
@@ -857,7 +842,7 @@ the blade is filled up to the blade and everything above it is pushed away, so:
     varies.
   * These sizes are pixels, set for a picture of about 2 px to the
     millimetre (a 24 in canvas 1200 px wide, as
-    `examples/huile/bob_ross_style.py`): on a canvas painted at more
+    `examples/huile/towering_peaks.py`): on a canvas painted at more
     pixels the holes are smaller on the painting.
   * Pressed a little harder than a skim, a knife can lay *less*: see
     Limitations.
