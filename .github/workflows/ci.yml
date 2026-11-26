@@ -21,6 +21,7 @@ env:
   TOX_SKIP_MISSING_INTERPRETERS: "false"
 
 jobs:
+  # Every job starts at once: none waits for another.
   spell-check:
     runs-on: ubuntu-latest
     steps:
@@ -39,12 +40,26 @@ jobs:
       - name: Check spelling
         run: npm run spell
 
+  # Lint and tests run in separate jobs, so that the tests do not wait for
+  # pyright. On 3.15 the tests run under coverage (they are the same tests).
   ci-checks:
-    needs: spell-check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Codecov checks the upload with GitHub's OIDC token: no secret needed
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        task: [lint, test]
+        exclude:
+          - python-version: "3.15"
+            task: test
+        include:
+          - python-version: "3.15"
+            task: coverage
+    name: ${{ matrix.task }} (${{ matrix.python-version }})
+    env:
+      NUMBA_CACHE_DIR: ${{ github.workspace }}/.numba-cache
     steps:
       - name: Check out the repository
         uses: actions/checkout@v7
@@ -57,12 +72,74 @@ jobs:
           version: "latest"
           python-version: ${{ matrix.python-version }}
 
-      # formatting (black, ruff format), lint (ruff), types (pyright), tests (pytest)
-      - name: Run tox
-        run: uvx --with tox-uv tox -e py${{ matrix.python-version }}
+      # numba checks each cached kernel against its file's contents and
+      # recompiles those whose file changed, so an older cache is safe.
+      - name: Restore numba's compiled kernels
+        if: matrix.task != 'lint'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUMBA_CACHE_DIR }}
+          key: numba-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}-${{ hashFiles('murex/**/*.py') }}
+          restore-keys: numba-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}-
 
-  distribution-and-windows:
-    needs: spell-check
+      # formatting (black, ruff format), lint (ruff) and types (pyright)
+      - name: Lint
+        if: matrix.task == 'lint'
+        run: uvx --with tox-uv tox -e py${{ matrix.python-version }}-lint
+
+      - name: Test
+        if: matrix.task == 'test'
+        run: uvx --with tox-uv tox -e py${{ matrix.python-version }}-test
+
+      - name: Test with coverage
+        if: matrix.task == 'coverage'
+        run: uvx --with tox-uv tox -e coverage
+
+      - name: Upload coverage to Codecov
+        if: matrix.task == 'coverage'
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.xml
+          use_oidc: true
+          verbose: true
+
+      - name: Upload test results to Codecov
+        if: ${{ matrix.task == 'coverage' && !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          files: junit.xml
+          report_type: test_results
+          use_oidc: true
+
+  windows:
+    runs-on: windows-latest
+    env:
+      NUMBA_CACHE_DIR: ${{ github.workspace }}/.numba-cache
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags needed for hatch-vcs version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "latest"
+          python-version: "3.15"
+
+      - name: Restore numba's compiled kernels
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUMBA_CACHE_DIR }}
+          key: numba-${{ runner.os }}-py3.15-${{ hashFiles('uv.lock') }}-${{ hashFiles('murex/**/*.py') }}
+          restore-keys: numba-${{ runner.os }}-py3.15-${{ hashFiles('uv.lock') }}-
+
+      - name: Check Windows behavior
+        run: uvx --with tox-uv tox -e test
+
+  # The built wheel installed and used on its own. Its check compiles the
+  # kernels, so it keeps no cache.
+  distribution:
     runs-on: windows-latest
     steps:
       - name: Check out the repository
@@ -76,42 +153,5 @@ jobs:
           version: "latest"
           python-version: "3.15"
 
-      # the tests on Windows, and the built wheel installed and used on its own
-      - name: Check Windows behavior and installed distribution
-        run: uvx --with tox-uv tox -e test,wheel
-
-  coverage:
-    needs: spell-check
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write # Codecov checks the upload with GitHub's OIDC token: no secret needed
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # tags needed for hatch-vcs version
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.3
-        with:
-          version: "latest"
-          python-version: "3.15"
-
-      - name: Run coverage via tox
-        run: uvx --with tox-uv tox -e coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          files: coverage.xml
-          use_oidc: true
-          verbose: true
-
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v7
-        with:
-          files: junit.xml
-          report_type: test_results
-          use_oidc: true
+      - name: Check the installed distribution
+        run: uvx --with tox-uv tox -e wheel
