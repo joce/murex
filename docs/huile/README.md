@@ -70,7 +70,7 @@ his manner, like the Bruegel, and painted on the back of glass, in reverse.
   ridge; foothills tapped with the oval brush; little evergreens tapped down
   with their reflections pulled from them; tall evergreens in tufts of little
   arms, leaf trees blocked in dark and tapped on in soft masses, a path of
-  grey stones, and a signature (about 21,500 strokes, ~10 minutes).
+  grey stones, and a signature (about 22,000 strokes, ~9 minutes).
 * `examples/huile/rembrandt_self_portrait.py`: a study after Rembrandt's
   *Self-Portrait* of 1659 (National Gallery of Art, Washington; public
   domain), painted from a reproduction (`examples/huile/reference`) the way he

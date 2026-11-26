@@ -283,9 +283,9 @@ def sky():
 
     def reload(br, y):
         t = float(np.clip(y / BAND, 0, 1))
-        br.load(thin(SKY), 2.4 * (1 - t) ** 1.5)
+        br.load(thin(SKY), 1.8 * (1 - t) ** 1.5)
 
-    b = loaded(TWO_INCH, thin(SKY), 2.4)
+    b = loaded(TWO_INCH, thin(SKY), 1.8)
     criss_cross(b, -40, BAND - 40, size=120, reload=reload)
 
     # (each pull lifts off as it nears the middle, so the ends fade)
@@ -316,32 +316,46 @@ def sky():
 # ===========================================================================
 # white with the least touch of bright red: pinker on the crowns, where the
 # light catches them, bluer down in the body
-CLOUD_WHITE = mix((TITANIUM_WHITE, 60), (BRIGHT_RED, 0.5), (P.CERULEAN_BLUE, 1.5))
+CLOUD_WHITE = mix(
+    (TITANIUM_WHITE, 25), (BRIGHT_RED, 0.2), (ALIZARIN, 1.0), (P.ULTRAMARINE_BLUE, 1.4)
+)
 CROWN_WHITE = mix(
-    (TITANIUM_WHITE, 60), (BRIGHT_RED, 0.9), (ALIZARIN, 0.3), (P.CERULEAN_BLUE, 0.6)
+    (TITANIUM_WHITE, 25), (BRIGHT_RED, 0.5), (ALIZARIN, 1.6), (P.ULTRAMARINE_BLUE, 0.8)
 )
 # the masses of cloud (x0, x1, base, height, lumps, white) in the reference
-# frame, the farthest first: a thin haze across the top, then the rest
+# frame, the farthest first
 CLOUDS = [
-    (60, 450, 90, 80, 14, 0.12),
-    (260, 440, 215, 140, 5, 0.32),
-    (380, 660, 135, 125, 7, 0.3),
-    (-20, 310, 185, 165, 8, 0.32),
+    (150, 420, 125, 100, 6, 0.15),
+    (-20, 320, 155, 150, 7, 0.15),
+    (420, 660, 115, 125, 6, 0.15),
+    (190, 380, 205, 90, 5, 0.12),
+    (540, 660, 190, 100, 4, 0.12),
 ]
+PUFF = 9  # px: the little puffs the corner of his one-inch brush makes
 
 
 def crown(x0, x1, base, height, lumps, r):
     """The top of a cloud: lumps of random widths heaped along x0..x1 (canvas
-    px), ragged at small scale, falling to the base at both ends."""
+    px), falling to the base at both ends, and along them little puffs, each
+    its own size: a cauliflower edge. Returns xs, the edge, the line under
+    the puffs, and the puffs (x, radius)."""
     xs = np.arange(x0, x1, 2.0)
     u = (xs - x0) / (x1 - x0)
-    env = np.sin(np.pi * u) ** 0.4  # (rounded, not peaked)
-    top = np.zeros_like(xs)
+    env = np.sin(np.pi * u) ** 0.5
+    big = np.zeros_like(xs)
     for _ in range(lumps):
-        c, wd = r.uniform(0.05, 0.95), r.uniform(0.08, 0.25)
-        top = np.maximum(top, r.uniform(0.45, 1.0) * np.exp(-(((u - c) / wd) ** 2)))
-    rag = np.convolve(r.normal(0, 1, len(xs) + 6), np.ones(7) / 7, "valid")
-    return xs, base - height * env * (0.35 + 0.65 * top) + 3.0 * rag
+        c, wd = r.uniform(0.05, 0.95), r.uniform(0.06, 0.2)
+        big = np.maximum(big, r.uniform(0.4, 1.0) * np.exp(-(((u - c) / wd) ** 2)))
+    under = base - height * env * (0.3 + 0.7 * big)
+    bump = np.zeros_like(xs)
+    puffs, cx = [], x0 + r.uniform(0, 6)
+    while cx < x1:
+        rp = PUFF * r.uniform(0.6, 1.4)
+        d = np.abs(xs - cx)
+        bump = np.maximum(bump, 0.7 * np.sqrt(np.maximum(rp**2 - d**2, 0)))
+        puffs.append((cx, rp))
+        cx += rp * r.uniform(0.6, 1.1)
+    return xs, under - bump, under, puffs
 
 
 # a soft round brush: a dab of it is feathered all round
@@ -351,53 +365,72 @@ SOFT_ROUND = brushes.make(
 
 
 def cloud(x0, x1, base, height, lumps, white, seed=0):
-    """A cloud the way he paints one: a brush loaded with a lot of white (and
-    the least touch of bright red), touched along the top, where its crown
-    will be, then little circular strokes on down into it as the brush runs
-    out; then a clean, dry two-inch brush, tiny little circles to blend the
-    bottom into the sky, higher and lighter each time, never at the top; then
-    lifted, which fluffs it right up. The crown is an irregular line, lumps
-    heaped along it, never a circle, scrubbed with a soft brush as wide as
-    his, and its edge is barely touched with the clean brush, so it has no
-    hard edge."""
+    """A cloud the way he paints one: the corner of the one-inch brush loaded
+    with white and the least touch of red, tiny little circles along the top,
+    puff after puff, where the crown will be, then on down into it as the
+    brush runs out; then a clean, dry two-inch brush, tiny circles to blend
+    the bottom into the sky, higher and lighter each time, never at the top;
+    then lifted, which fluffs it right up. The crown is an irregular line of
+    lumps edged with little puffs, never a row of circles."""
     r = np.random.default_rng(seed)
     x0, x1, base, height = x0 * K, x1 * K, base * K, height * K
-    xs, tops = crown(x0, x1, base, height, lumps, r)
-    depth = base - tops
+    xs, _, under, puffs = crown(x0, x1, base, height, lumps, r)
+    depth = base - under
+    corner = SOFT_ROUND.sized(2.2 * PUFF)
+    for cx, rp in puffs:  # the crown, puff by puff
+        i = int(np.clip((cx - x0) / 2, 0, len(xs) - 1))
+        if depth[i] < 2 * PUFF:
+            continue
+        cy = under[i] - 0.15 * rp
+        turns = np.linspace(0, 2 * np.pi * r.uniform(1.2, 2.0), 9) + r.uniform(0, 7)
+        pts = [
+            (cx + 0.45 * rp * np.cos(a) + r.normal(0, 1), cy + 0.45 * rp * np.sin(a))
+            for a in turns
+        ]
+        brush = Brush(corner).load(thin(CROWN_WHITE), 0.35 * white * rp)
+        st(pts, None, brush=brush, pressure=r.uniform(0.3, 0.45), mixing=0.15, pickup=0)
+    sel = np.flatnonzero(depth > 2 * PUFF)[::5]
+    for inset, f in ((1.2, 0.6), (2.4, 0.3)) if len(sel) > 2 else ():
+        # (just under the crown, thinner, as the brush runs out)
+        y = under[sel] + inset * PUFF + r.normal(0, 2, len(sel))
+        path = scrub_along(np.stack([xs[sel], y], 1), 5, 5, r)
+        for k in range(0, len(path) - 2, 40):
+            part = path[k : k + 42]
+            amount = f * 0.5 * white * path_length(part) / 6
+            brush = Brush(corner).load(thin(CLOUD_WHITE), amount)
+            st(part, None, brush=brush, pressure=0.3, mixing=0.3, pickup=0.0)
     w = 64  # (his one-inch brush, at this size)
-
-    def scrub(line, paint, load):
-        path = scrub_along(line, 14, 8.4, r)
-        for k in range(0, len(path) - 2, 50):  # (reloaded every so often)
-            part = path[k : k + 52]
-            amount = load * path_length(part)
-            brush = Brush(SOFT_ROUND.sized(w)).load(thin(paint), amount)
-            st(part, None, brush=brush, pressure=0.3, mixing=0.4, pickup=0.05)
-
-    top = np.flatnonzero(depth > max(0.5 * w, 0.6 * depth.max()))[::5]
-    scrub(np.stack([xs[top], tops[top] + 0.35 * w], 1), CROWN_WHITE, white / 40)
-    for row, inset in enumerate(np.arange(0.8 * w, depth.max(), 0.4 * w)):  # body
-        keep = np.flatnonzero(tops + inset < base - 0.3 * height)[::6]
+    for row, inset in enumerate(np.arange(4 * PUFF, depth.max(), 0.4 * w)):  # body
+        keep = np.flatnonzero(under + inset < base - 0.3 * height)[::6]
         if len(keep) < 3:
             continue
-        line = np.stack([xs[keep], tops[keep] + inset + r.normal(0, 3, len(keep))], 1)
-        load = (1 - inset / depth.max()) ** 0.7
-        scrub(line[::-1] if row % 2 else line, CLOUD_WHITE, white * load / 50)
+        line = np.stack([xs[keep], under[keep] + inset + r.normal(0, 3, len(keep))], 1)
+        load = (1 - inset / depth.max()) ** 1.5
+        path = scrub_along(line[::-1] if row % 2 else line, 14, 8.4, r)
+        for k in range(0, len(path) - 2, 50):  # (reloaded every so often)
+            part = path[k : k + 52]
+            amount = white * load * path_length(part) / 50
+            brush = Brush(SOFT_ROUND.sized(w)).load(thin(CLOUD_WHITE), amount)
+            st(part, None, brush=brush, pressure=0.3, mixing=0.5, pickup=0.05)
     blender = MIST_BRUSH.sized(70)
-    w = blender.width
-    line = np.stack([xs[top], tops[top]], 1)  # the crown's edge, barely touched
-    path = scrub_along(line, w * 0.15, w * 0.25, r)
-    st(path, None, brush=Brush(blender), pressure=0.3, mixing=1.0, pickup=0.0)
-    for k, (up, p) in enumerate(
-        ((-0.25, 0.75), (0.0, 0.68), (0.25, 0.57), (0.5, 0.45))
-    ):
+    bw = blender.width
+    if len(sel) > 2:  # the crown touched very lightly, to soften it
+        path = scrub_along(np.stack([xs[sel], under[sel]], 1), 8, 12, r)
+        st(path, None, brush=Brush(blender), pressure=0.25, mixing=1.0, pickup=0.0)
+    for k, (up, p) in enumerate(((-0.2, 0.75), (0.05, 0.65), (0.3, 0.55), (0.55, 0.4))):
         n = len(xs[::10])
-        line = np.stack([xs[::10], base - up * height + r.normal(0, 4, n)], 1)
-        path = scrub_along(line[:: -1 if k % 2 else 1], w * 0.2, w * 0.3, r)
+        wave = np.convolve(r.normal(0, 0.12 * height, n + 4), np.ones(5) / 5, "valid")
+        # (never level, and never over the top part of the cloud)
+        y = np.maximum(base - up * height + wave, under[::10] + 0.45 * depth[::10])
+        path = scrub_along(
+            np.stack([xs[::10], y], 1)[:: -1 if k % 2 else 1], bw * 0.2, bw * 0.3, r
+        )
         st(path, None, brush=Brush(blender), pressure=p, mixing=1.0, pickup=0.0)
     for x in np.arange(x0 + 10, x1 - 10, 24):
         y = base + r.normal(0, 5)
-        pts, p = hand([(x, y + 10), (x, y - 0.55 * height)], [0.25, 0.02], r=r, sway=2)
+        i = int(np.clip((x - x0) / 2, 0, len(xs) - 1))
+        up = r.uniform(0.3, 0.55) * depth[i]  # (each lifted off at its own height)
+        pts, p = hand([(x, y + 10), (x, y - up)], [0.25, 0.02], r=r, sway=2)
         st(pts, None, brush=Brush(blender), pressure=p, mixing=1.0, pickup=0.0)
 
 
@@ -423,6 +456,8 @@ LIT = [
     ref(
         (230, 138), (300, 180), (370, 214), (440, 234), (520, 244)
     ),  # the peak brought in front
+    ref((400, 52), (415, 80), (432, 120), (453, 168)),  # (ridges within the
+    ref((343, 173), (400, 195), (460, 220), (527, 237)),  # faces, lit too)
 ]
 # and those in shadow, the other side of each
 SHADOW = [
@@ -437,25 +472,26 @@ SHADOW = [
 # (alizarin and ultramarine: the pink-violet of his lit snow; cerulean and
 # Prussian blue would turn it green)
 SNOW = mix(
-    (TITANIUM_WHITE, 15),
-    (ALIZARIN, 1.3),
-    (P.ULTRAMARINE_BLUE, 0.6),
+    (TITANIUM_WHITE, 9),
+    (ALIZARIN, 1.0),
+    (P.ULTRAMARINE_BLUE, 1.2),
 )
 SHADE = mix(
-    (TITANIUM_WHITE, 1.1),
+    (TITANIUM_WHITE, 1.3),
     (P.ULTRAMARINE_BLUE, 1.1),
-    (PRUSSIAN_BLUE, 0.3),
+    (P.CERULEAN_BLUE, 0.4),
+    (PRUSSIAN_BLUE, 0.15),
     (ALIZARIN, 0.1),
 )
 # black, Prussian blue, Van Dyke brown and alizarin crimson, a little white
 ROCK = mix(
-    (P.ULTRAMARINE_BLUE, 1.5),
-    (P.CERULEAN_BLUE, 1.2),
-    (PRUSSIAN_BLUE, 0.5),
-    (VAN_DYKE_BROWN, 0.4),
-    (ALIZARIN, 0.5),
-    (MIDNIGHT_BLACK, 0.3),
-    (TITANIUM_WHITE, 0.8),
+    (P.ULTRAMARINE_BLUE, 2),
+    (P.CERULEAN_BLUE, 1),
+    (PRUSSIAN_BLUE, 0.4),
+    (VAN_DYKE_BROWN, 0.1),
+    (ALIZARIN, 0.2),
+    (MIDNIGHT_BLACK, 0.2),
+    (TITANIUM_WHITE, 1.2),
 )
 
 
@@ -480,27 +516,27 @@ def mountain():
             [(x, top), (x, MOUNTAIN_BASE)], [0.0, 0.15, 0.15, 0.0], r=r, sway=2
         )
         st(pts, None, brush=Brush(KNIFE), angle=0, pressure=p)
-    for x in np.arange(xs[0] + 10, xs[-1], 34):
+    for x in np.arange(xs[0] + 10, xs[-1], 20):
         top = float(np.interp(x, xs, ys)) + r.uniform(30, 90)
         if MOUNTAIN_BASE - top < 40:
             continue
         pts, p = hand(
-            [(x, top), (x, MOUNTAIN_BASE)], [0.0, 0.22, 0.15, 0.0], r=r, sway=2
+            [(x, top), (x, MOUNTAIN_BASE)], [0.0, 0.15, 0.1, 0.0], r=r, sway=2
         )
         st(pts, None, brush=Brush(TWO_INCH), angle=0, pressure=p)
     for k, line in enumerate(SHADOW):
-        snow(line, SHADE, seed=70 + k, rows=3)
+        snow(line, SHADE, seed=70 + k, rows=5)
     for k, line in enumerate(LIT):
-        snow(line, SNOW, seed=80 + k, rows=6)
+        snow(line, SNOW, seed=80 + k, rows=2)
     # mist: the base tapped and lifted, then blended with a clean brush
     r = np.random.default_rng(32)
-    haze = mix((TITANIUM_WHITE, 6), (P.ULTRAMARINE_BLUE, 0.5), (P.CERULEAN_BLUE, 0.4))
+    haze = mix((TITANIUM_WHITE, 6), (P.ULTRAMARINE_BLUE, 0.5), (ALIZARIN, 0.15))
     blender = MIST_BRUSH.sized(110)
     for y in np.arange(240 * K, 300 * K, 12):
         f = ((y - 240 * K) / (60 * K)) ** 1.5
         line = [(x, y + r.normal(0, 5)) for x in np.arange(130 * K, W + 60, 60)]
         path = scrub_along(line, 20, 24, r)
-        brush = Brush(blender).load(haze, (0.45 * f + 0.03) * path_length(path) / 1000)
+        brush = Brush(blender).load(haze, (0.45 * f + 0.03) * path_length(path) / 600)
         st(path, None, brush=brush, pressure=0.05 + 0.25 * f**0.5, mixing=0.5)
 
 
@@ -568,7 +604,7 @@ def snow(line, colour, seed=0, blade=None, rows=1):
             nx, ny = np.array([-ty, tx]) / np.hypot(tx, ty)
             if ny < 0:
                 nx, ny = -nx, -ny  # (into the mountain, below the ridge)
-            reach = blade.width * r.uniform(0.35, 1.0) * max(0.4, 1 - 0.12 * row)
+            reach = blade.width * r.uniform(0.3, 0.7) * max(0.4, 1 - 0.12 * row)
             off = 3 + row * blade.width * 0.55 + reach / 2
             path = [
                 (xi + nx * off + r.normal(0, 1), yi + ny * off + r.normal(0, 1))
@@ -854,23 +890,23 @@ LEAF_DARK = mix(
 # each list from dark to light
 S, Y = SAP_GREEN, CADMIUM_YELLOW
 GREENS = [
-    mix((S, 2), (Y, 0.3), (LEAF_DARK, 0.4)),
-    mix((S, 2), (Y, 0.6)),
-    mix((S, 3), (Y, 2)),
-    mix((S, 2), (Y, 2)),
-    mix((Y, 3), (S, 1)),
+    mix((S, 2), (LEAF_DARK, 1)),
+    mix((S, 3), (LEAF_DARK, 0.5), (YELLOW_OCHRE, 0.5)),
+    S,
+    mix((S, 3), (Y, 0.25)),
+    mix((S, 2), (Y, 0.35)),
 ]
 OCHRE = [S, mix((S, 1), (YELLOW_OCHRE, 1)), mix((YELLOW_OCHRE, 2), (S, 1))]
 YELLOW = [
-    mix((S, 2), (Y, 1)),
-    mix((S, 1), (Y, 1)),
-    mix((Y, 2), (S, 0.5)),
-    mix((INDIAN_YELLOW, 1), (Y, 1)),
+    mix((S, 2), (Y, 1), (LEAF_DARK, 0.3)),
+    mix((S, 1.5), (Y, 1), (YELLOW_OCHRE, 0.3)),
+    mix((Y, 2), (S, 1), (YELLOW_OCHRE, 0.5)),
+    mix((Y, 2), (YELLOW_OCHRE, 1), (S, 0.5)),
 ]
 RED = [
-    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (S, 0.3)),
-    mix((BRIGHT_RED, 2), (YELLOW_OCHRE, 1)),
-    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (Y, 0.5)),
+    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (S, 0.5), (LEAF_DARK, 0.2)),
+    mix((BRIGHT_RED, 2), (YELLOW_OCHRE, 1), (S, 0.3)),
+    mix((BRIGHT_RED, 1), (YELLOW_OCHRE, 1), (Y, 0.3)),
 ]
 # leaf trees and bushes (x, base, width, height, colours), the farthest first
 LEAF_TREES = [
@@ -1042,7 +1078,7 @@ def land():
                 LEAF_DARK,
                 width=r.uniform(32, 46),
                 brush=TAPPER,
-                amount=3,
+                amount=8,
                 pressure=0.4,
                 mixing=0.03,
                 pickup=0.03,
@@ -1083,21 +1119,24 @@ LEAF_TAP = brushes.make(
 
 def leaves(x, base, w, h, colours, seed=0):
     """Leaves tapped on with the one-inch brush (with a little Liquid White,
-    so it sticks to the dark): a few rounded forms, the farther ones first and
-    each lower one overlapping the one above; on each, the darker colours
-    first over all of it, then the lighter ones higher up and towards the
-    light, where it falls, so the dark stays in the hollows. Tapped lightly,
-    the brush prints the tips of its bristles, as his does."""
+    so it sticks to the dark): a few rounded forms, each lower one
+    overlapping the one above; the darker colours first over all of them,
+    then the lighter ones higher up on each form and towards the light,
+    where it falls, so the dark stays in the hollows and never comes back
+    over a light. Tapped lightly, the brush prints the tips of its bristles,
+    as his does."""
     r = np.random.default_rng(seed)
     n = max(3, min(6, int(w * h / 4000) + 3))
-    for k in range(n):  # the forms, from the top of the tree down
+    forms = []
+    for k in range(n):  # from the top of the tree down
         v = (k + r.uniform(0.2, 0.8)) / n
-        fx = x + r.uniform(-0.3, 0.3) * w
         size = r.uniform(0.8, 1.2) * 0.5 * min(w, h) + 10
         fy = base - h + 0.6 * size + v * (h - 0.6 * size) * 0.85
-        for c, col in enumerate(colours):
-            frac = c / max(1, len(colours) - 1)  # 0 dark .. 1 light
-            m = int(2.0 * size**2 / 110 * (0.5 + 0.7 * frac))
+        forms.append((x + r.uniform(-0.3, 0.3) * w, fy, size))
+    for c, col in enumerate(colours):
+        frac = c / max(1, len(colours) - 1)  # 0 dark .. 1 light
+        for fx, fy, size in forms:
+            m = int(2.0 * size**2 / 110 * (0.9 + 0.1 * frac))
             pts = []
             for _ in range(m):
                 if r.random() < 0.6 + 0.35 * frac:  # (the lighter, the higher)
@@ -1106,23 +1145,24 @@ def leaves(x, base, w, h, colours, seed=0):
                     )
                 else:
                     b = r.uniform(0, 2 * np.pi)
-                s_ = r.uniform(0.0, 1.0) ** 0.5 * (1 - 0.2 * frac)
+                # (thinning out past the form's edge, not stopping at it)
+                s_ = min(1.1, abs(r.normal(0, 0.5))) * (1 - 0.2 * frac)
                 pts.append(
                     (
                         fx + s_ * size * np.cos(b) + 0.15 * size * frac,
                         fy + s_ * size * 0.7 * np.sin(b) + 0.2 * size * (1 - frac),
                     )
                 )
-            if pts:
-                pressure = 1.15 * r.uniform(0.18, 0.32, len(pts)) * (1.1 - 0.3 * frac)
-                canvas.stipple(
-                    pts,
-                    col,
-                    amount=3 + 0.02 * m,
-                    brush=LEAF_TAP.sized(r.uniform(16, 24)),
-                    pressure=list(pressure),
-                    mixing=0.05,
-                )
+            pressure = 1.3 * r.uniform(0.18, 0.32, len(pts)) * (1.1 - 0.3 * frac)
+            canvas.stipple(
+                pts,
+                col,
+                amount=5 + 0.03 * m,
+                brush=LEAF_TAP.sized(r.uniform(16, 24)),
+                pressure=list(pressure),
+                mixing=0.05,
+                pickup=0.0,
+            )
 
 
 def block_in(x, base, w, h, seed=0):
