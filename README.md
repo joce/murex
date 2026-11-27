@@ -81,6 +81,14 @@ they go.
 <td><em>An imagined art deco tower in charcoal, seen from the street so that it towers.</em></td>
 <td><em>After Bob Ross's</em> Towering Peaks<em>, painted step by step the way he paints it on the show.</em></td>
 </tr>
+<tr>
+<td><img src="examples/fusain/output/conte.png" alt="A pear and an egg in black, sanguine and white Conté on tan paper"></td>
+<td></td>
+</tr>
+<tr>
+<td><em>A pear and an egg</em> aux trois crayons<em>: black, sanguine and white Conté on tan paper.</em></td>
+<td></td>
+</tr>
 </table>
 
 ## Installing
