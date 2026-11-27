@@ -1,5 +1,5 @@
-"""Solids seen from in front of a sheet, for the examples that build their
-subject before they draw it (``toilette_model.py``, ``fox_model.py``).
+"""Solids seen from in front of a sheet, for an example that builds its
+subject before it draws it (``fox_model.py``).
 
 A :class:`Solids` works on every pixel of a sheet at once. Each solid gives,
 at each pixel, how far its surface facing the viewer stands out (z towards

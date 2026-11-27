@@ -83,11 +83,11 @@ they go.
 <td><em>After Bob Ross's</em> Towering Peaks<em>, painted step by step the way he paints it on the show.</em></td>
 </tr>
 <tr>
-<td><img src="examples/fusain/output/toilette.png" alt="A seated woman seen from behind, gathering her hair, in black, sanguine and white Conté"></td>
+<td><img src="examples/fusain/output/conte.png" alt="A pear and an egg in black, sanguine and white Conté on tan paper"></td>
 <td></td>
 </tr>
 <tr>
-<td><em>A seated woman gathering her hair, a figure study</em> aux trois crayons<em>: black, sanguine and white Conté on tan paper.</em></td>
+<td><em>A pear and an egg</em> aux trois crayons<em>: black, sanguine and white Conté on tan paper.</em></td>
 <td></td>
 </tr>
 <tr>
