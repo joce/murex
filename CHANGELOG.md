@@ -6,14 +6,6 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-
-- `examples/fusain/fox.py`, with its model `fox_model.py`: a red fox in
-  pastel pencils on black paper, its fur drawn hair by hair along its lie.
-  It joins the drawings in the README's gallery, with the pear and egg of
-  `examples/fusain/conte.py` for Conté. Its model builds its solids with
-  `examples/fusain/solids.py`.
-
 ### Changed
 
 - The Bob Ross example is now `examples/huile/towering_peaks.py`: his

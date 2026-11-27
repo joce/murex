@@ -46,7 +46,7 @@ sheet.save("drawing.png")
 Each is a single script where every mark is a `sheet.stroke(...)`, or the
 pass of a stump, a finger or an eraser; numpy only decides where the marks
 go. None is copied from a picture. Each subject is first built (a tower, a
-street, a bird, a table of things, a lake and a fox in space, lit and looked at
+street, a bird, a table of things and a lake in space, lit and looked at
 through a camera; the farm as flat shapes, as its manner asks), and the
 medium is then laid along the forms that result.
 
@@ -90,16 +90,6 @@ medium is then laid along the forms that result.
   outlines first on bare paper, then the patterns, then the colours
   scribbled over them, light before dark; the whites are paper (about
   11,600 strokes, under a minute).
-* `examples/fusain/fox.py`: a red fox in pastel pencils on black paper, the
-  head and the chest three-quarters to the left. The fox is a solid model
-  (`examples/fusain/fox_model.py`) that knows the colour of its coat and
-  the way its fur lies at every place, lit from the upper left; the black
-  paper is left for the shadows. The tooth is covered first with the
-  pencils on their side; then the fur goes on with the point, in passes of
-  short strokes along its lie from the darks to the lights, the long fur
-  of the ruff and the chest in locks, each parted from the next; last the
-  single hairs, the amber eyes, the nose, the whiskers, and loose hairs
-  breaking the outline (about 45,000 strokes, under a minute).
 
 ![An art deco tower in charcoal](../../examples/fusain/output/deco.png)
 
@@ -134,11 +124,6 @@ side of the lead, finger, stump and chamois, kneaded and vinyl erasers.*
 
 *A farm on a hill in wax crayon: outlines first, then patterns, then colour
 scribbled over them, the paper left for every white.*
-
-![A red fox in pastel pencils on black paper](../../examples/fusain/output/fox.png)
-
-*A red fox in pastel pencils on black paper, the fur drawn hair by hair
-along its lie, from the darks to the lights.*
 
 ## The media
 
@@ -319,9 +304,6 @@ real ones behave, not measurements.
 A tone of sanguine laid behind them with the side of half a stick and rubbed
 with a finger; sanguine, sepia and black for the shadows, white chalk for the
 lights, and pastel pencils for the contours and the stalk.*
-
-The fox of `examples/fusain/fox.py` (above, among the drawings) is drawn
-in pastel pencils alone.
 
 ```python
 from murex.fusain import crayons
