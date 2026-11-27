@@ -7,15 +7,20 @@ Run from the repository root: ``python examples/fusain/fox.py``. Writes
 The fox is a solid model (``fox_model.py``) lit from the upper left, with
 the colour of its coat and the way its fur lies at every place. The paper
 is black and is left for the deepest shadows. The pencils go on as for a
-pastel pencil portrait: the fur laid in passes, each a field of short
-strokes along the lie of the fur, as long as the fur is there; rust first
-over all the orange and grey under all the white, then orange and cream
-where the light reaches, gold and white where it is strongest, and dark
-strokes among the orange in the shadows. Then what makes the face: the
-black of the ear tips and rims, the tear lines, the eyes (amber irises, the
-pupils left black, a white touch of light in each), the nose and the lips;
-the whiskers in white last, and loose hairs breaking the outline of the
-ruff and the ears. The chest fades into the paper at the foot of the sheet.
+pastel pencil portrait. First the tooth is covered with the pencils held
+on their side, rust and orange over the orange, grey in the shadows of the
+white and cream in its light. Then the point, in passes of short strokes
+along the lie of the fur, as long as the fur is there: rust, orange and
+gold, grey, cream and white, from the darks to the lights, dark strokes
+among the orange in the shadows; then single hairs, longer and firmer.
+Where the fur is long (the ruff, the chest, the shoulders) it is drawn in
+locks, a few hairs meeting at a tip, each parted from the next by a dark
+line. Then what makes the face: the black of the ear tips and rims, the
+tear lines, the eyes (amber irises, the pupils left black, a white touch
+of light in each), the nose (glossy black leather, so a dark grey rimmed
+with light) and the lips; the whiskers in white last, and loose hairs
+breaking the outline of the ruff and the ears. The chest fades into the
+paper at the foot of the sheet.
 """
 
 # cspell:words fox's
@@ -33,7 +38,7 @@ from murex.fusain import Sheet, Stick, papers, pastels
 RUST, ORANGE, GOLD = "#8a3a12", "#c8641e", "#e9a650"
 GREY, CREAM, WHITE = "#6f6b66", "#e6d9c0", "#f6f3ec"
 DARK, BLACK, AMBER = "#2c1a10", "#141312", "#d99a2c"
-NOSE_GREY = "#57524d"
+NOSE_GREY, PARTING = "#4a4642", "#4d4a47"
 
 #: How much of the drawing is laid, row by row: the chest fades into the
 #: paper towards the foot of the sheet.
@@ -73,9 +78,12 @@ def scatter(model, rng, spacing, where):
     return pts[keep]
 
 
-def lay(sheet, model, rng, color, want, spacing, scale=1.0, width=2.6, firm=0.7):
+def lay(
+    sheet, model, rng, color, want, spacing, scale=1.0, width=2.6, firm=0.7, tilt=0.0
+):
     """A pass of one pencil over the fur: a stroke from about every
-    ``spacing`` px where ``want`` (0 to 1) asks for it, as firm as it asks."""
+    ``spacing`` px where ``want`` (0 to 1) asks for it, as firm as it asks,
+    held ``tilt`` over on its side."""
     want = want * FADE * (model.part == fm.FUR) * ~model.eyes
     pts = scatter(model, rng, spacing, want > 0.04)
     if len(pts) == 0:
@@ -90,6 +98,7 @@ def lay(sheet, model, rng, color, want, spacing, scale=1.0, width=2.6, firm=0.7)
             [tuple(q) for q in path],
             stick,
             lambda u, p=p: firm * p * np.sin(np.pi * (0.1 + 0.85 * u)) ** 0.5,
+            tilt=tilt,
         )
 
 
@@ -98,6 +107,19 @@ def fur(sheet, model, rng):
     light = model.light
     white = model.white + model.inner
     orange = np.clip(1.0 - white - model.black, 0.0, 1.0)
+    # first the tooth is covered with the pencils held on their side, the
+    # colours of the coat in its light and its shadow
+    # (the white fur pressed harder: on black paper the tooth must be filled
+    # for it to read white)
+    under = (
+        (RUST, orange * np.clip(0.1 + 0.9 * light, 0, 1), 0.6),
+        (GREY, white * np.clip(1.0 - 0.9 * light, 0.2, 1), 0.9),
+        (ORANGE, orange * np.clip(1.5 * light - 0.2, 0, 1), 0.6),
+        (CREAM, white * np.clip(1.8 * light - 0.1, 0, 1), 0.95),
+    )
+    for color, want, firm in under:
+        lay(sheet, model, rng, color, want, 6, 1.0, firm=firm, tilt=0.55)
+    # then with the point, along the fur
     passes = (
         # (pencil, where and how firm, spacing, length)
         (RUST, orange * np.clip(0.1 + 0.9 * light, 0, 1), 5, 1.0),
@@ -123,6 +145,46 @@ def fur(sheet, model, rng):
     )
     for color, want, spacing in hairs:
         lay(sheet, model, rng, color, want, spacing, 1.5, width=1.7, firm=0.95)
+
+
+def locks(sheet, model, rng):
+    """Where the fur is long (the ruff, the chest, the shoulders), clumps of
+    it: a few hairs from roots spread across the lie of the fur, meeting at
+    a tip, each lock lit on its top and parted from the next by a dark
+    line on its shadow side."""
+    where = (model.part == fm.FUR) & (model.length > 20) & (FADE > 0.15)
+    pts = scatter(model, rng, 14, where & ~model.eyes)
+    middles = fur_paths(model, pts, rng, 1.7, 0.35)
+    light = model.at(model.light, pts)
+    white = model.at(model.white + model.inner, pts) > 0.5
+    fade = model.at(FADE, pts)
+    t = np.linspace(0.0, 1.0, 5)[:, None]
+    sticks = {
+        (True, True): pencil(WHITE, 1.9),
+        (True, False): pencil(GOLD, 1.9),
+        (False, True): pencil(CREAM, 1.9),
+        (False, False): pencil(ORANGE, 1.9),
+    }
+    parting = {True: pencil(PARTING, 2.2), False: pencil(DARK, 2.2)}
+    for middle, lit, w, f in zip(middles, light, white, fade, strict=True):
+        d = middle[-1] - middle[0]
+        across = np.array([-d[1], d[0]]) / (np.hypot(*d) + 1e-9)
+        stick = sticks[bool(lit > 0.42), bool(w)]
+        for spread in (-6.0, -2.0, 2.0, 6.0):
+            hair = middle + across * spread * (1.0 - t) ** 1.3
+            firm = f * (0.35 + 0.5 * lit) * rng.uniform(0.8, 1.1)
+            sheet.stroke(
+                [tuple(q) for q in hair], stick, lambda u, p=firm: p * (1 - 0.6 * u)
+            )
+        # (the parting on its shadow side: away from the light, which is
+        # on the upper left)
+        side = 1.0 if across @ fm.LIGHT[:2] < 0 else -1.0
+        gap = middle + across * side * (8.0 - 4.0 * t)
+        sheet.stroke(
+            [tuple(q) for q in gap],
+            parting[bool(w)],
+            lambda u, p=f: 0.7 * p * (1 - 0.5 * u),
+        )
 
 
 def eyes(sheet, model):
@@ -169,8 +231,8 @@ def eyes(sheet, model):
         sheet.stroke([(cx + 4, cy + 0.45 * r)], pencil(GOLD, 1.6), 0.5)
 
 
-def face(sheet, model, rng):
-    """The tear lines, the nose, the lips and the inside of the mouth line."""
+def face(sheet, model):
+    """The tear lines, the line of the lips and the nose."""
     dark = pencil(BLACK, 3.0)
     for line in fm.TEAR_LINES:
         sheet.stroke(
@@ -179,18 +241,51 @@ def face(sheet, model, rng):
     sheet.stroke(
         [tuple(p) for p in fm.on_sheet(fm.LIPS)], dark, lambda u: 0.7 * (1 - 0.5 * u)
     )
-    # the nose: glossy black, so a dark grey in strokes across it, lighter
-    # where the light falls on its top, the nostrils left black
+    nose(sheet, model)
+
+
+def nose(sheet, model):
+    """The nose: glossy black leather, so a dark grey, its top lit and
+    rimmed with the light, a crisp light on it; the nostrils and the
+    groove down its middle black."""
     on_nose = model.part == fm.NOSE
-    pts = scatter(model, rng, 2.5, on_nose)
-    lit = model.at(model.lamp, pts)
-    nose, grey = pencil(NOSE_GREY, 2.2), pencil(GREY, 2.0)
-    for (x, y), light in zip(pts, lit, strict=True):
-        stick = grey if light > 0.55 else nose
-        sheet.stroke([(x - 3, y + 0.5), (x + 3, y - 0.5)], stick, 0.35 + 0.4 * light)
-    nx, ny = fm.on_sheet(fm.NOSE_TIP)
-    sheet.stroke([(nx - 2, ny - 13), (nx + 7, ny - 15)], pencil(WHITE, 2.0), 0.85)
-    sheet.stroke([(nx - 10, ny + 4), (nx - 4, ny + 9), (nx + 3, ny + 8)], dark, 0.95)
+    rows, cols = np.nonzero(on_nose)
+    fill, rim = pencil(NOSE_GREY, 2.4), pencil(GREY, 2.2)
+    top = rows.min()
+    for y in range(top + 1, rows.max(), 2):
+        xs = cols[rows == y]
+        lit = 1.0 - (y - top) / (rows.max() - top)  # (lit from above)
+        stick = rim if lit > 0.7 else fill
+        sheet.stroke([(xs.min() + 1, y), (xs.max() - 1, y)], stick, 0.35 + 0.35 * lit)
+    # the rim of light along its top and its lit side
+    edge = [
+        (x, rows[cols == x].min() + 1.5)
+        for x in range(cols.min() + 2, cols.max() - 1, 3)
+    ]
+    sheet.stroke(edge, rim, lambda u: 0.75 * (1 - 0.6 * u))
+    left = [(cols[rows == y].min() + 1.5, y) for y in range(top + 4, rows.max() - 6, 3)]
+    sheet.stroke(left, rim, lambda u: 0.6 * (1 - u))
+    x0, y0, x1, y1 = cols.min(), top, cols.max(), rows.max()
+    w, h = x1 - x0, y1 - y0
+    white, black = pencil(WHITE, 2.0), pencil(BLACK, 2.8)
+    sheet.stroke(
+        [(x0 + 0.22 * w, y0 + 0.2 * h), (x0 + 0.4 * w, y0 + 0.14 * h)], white, 0.95
+    )
+    sheet.stroke([(x0 + 0.26 * w, y0 + 0.3 * h)], white, 0.7)
+    # the nostrils: the near one a comma at the front, the far one small
+    sheet.stroke(
+        [
+            (x0 + 0.06 * w, y0 + 0.5 * h),
+            (x0 + 0.14 * w, y0 + 0.72 * h),
+            (x0 + 0.3 * w, y0 + 0.7 * h),
+        ],
+        black,
+        0.95,
+    )
+    sheet.stroke(
+        [(x0 + 0.55 * w, y0 + 0.74 * h), (x0 + 0.68 * w, y0 + 0.72 * h)], black, 0.9
+    )
+    sheet.stroke([(x0 + 0.42 * w, y0 + 0.72 * h), (x0 + 0.44 * w, y1 + 1)], black, 0.9)
 
 
 def whiskers(sheet, rng):
@@ -249,7 +344,8 @@ def main() -> None:
     sheet = Sheet(fm.WIDTH, fm.HEIGHT, paper=papers.BLACK, seed=11)
     rng = np.random.default_rng(11)
     fur(sheet, model, rng)
-    face(sheet, model, rng)
+    locks(sheet, model, rng)
+    face(sheet, model)
     eyes(sheet, model)
     ear_tufts(sheet, model, rng)
     outline_hairs(sheet, model, rng)

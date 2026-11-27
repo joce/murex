@@ -94,13 +94,12 @@ medium is then laid along the forms that result.
   head and the chest three-quarters to the left. The fox is a solid model
   (`examples/fusain/fox_model.py`) that knows the colour of its coat and
   the way its fur lies at every place, lit from the upper left; the black
-  paper is left for the shadows. The fur is laid in passes, each a field
-  of short strokes along the lie of the fur: rust under the orange and
-  grey under the white, then orange and cream, gold and white where the
-  light is strongest, dark hairs in the shadows, the black markings; last,
-  single hairs with a sharp point, the amber eyes, the nose, the whiskers,
-  and loose hairs breaking the outline (about 29,000 strokes, under a
-  minute).
+  paper is left for the shadows. The tooth is covered first with the
+  pencils on their side; then the fur goes on with the point, in passes of
+  short strokes along its lie from the darks to the lights, the long fur
+  of the ruff and the chest in locks, each parted from the next; last the
+  single hairs, the amber eyes, the nose, the whiskers, and loose hairs
+  breaking the outline (about 45,000 strokes, under a minute).
 
 ![An art deco tower in charcoal](../../examples/fusain/output/deco.png)
 
