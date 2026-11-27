@@ -29,6 +29,7 @@ from pathlib import Path
 
 import numpy as np
 import toilette_model as tm
+from solids import ellipse_arc, limb_side
 
 from murex.filters import box_blur
 from murex.fusain import Sheet, Smudger, Stick, conte, papers, pastels, tools
@@ -253,12 +254,12 @@ def lines(sheet, model):
         )
     for limb in tm.UPPER_ARMS + tm.FOREARMS + tm.HANDS:
         for side in (-1, 1):
-            contour(sheet, model, tm.limb_side(limb, side), red, dark)
+            contour(sheet, model, limb_side(limb, side), red, dark)
     (cx, cy), (rx, ry, _rz), _z, turn = tm.HEAD_AT
     contour(
         sheet,
         model,
-        tm.ellipse_arc((cx, cy - 10), (rx + 4, ry - 2), turn, -200, 20),
+        ellipse_arc((cx, cy - 10), (rx + 4, ry - 2), turn, -200, 20),
         sepia,
         dark,
     )

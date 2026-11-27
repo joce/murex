@@ -46,7 +46,7 @@ sheet.save("drawing.png")
 Each is a single script where every mark is a `sheet.stroke(...)`, or the
 pass of a stump, a finger or an eraser; numpy only decides where the marks
 go. None is copied from a picture. Each subject is first built (a tower, a
-street, a bird, a table of things, a lake and a figure in space, lit and looked at
+street, a bird, a table of things, a lake, a figure and a fox in space, lit and looked at
 through a camera; the farm as flat shapes, as its manner asks), and the
 medium is then laid along the forms that result.
 
@@ -103,6 +103,17 @@ medium is then laid along the forms that result.
   where the form turns to the light and black where it turns away, lost
   in the full light. The drape fades into the bare paper at the foot of
   the sheet (about 6,500 strokes, under a minute).
+* `examples/fusain/fox.py`: a red fox in pastel pencils on black paper, the
+  head and the chest three-quarters to the left. The fox is a solid model
+  (`examples/fusain/fox_model.py`) that knows the colour of its coat and
+  the way its fur lies at every place, lit from the upper left; the black
+  paper is left for the shadows. The fur is laid in passes, each a field
+  of short strokes along the lie of the fur: rust under the orange and
+  grey under the white, then orange and cream, gold and white where the
+  light is strongest, dark hairs in the shadows, the black markings; last,
+  single hairs with a sharp point, the amber eyes, the nose, the whiskers,
+  and loose hairs breaking the outline (about 29,000 strokes, under a
+  minute).
 
 ![An art deco tower in charcoal](../../examples/fusain/output/deco.png)
 
@@ -143,6 +154,11 @@ scribbled over them, the paper left for every white.*
 *La toilette: a figure study aux trois crayons on tan paper, Conté for the
 masses and the lights, pastel pencils for the contours, the hair and the
 hands.*
+
+![A red fox in pastel pencils on black paper](../../examples/fusain/output/fox.png)
+
+*A red fox in pastel pencils on black paper, the fur drawn hair by hair
+along its lie, from the darks to the lights.*
 
 ## The media
 
@@ -326,7 +342,8 @@ lights, and pastel pencils for the contours and the stalk.*
 
 The figure study `examples/fusain/toilette.py` (above, among the drawings)
 uses them the same way at a larger scale: Conté for the masses and the
-lights, pastel pencils, sharpened, for everything drawn as a line.
+lights, pastel pencils, sharpened, for everything drawn as a line. The fox
+of `examples/fusain/fox.py` is drawn in pastel pencils alone.
 
 ```python
 from murex.fusain import crayons

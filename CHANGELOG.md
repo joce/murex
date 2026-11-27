@@ -12,6 +12,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   seated woman seen from behind, gathering her hair, drawn as an academic
   figure study in black, sanguine and white Conté on tan paper, the contours
   in pastel pencils. It joins the drawings in the README's gallery.
+- `examples/fusain/fox.py`, with its model `fox_model.py`: a red fox in
+  pastel pencils on black paper, its fur drawn hair by hair along its lie.
+  It joins the drawings in the README's gallery. The two models build their
+  solids with `examples/fusain/solids.py`.
 
 ### Changed
 

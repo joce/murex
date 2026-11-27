@@ -90,6 +90,14 @@ they go.
 <td><em>A seated woman gathering her hair, a figure study</em> aux trois crayons<em>: black, sanguine and white Conté on tan paper.</em></td>
 <td></td>
 </tr>
+<tr>
+<td><img src="examples/fusain/output/fox.png" alt="A red fox in pastel pencils on black paper"></td>
+<td></td>
+</tr>
+<tr>
+<td><em>A red fox in pastel pencils on black paper, its fur drawn hair by hair.</em></td>
+<td></td>
+</tr>
 </table>
 
 ## Installing
