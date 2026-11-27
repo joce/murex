@@ -6,6 +6,13 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `examples/fusain/toilette.py`, with its model `toilette_model.py`: a
+  seated woman seen from behind, gathering her hair, drawn as an academic
+  figure study in black, sanguine and white Conté on tan paper, the contours
+  in pastel pencils. It joins the drawings in the README's gallery.
+
 ### Changed
 
 - The Bob Ross example is now `examples/huile/towering_peaks.py`: his
