@@ -16,8 +16,9 @@ A wet medium is pigment (or dye) carried by water, or by alcohol, that keeps
 moving until the solvent has gone. The mark is wherever the pigment was
 when it stopped: it is decided as much by the paper and by time as by the
 brush. These are the behaviours the model is judged on. Each one can be
-measured, so each becomes a test, and most are compared with swatches the
-owner paints.
+measured, so each becomes a test. There are no swatches painted for murex
+to compare with: what each is judged against instead is in "References
+without swatches" below.
 
 1. **A wet edge stays where it was painted.** On dry paper, a wash stops
    where the brush stopped, with a hard edge. On damp paper it spreads with
@@ -361,20 +362,66 @@ Each step is accepted on its own measurements, as fusain's were.
 | --- | --- | --- |
 | 0 | This design, accepted | the owner |
 | 1 | Paper in the shared supports; the surface with water, the clock and drying | fusain to the bit; water conserved; a wet sheet dries in the time its paper and air say |
-| 2 | The fluid engine and the wet brush; watercolour | behaviours 1 to 10 and 14, measured against the owner's swatches |
+| 2 | The fluid engine and the wet brush; watercolour | behaviours 1 to 10 and 14, against the laws, ratings and photographs below |
 | 3 | Ink with a brush | waterproofing, feathering on unsized paper, dyes separating |
 | 4 | Pens | width with pressure, railroading, running dry, feathering |
 | 5 | Markers | streaks, merging while wet, alcohol's spread |
 | 6 | Gouache | covering power, matte, drying lighter, softening under water |
-| 7 | Tools and tricks | each against a swatch |
+| 7 | Tools and tricks | each present and of the right sign (no reference) |
 | 8 | Fusain onto the shared surface | fusain's fingerprints and every image to the bit |
 | 9 | Crossing media | the cases above |
 
-The reference swatches come from the owner, before step 2 can be judged: a
-flat and a graded wash; a granulating pigment beside a smooth one; a bloom;
-a hard edge on dry paper and a soft one wet-in-wet; and a wash before and
-after it dries. All of them are on a hot-pressed and a cold-pressed paper,
-with the paper and the paints named.
+## References without swatches
+
+The owner has no wet media to paint with, so no swatch will be painted for
+murex. What the wet media are judged against is what can be had without
+them, in three kinds, the strongest first. Gathering them, and checking
+each source named here before it is relied on, is `murex-cjx.11`, and comes
+before step 2 is judged.
+
+**Laws, with numbers.** These make tests that need no picture:
+
+- Water wicks into paper as far as the square root of the time
+  (Lucas-Washburn): the wet front of a drop on unsized paper is twice as far
+  out at four times the time.
+- A drying drop whose edge stays where it is lays its particles at the rim
+  (Deegan and others, Nature 1997, the coffee ring). The rim darkens the more
+  the longer the edge holds, and the less the faster the particles settle
+  before they get there: a heavy pigment rings less than a fine one, in the
+  model as on paper.
+- Particles settle at a speed that goes as the square of their size and as
+  how much denser than water they are (Stokes). The order in which pigments
+  granulate follows from their sizes and densities, which are published.
+- Wet is darker for a reason that can be computed: water (refractive index
+  1.33) in place of air (1) between the grains lowers how much light they
+  scatter. How much lighter a wash dries then comes from the indices of the
+  pigment and of gum arabic, not from a number tuned to look right.
+- The invariants of the other media hold: water and pigment conserved, a
+  wash moved by whole pixels the same to the bit, and the same wash at 2 and
+  4 px/mm the same when measured in millimetres.
+
+**Published ratings.** Makers of watercolour (Winsor & Newton, Daniel
+Smith, Schmincke) publish, for each paint, whether it granulates, stains and
+covers. Bruce MacEvoy's handprint.com rates many pigments on the same scales
+from tests of his own. The model is judged on the order these give
+(ultramarine and the earths granulate, phthalocyanines and quinacridones
+stain), as a rank correlation, not on the ratings themselves. Reflectance
+spectra of paint-outs, where conservation science has measured them, check
+murex's pigments.
+
+**Photographs.** Openly licensed photographs (Wikimedia Commons and the
+like) of washes, blooms, granulation, feathering and marker streaks. They
+are not calibrated: an unknown camera under an unknown light. So they judge
+shapes, not tones: where the pigment gathers, the profile across an edge,
+how a bloom branches, how far a line feathers for its width. Only those
+whose licence lets them be kept go into the repository (in Git LFS). Figures
+in papers, such as Curtis's photographs of real watercolour beside his
+renders, are read and measured, never copied in.
+
+What none of these settle is left alone: absolute tones, absolute times,
+how a given brand of paper behaves. A behaviour with no reference is built
+to be there and to go the right way, then left. The rule of the other media
+holds: don't polish what has no reference to be judged against.
 
 The speed is measured from step 2 on (a benchmark of washes, as
 `tools/fusain/benchmark.py` measures strokes), since the flow is where the
