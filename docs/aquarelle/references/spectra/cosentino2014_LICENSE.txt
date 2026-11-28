@@ -1,0 +1,16 @@
+The files of this folder whose names begin with "cosentino2014_", and
+docs/aquarelle/references/papers/cosentino2014_FORS-spectral-database-paper.pdf,
+are not under murex's MIT licence.
+
+They are A. Cosentino, "FORS spectral database of historical pigments in
+different binders", e-conservation Journal 2 (2014), and its data
+("FORS-Spectral-database-CSV", CHSOS, chsopensource.org), or extracts of
+that data, published under the Creative Commons Attribution-NonCommercial
+3.0 licence (CC BY-NC 3.0, https://creativecommons.org/licenses/by-nc/3.0/):
+they may be used, shared and adapted with credit to the author, for
+non-commercial purposes only.
+
+They are kept here as references for murex.aquarelle, by the owner's
+decision of 2026-11-28 (see docs/aquarelle/references.md, cosentino2014).
+They are not shipped in murex's wheel or source distribution. Whoever uses
+murex commercially must leave them, and what is computed from them, out.

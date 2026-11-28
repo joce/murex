@@ -25,21 +25,30 @@ opened from the session that gathered them.
   walji2016 (CC BY 4.0) and krainer2018 (CC BY 3.0) as Europe PMC's XML,
   their publishers having refused the PDFs.
 - `references/spectra/`: Deborah's spectral library (CC BY 4.0) with its
-  pigment lists, and the core pigments' spectra taken out of it as plain
-  CSV by `tools/aquarelle/extract_deborah.py`; the revigo oil-paint data
-  (CC0).
+  pigment lists; Cosentino's database of pigments in several binders, gum
+  arabic among them (CC BY-NC 3.0, **non-commercial**: see below), with its
+  paper in `references/papers/`; the core pigments' spectra taken out of
+  both as plain CSV by `tools/aquarelle/extract_spectra.py`; the revigo
+  oil-paint data (CC0).
 - `references/photos/`: 25 photographs and scans (CC0, public domain, CC BY
   and CC BY-SA), each with its entry below.
 
-PDFs, images and the spectral library (`*.pdf`, `*.png`, `*.jpg`, `*.sli`,
-`*.xls`) are in Git LFS. CI does not fetch them, and no test may need one:
+PDFs, images, the spectral library and Cosentino's archive (`*.pdf`,
+`*.png`, `*.jpg`, `*.sli`, `*.xls`, `*.zip`) are in Git LFS. CI does not fetch them, and no test may need one:
 a test reads the CSV extracts, which are ordinary files, or numbers written
 from this register into the code.
 
 Everything else is cited and not kept: copyrighted papers, pages and charts
-(handprint.com, the makers' charts, Deegan, Curtis), and the non-commercial
-data (Cosentino 2014, the IFAC databases), which an MIT package should not
-carry without the owner deciding so.
+(handprint.com, the makers' charts, Deegan, Curtis), and the IFAC databases
+(non-commercial, and not downloadable).
+
+**Non-commercial data.** Cosentino 2014 is kept by the owner's decision
+(2026-11-28), under its own licence, CC BY-NC 3.0: it may be used, shared
+and adapted with credit, for non-commercial purposes only. It is not under
+murex's MIT licence, and it does not ship: the wheel and the source
+distribution leave `docs/` out. `references/spectra/cosentino2014_LICENSE.txt`
+says so beside the files. Whoever uses murex commercially must leave these
+files, and what is computed from them, out.
 
 ### Attribution
 
@@ -79,8 +88,8 @@ tension and index (iapws_water), and gum arabic's (colonygums_arabic,
 gumarabic_reviews).
 
 Colour: deborah2022 for 14 core pigments as they thin over paper, cerulean
-and a quinacridone included; Cosentino 2014 (not kept) for 54 pigments in
-gum arabic on watercolour paper.
+and a quinacridone included; cosentino2014 (non-commercial) for 54
+pigments in gum arabic on watercolour paper.
 
 ## What the references change in the design
 
@@ -682,9 +691,9 @@ Read 2026-11-28. Every value below was read on the page or chart named in its en
 
 References for `murex.aquarelle`. Gathered 2026-11-28. Every address was fetched that day. "Archived" is the answer of `https://archive.org/wayback/available?url=...`; web.archive.org itself could not be fetched from this session, so the snapshots were not opened.
 
-Kept files are in `references/spectra/`. The `deborah2022_core_*` CSVs are written there by `tools/aquarelle/extract_deborah.py` from the library kept beside them. Files named `*_murex24.csv` are box means over murex's 24 bands (`murex.spectral.WAVELENGTHS`, about 13 nm wide). Files named `*_10nm.csv` are box means 10 nm wide.
+Kept files are in `references/spectra/`. The `deborah2022_core_*` and `cosentino2014_gumarabic_*_core_*` CSVs are written there by `tools/aquarelle/extract_spectra.py` from the data kept beside them. Files named `*_murex24.csv` are box means over murex's 24 bands (`murex.spectral.WAVELENGTHS`, about 13 nm wide). Files named `*_10nm.csv` are box means 10 nm wide.
 
-**Licence warning.** murex is MIT. Two of the kept sets are **non-commercial** (CC BY-NC): Cosentino 2014, and the IFAC policy. They may serve as references for the owner. They must not be committed into the repository or shipped in the wheel without the owner deciding so. The CC BY sets (Deborah 2022) and the CC0 set (revigo) can be committed with attribution.
+**Licence warning.** murex is MIT. Two of the sets found are **non-commercial** (CC BY-NC): Cosentino 2014, and the IFAC policy. Cosentino 2014 is kept by the owner's decision (2026-11-28), under its own licence (see "Non-commercial data" at the top); the IFAC databases are not. The CC BY sets (Deborah 2022) and the CC0 set (revigo) are kept with attribution.
 
 **Summary.** No dataset found gives K and S of *watercolour* (gum arabic) paints per pigment, and none measures a watercolour wet. Here is what exists:
 - Single paint-outs in gum arabic on watercolour paper (Cosentino 2014, kept).
@@ -701,7 +710,7 @@ Kept files are in `references/spectra/`. The `deborah2022_core_*` CSVs are writt
 - Address: https://chsopensource.org/new-free-pigments-fors-spectroscopy-database (data: https://chsopensource.org/download/94363/ ; paper: https://chsopensource.org/download/7142/ ; original home, cited in the paper: http://e-conservation.org/issue-2/36-FORS-spectral-database) ; Archived: http://web.archive.org/web/20240414031842/https://chsopensource.org/new-free-pigments-fors-spectroscopy-database/ (data zip: none; paper: http://web.archive.org/web/20260301220207/https://chsopensource.org/download/7142/ ; e-conservation page: http://web.archive.org/web/20230715093629/http://www.e-conservation.org/issue-2/36-FORS-spectral-database)
 - Read: 2026-11-28
 - Licence: the journal's back page says "e-conservation journal is published and distributed under the Creative Commons Licence Attribution - Noncommercial 3.0" (CC BY-NC 3.0). The ICOMOS archive record of the issue also says CC BY-NC. The CSV zip carries no licence of its own. The CHSOS page calls it "free" to download. Redistribution is allowed only for non-commercial use, with attribution. **Do not commit it into murex (MIT) without the owner's decision.**
-- Kept file: none in the repository: the licence is non-commercial, and murex is MIT. Whether to keep it is the owner's decision. (It was downloaded once and read: `cosentino2014_FORS-database-CSV.zip`, 6.2 MB, sha256 starting 709c3fc3; the extracts below are what were measured from it.)
+- Kept file: `cosentino2014_FORS-database-CSV.zip` (the original, 6.2 MB, sha256 starting 709c3fc3, in LFS), `cosentino2014_LICENSE.txt`, and the paper, `cosentino2014_FORS-spectral-database-paper.pdf` (in `references/papers/`, in LFS), by the owner's decision of 2026-11-28, under CC BY-NC 3.0 (non-commercial). Core extracts, written by `tools/aquarelle/extract_spectra.py cosentino`: `cosentino2014_gumarabic_probe_core_{raw,10nm,murex24}.csv` and `cosentino2014_gumarabic_sphere_core_{raw,10nm,murex24}.csv`.
 - Numbers:
   - **Samples.** 54 historical pigments, all from Kremer Pigmente. Each was measured as powder, ground with a glass muller into gum arabic, egg tempera and linseed oil, and as fresco.
   - **Substrate.** Brushed onto Fabriano watercolour paper (cellulose and cotton, acid- and lignin-free, 270 g/m²). The paper's spectrum is flat. Fresco was laid on marble powder and lime (2:1).

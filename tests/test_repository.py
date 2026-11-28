@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-IMAGES = ("*.png", "*.jpg", "*.pdf", "*.sli", "*.xls")
+IMAGES = ("*.png", "*.jpg", "*.pdf", "*.sli", "*.xls", "*.zip")
 POINTER = re.compile(rb"\Aversion https://git-lfs\.github\.com/spec/v1\n")
 
 
