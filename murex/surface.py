@@ -36,10 +36,12 @@ ATMOSPHERE = 101.325
 WATER_IN_AIR = 0.622
 #: The saturation vapour pressure of water over a liquid surface, the Magnus
 #: form: MAGNUS_P * exp(MAGNUS_A * T / (T + MAGNUS_B)), kPa, T in degrees C.
-#: (Not in the register: Alduchov and Eskridge, Journal of Applied
-#: Meteorology 35, 601, 1996. It gives etoolbox_evap's worked example,
-#: x_s = 0.014659 kg/kg at 20 C and x = 0.0098 at 25 C and 50%, to the
-#: digits printed: a test checks.)
+#: (alduchov1996, Table II: of its fits over water, the one nearest the
+#: three standard formulations from -40 to 50 C; 6.1094 hPa, 17.625,
+#: 243.04 C. With it, etoolbox_evap's worked example comes out within 0.6%
+#: in its humidity ratios, 0.014662
+#: for 0.014659 at 20 C and 0.009858 for 0.0098 at 25 C and 50%, and within
+#: 1.4% in its rate, 0.1657 kg/(m2 h) for 0.168: a test checks.)
 MAGNUS_P = 0.61094
 MAGNUS_A = 17.625
 MAGNUS_B = 243.04
@@ -48,7 +50,9 @@ MAGNUS_B = 243.04
 #: the speed of the air over it in m/s (etoolbox_evap, Eq. 1; an empirical
 #: formula for a pool: an estimate for a film on paper). A kilogram over a
 #: square metre is a millimetre of water (its density taken as 1000 kg/m3;
-#: 998 at 25 C, iapws_water).
+#: 998 at 25 C, iapws_water). The fibres lose their water at this rate too,
+#: to the last of it (an estimate: a real paper dries more slowly as it
+#: dries, its falling-rate stage).
 EVAPORATION_STILL = 25.0
 EVAPORATION_WIND = 19.0
 #: The Lucas-Washburn coefficient of water into an unsized paper, mm/s**0.5:
@@ -57,13 +61,16 @@ EVAPORATION_WIND = 19.0
 #: law as walji2016 Eq. 1 and krainer2018 Eqn 1 have it). Taken for every
 #: paper (an estimate: their pores are alike, 2.6 to 4.9 um in krainer2018).
 WICKING = 3.8
-#: Sizing acts through the contact angle (krainer2018), so the coefficient
-#: is multiplied by the cosine of an apparent one: 1 on an unsized paper,
-#: SIZED on a fully sized one, and SIZED ** sizing between (a ramp in the
-#: logarithm, as the times water stands on papers do). An estimate: on a
-#: 300 g/m2 paper sized through, the fibres fill in about 3.5 minutes, as a
-#: drop sits on gonzalez2019's watercolour paper and does not soak in
-#: quickly; no coefficient for sized paper was found (references.md).
+#: Sizing acts through the contact angle (krainer2018). In Lucas-Washburn
+#: the square of the distance goes as its cosine (walji2016 Eq. 1), so the
+#: square of the coefficient is multiplied by the cosine of an apparent
+#: angle: 1 on an unsized paper, SIZED on one sized through, and
+#: SIZED ** sizing between. Both SIZED and that ramp in the logarithm are
+#: estimates: no coefficient for a sized paper was found (references.md),
+#: only that a drop sits on gonzalez2019's watercolour paper and does not
+#: soak in quickly. With them, the fibres of the presets fill (water
+#: standing over them) in: HOT_PRESSED 140 s, COLD_PRESSED 83 s, ROUGH
+#: 117 s, the default paper 0.22 s, XUAN 0.44 ms.
 SIZED = 1e-4
 #: The longest time step of a wait, s. Within a step the water soaks in
 #: first, then evaporates: what a step gets wrong is which of the two (on the
@@ -75,6 +82,9 @@ DRY = 1e-9
 #: :meth:`Surface.dry` waits this much longer (as a share) than the wettest
 #: pixel takes, so that rounding leaves no water anywhere.
 DRY_MARGIN = 1e-9
+#: The deepest water a pixel may hold, mm: a metre, far deeper than any
+#: wash, and shallow enough that it dries in a number of steps that ends.
+DEEPEST = 1000.0
 
 
 @dataclass(frozen=True)
@@ -165,8 +175,10 @@ class Surface:
 
     Per pixel it holds the paper's ``tooth`` (0 valley to 1 peak) and
     ``maps`` (:class:`murex.paper.PaperMaps`), and two depths of water, in
-    mm, float32: ``standing`` on the paper and ``wet``, in its fibres. Its
-    clock, ``time``, is in seconds.
+    mm: ``standing`` on the paper and ``wet``, in its fibres. They are
+    float64, unlike the rest: a short wait evaporates less than a float32
+    depth can tell, and the water would stall there while the books said it
+    had gone. Its clock, ``time``, is in seconds.
 
     Water stays on the pixel it was laid on: it soaks into the fibres there
     and evaporates from there. Flow across the sheet, wicking from pixel to
@@ -194,13 +206,14 @@ class Surface:
         self._rng = np.random.default_rng(sequence)
         self.tooth = self.paper.tooth(H, W, self._rng, px_per_mm=self.px_per_mm)
         self.maps = self.paper.maps(H, W, self.px_per_mm, sequence)
-        self.standing = np.zeros((H, W), np.float32)
-        self.wet = np.zeros((H, W), np.float32)
+        self.standing = np.zeros((H, W))
+        self.wet = np.zeros((H, W))
         self.time = 0.0
-        # (the water laid and evaporated, summed over the pixels in mm, kept
-        # in float64 for conservation)
+        # (the water laid, evaporated and soaked into the fibres, summed over
+        # the pixels in mm: each counted from the change in what is stored)
         self._laid = 0.0
         self._evaporated = 0.0
+        self._soaked = 0.0
 
     # -- water --------------------------------------------------------------
 
@@ -209,14 +222,19 @@ class Surface:
         under ``where``, an (H, W) mask from 0 to 1 (a share of the depth at
         each pixel; a boolean mask too). It stands on the paper until it
         soaks in or evaporates; laying it takes no time. (A stand-in for a
-        brush, until the wet brush of step 2.)"""
+        brush, until the wet brush of step 2.) Raises ValueError if a pixel
+        would then hold more than :data:`DEEPEST` mm."""
         depth = float(depth)
         if not (math.isfinite(depth) and depth >= 0.0):
             raise ValueError(f"depth must be a depth of water in mm, got {depth!r}")
         share = self._share(where)
         old = self.standing
-        new = (old + depth * share).astype(np.float32)
-        self._laid += float(np.sum(new.astype(np.float64) - old.astype(np.float64)))
+        new = old + depth * share
+        if not (np.isfinite(new).all() and (new + self.wet).max() <= DEEPEST):
+            raise ValueError(
+                f"{depth!r} mm of water more would be deeper than {DEEPEST} mm"
+            )
+        self._laid += float(np.sum(new - old))
         self.standing[...] = new
 
     def wait(self, seconds: float) -> None:
@@ -231,7 +249,9 @@ class Surface:
         if not (math.isfinite(seconds) and seconds >= 0.0):
             raise ValueError(f"seconds must be 0 or more, got {seconds!r}")
         box = self._wet_box()
-        if box is not None:
+        # (nothing changes where nothing stands to soak in and nothing
+        # evaporates: in saturated air, once the water has soaked in)
+        if box is not None and (self.air.rate > 0.0 or self.standing.any()):
             count = steps(seconds)
             self._run(box, seconds / count, count)
         self.time += seconds
@@ -239,8 +259,11 @@ class Surface:
     def dry(self) -> float:
         """Wait until no water is left (none deeper than :data:`DRY`).
         Returns the seconds waited. Raises ValueError if the air is
-        saturated and water is left, which would then never dry."""
-        left = float(np.max(self.standing.astype(np.float64) + self.wet))
+        saturated and water is left, which would then never dry. In air
+        nearly saturated it takes long: as many steps of :data:`STEP` as the
+        wettest pixel takes seconds to dry (99.9% at 0 C: 11 million for a
+        millimetre). Step 2's kernels take the place of this loop."""
+        left = float(np.max(self.standing + self.wet))
         if left <= DRY:
             return 0.0
         rate = self.air.rate
@@ -263,6 +286,12 @@ class Surface:
     def water_evaporated(self) -> float:
         """The water that has evaporated from the sheet, in microlitres."""
         return self._evaporated / self.px_per_mm**2
+
+    @property
+    def water_soaked(self) -> float:
+        """The water that has soaked into the fibres, in microlitres (what
+        evaporated from them since included)."""
+        return self._soaked / self.px_per_mm**2
 
     @property
     def water_standing(self) -> float:
@@ -307,8 +336,7 @@ class Surface:
 
     def _run(self, box: tuple[slice, slice], dt: float, count: int) -> None:
         """``count`` steps of ``dt`` seconds over the pixels of ``box``."""
-        standing = self.standing[box].astype(np.float64)
-        wet = self.wet[box].astype(np.float64)
+        standing, wet = self.standing[box].copy(), self.wet[box].copy()
         maps = self.maps
         room = maps.capacity[box].astype(np.float64)
         # (how much the square of the water in the fibres grows in a step
@@ -319,25 +347,28 @@ class Surface:
         porosity = maps.porosity[box].astype(np.float64)
         soak = (porosity * WICKING) ** 2 * SIZED**sizing * dt
         gone = self.air.rate * dt
-        evaporated = 0.0
+        soaked = 0.0
         for _ in range(count):
             # soaks in: no more than stands there, nor than the fibres hold
             reach = np.minimum(np.sqrt(wet * wet + soak), room)
-            take = np.clip(reach - wet, 0.0, standing)
-            standing -= take
-            wet += take
+            fuller = wet + np.clip(reach - wet, 0.0, standing)
+            moved = fuller - wet  # (what the fibres gained, as stored)
+            standing, wet = standing - moved, fuller
+            soaked += float(moved.sum())
             # evaporates: from what stands first, then from the fibres
             top = np.minimum(standing, gone)
-            standing -= top
+            standing = standing - top
             below = np.minimum(wet, gone - top)
-            wet -= below
-            lost = float(top.sum() + below.sum())
-            evaporated += lost
-            if lost == 0.0 and gone > 0.0:
-                break  # (dry: any water left would have lost some)
-        self.standing[box] = standing.astype(np.float32)
-        self.wet[box] = wet.astype(np.float32)
-        self._evaporated += evaporated
+            wet = wet - below
+            if not (moved.any() or top.any() or below.any()):
+                break  # (each step after it would be this one again)
+        # (what left the sheet is what it held less what it holds, counted
+        # from what is stored: the books are exact, to the sum's rounding)
+        left = (self.standing[box] - standing) + (self.wet[box] - wet)
+        self._evaporated += float(left.sum())
+        self._soaked += soaked
+        self.standing[box] = standing
+        self.wet[box] = wet
 
 
 def _size(name: str, value) -> int:

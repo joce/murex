@@ -82,7 +82,8 @@ def test_a_surface_checks_what_it_is_given():
         Surface(10, 10, px_per_mm=math.inf)
     surface = Surface(10, 8)
     assert surface.paper == Paper() and surface.air == Air() and surface.time == 0.0
-    assert surface.standing.dtype == surface.wet.dtype == np.float32
+    # (the water float64: see test_many_tiny_waits_evaporate_what_one_long_one_does)
+    assert surface.standing.dtype == surface.wet.dtype == np.float64
     for depth in (-0.1, math.nan, math.inf):
         with pytest.raises(ValueError, match="depth"):
             surface.lay_water(depth)
@@ -123,8 +124,8 @@ def test_water_laid_stands_on_the_paper_and_is_counted_in_microlitres():
     mask[:, :20] = True  # (half of it)
     surface.lay_water(0.5, mask)
     assert surface.water_laid == pytest.approx(12.5 + 12.5)
-    assert surface.standing[0, 0] == np.float32(0.75)
-    assert surface.standing[0, 30] == np.float32(0.25)
+    assert surface.standing[0, 0] == 0.75
+    assert surface.standing[0, 30] == 0.25
     assert surface.time == 0.0  # (laying takes no time)
     assert isinstance(surface._laid, float) and isinstance(surface._evaporated, float)
 
@@ -207,7 +208,8 @@ def _soaked_on(paper: Paper, seconds: float) -> float:
 def test_full_fibres_take_no_more():
     surface = Surface(5, 5, paper=papers.XUAN, air=ROOM)
     surface.lay_water(0.5)  # (xuan holds 0.06 mm)
-    capacity = np.float32(papers.XUAN.capacity)
+    capacity = surface.maps.capacity[0, 0]
+    assert capacity == pytest.approx(papers.XUAN.capacity)
     surface.wait(1.0)
     assert (surface.wet == capacity).all()
     standing = surface.water_standing
@@ -236,10 +238,13 @@ def test_humidity_does_not_change_how_fast_water_soaks_in():
 
 def test_the_air_evaporates_water_as_etoolbox_evap_works_it_out():
     # its worked example: water at 20 C, air at 25 C and 50%, 0.5 m/s
-    assert sf.humidity_ratio(20.0) == pytest.approx(0.014659, rel=1e-3)
-    assert sf.humidity_ratio(25.0, 0.5) == pytest.approx(0.0098, rel=0.01)
+    # with alduchov1996's saturation pressure: within 0.6% (0.014662 and
+    # 0.009858 against the 0.014659 and 0.0098 printed), and 1.4% on the rate
+    # (0.1657 against 0.168)
+    assert sf.humidity_ratio(20.0) == pytest.approx(0.014659, rel=0.006)
+    assert sf.humidity_ratio(25.0, 0.5) == pytest.approx(0.0098, rel=0.006)
     per_hour = sf.evaporation(20.0, 25.0, 0.5, 0.5) * 3600  # kg/(m2 h), mm/h
-    assert per_hour == pytest.approx(0.168, rel=0.02)
+    assert per_hour == pytest.approx(0.168, rel=0.015)
     # air that holds more than the water gives off condenses nothing
     assert sf.evaporation(10.0, 30.0, 0.9, 0.0) == 0.0
     assert Air(humidity=1.0).rate == 0.0
@@ -272,14 +277,18 @@ def test_humidity_and_air_speed_change_drying_as_etoolbox_evap_says():
 def test_a_sheet_dries_in_the_time_of_gonzalez2019_s_drop():
     # 50 uL on a 300 g/m2 cold-pressed paper at 22 C and 35%: about 2500 s.
     # Here the drop's water is in as much of the paper as holds it (a disc
-    # of 50 / 0.352 mm2): it dries in of the order of that (4600 s)
+    # of 50 / 0.352 mm2): it dries in of the order of that (4646 s). (The
+    # fibres lose their water at the rate a free surface does, to the last
+    # of it: an estimate. Real paper dries more slowly as it dries, its
+    # falling-rate stage, so this is if anything too fast.)
     paper = papers.COLD_PRESSED
     surface = Surface(120, 120, paper=paper, px_per_mm=4.0, air=ROOM)
     area = 50.0 / paper.capacity
     surface.lay_water(paper.capacity, _disc(surface, math.sqrt(area / math.pi)))
     assert surface.water_laid == pytest.approx(50.0, rel=0.01)
     waited = surface.dry()
-    assert 1000.0 < waited < 10000.0
+    assert 1000.0 < waited < 10000.0  # (the reference)
+    assert waited == pytest.approx(4646.0, rel=0.01)  # (the model, as it is)
     assert surface.water_on_sheet == 0.0
 
 
@@ -296,6 +305,45 @@ def test_dry_ends_and_refuses_air_that_never_dries():
     # what is left below the tolerance of dry is no water
     surface.lay_water(sf.DRY / 2)
     assert surface.dry() == 0.0
+
+
+def test_a_wait_in_saturated_air_ends_once_nothing_can_change():
+    surface = Surface(5, 5, paper=papers.XUAN, air=Air(humidity=1.0))
+    surface.lay_water(0.03)  # (half what xuan holds: it all soaks in)
+    surface.wait(1.0)
+    assert not surface.standing.any()
+    before = surface.wet.copy()
+    surface.wait(1e9)  # (a billion steps, were they all taken)
+    np.testing.assert_array_equal(surface.wet, before)
+    assert surface.time == 1e9 + 1.0
+    # and over full fibres, in a step
+    surface.lay_water(0.5)
+    surface.wait(1e9)
+    assert surface.water_on_sheet == pytest.approx(surface.water_laid)
+
+
+def test_water_too_deep_to_hold_is_refused():
+    surface = Surface(4, 4)
+    for depth in (1e39, 2 * sf.DEEPEST):
+        with pytest.raises(ValueError, match="deeper than"):
+            surface.lay_water(depth)
+    assert not surface.standing.any() and surface.water_laid == 0.0
+    surface.lay_water(sf.DEEPEST / 2)
+    with pytest.raises(ValueError, match="deeper than"):
+        surface.lay_water(sf.DEEPEST / 2 + 1.0)
+
+
+def test_what_soaks_in_is_counted():
+    surface = Surface(6, 6, paper=papers.COLD_PRESSED, air=ROOM)
+    surface.lay_water(0.2)
+    surface.wait(30.0)
+    # what is in the fibres is what soaked in, less what evaporated from them
+    assert surface.water_soaked >= surface.water_held > 0
+    assert surface.water_soaked - surface.water_held < surface.water_evaporated
+    held = surface.water_soaked
+    surface.dry()
+    # (some of it evaporated before it could soak in)
+    assert held <= surface.water_soaked < surface.water_laid
 
 
 # -- the same in millimetres and seconds -------------------------------------
@@ -342,10 +390,11 @@ def test_a_wait_cut_into_short_waits_is_the_same_wait(paper):
     for cuts in ([1.0] * 600, [0.37] * 1621 + [600 - 0.37 * 1621], [7.5] * 80):
         cut = after(cuts)
         assert cut.time == pytest.approx(600.0, rel=1e-12)
-        assert cut.water_evaporated == pytest.approx(whole.water_evaporated, rel=1e-6)
-        # (to the rounding of float32, once a wait: 5e-5 after 1600 of them)
-        total = cut.standing.astype(np.float64) + cut.wet
-        np.testing.assert_allclose(total, whole.standing + whole.wet, rtol=1e-4)
+        assert cut.water_evaporated == pytest.approx(whole.water_evaporated, rel=1e-12)
+        assert _balance(cut) < 1e-12
+        np.testing.assert_allclose(
+            cut.standing + cut.wet, whole.standing + whole.wet, rtol=1e-12
+        )
         # which of the two holds it can differ by what a step evaporates
         np.testing.assert_allclose(cut.wet, whole.wet, atol=1.5 * ROOM.rate * sf.STEP)
 
@@ -360,3 +409,25 @@ def test_how_many_steps_a_wait_takes_does_not_hang_on_its_last_bit():
     assert sf.steps(sum([0.1] * 30)) == 3
     assert sf.steps(0.0) == 1 and sf.steps(1e-300) == 1
     assert sf.steps(2.5 * sf.STEP) == 3
+
+
+@pytest.mark.parametrize("cut", [1e-4, 1e-3])
+def test_many_tiny_waits_evaporate_what_one_long_one_does(cut):
+    # (with the water in float32, 50 000 waits of 0.1 ms evaporated nothing
+    # from 0.5 mm over xuan's full fibres, while the books said 3.8e-4 uL
+    # had gone: a wait evaporated less than half the last bit of the depth)
+    def after(cuts, seconds):
+        surface = Surface(4, 4, paper=papers.XUAN, air=ROOM)
+        surface.lay_water(0.5)
+        for _ in range(cuts):
+            surface.wait(seconds)
+        return surface
+
+    count = round(5.0 / cut)
+    tiny, whole = after(count, cut), after(1, 5.0)
+    assert _balance(tiny) < 1e-12
+    gone = ROOM.rate * 5.0 * 16 / 16  # (uL: 5 s over 16 pixels of 1/16 mm2)
+    assert tiny.water_evaporated == pytest.approx(gone, rel=1e-9)
+    assert tiny.water_evaporated == pytest.approx(whole.water_evaporated, rel=1e-9)
+    np.testing.assert_allclose(tiny.standing, whole.standing, rtol=1e-12)
+    np.testing.assert_allclose(tiny.wet, whole.wet, rtol=1e-12)

@@ -299,3 +299,16 @@ def test_a_cloudy_paper_s_maps_vary_from_a_generator_of_their_own():
     own = np.random.SeedSequence(4, spawn_key=(MAPS_KEY,))
     np.testing.assert_array_equal(ours, np.random.default_rng(own).random(5))
     np.testing.assert_array_equal(maps_rng(np.random.SeedSequence(4)).random(5), ours)
+
+
+def test_a_cloudy_paper_s_sizing_stays_inside_its_bounds_without_a_plateau():
+    for paper in (papers.COLD_PRESSED, papers.CARTRIDGE, Paper(sizing=0.97)):
+        sizing = paper.with_(variation="cloudy").maps(200, 200, seed=3).sizing
+        assert 0.0 < sizing.min() < paper.sizing < sizing.max() < 1.0
+        # (clouds, not a cap: no more than a pixel or two at either end)
+        assert (sizing == sizing.max()).mean() < 1e-3
+        assert (sizing == sizing.min()).mean() < 1e-3
+    # sized through, or not at all, a paper stays so
+    for paper in (papers.HOT_PRESSED, papers.XUAN):
+        sizing = paper.with_(variation="cloudy").maps(50, 50, seed=3).sizing
+        assert (sizing == np.float32(paper.sizing)).all()

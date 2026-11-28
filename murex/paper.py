@@ -38,8 +38,11 @@ PX_PER_MM = 4.0
 MAPS_KEY = 0x6D617073
 #: A cloudy sheet: the clouds are about this many millimetres across, its
 #: thickness goes from (1 - x/2) to (1 + x/2) of the paper's, and its sizing
-#: as far either side of the paper's by half of :data:`CLOUD_SIZING`
-#: (estimates: a handmade sheet's formation was not measured in the register).
+#: s up to 2 s (1 - s) times :data:`CLOUD_SIZING` either side of the
+#: paper's: most at half-sized, less towards 0 and 1, so that it stays
+#: inside them with no plateau, and a paper sized through, or not at all,
+#: stays so (estimates: a handmade sheet's formation was not measured in
+#: the register).
 CLOUD_SIZE = 5.0
 CLOUD_THICKNESS = 0.3
 CLOUD_SIZING = 0.2
@@ -122,7 +125,8 @@ class Paper:
     thickness:
         Thickness of the sheet, in millimetres.
     porosity:
-        0..1: the share of the sheet that is pores, which water fills. With
+        Between 0 and 1, both excluded: the share of the sheet that is
+        pores, which water fills. With
         the thickness, it sets how much water the fibres hold when full
         (:attr:`capacity`).
     fibre_angle:
@@ -306,7 +310,8 @@ def _cloudy(
     thick = nz.fractal_noise_2d(h, w, cell, rng, octaves=3) - 0.5
     sized = nz.fractal_noise_2d(h, w, cell, rng, octaves=3) - 0.5
     capacity = paper.capacity * (1.0 + CLOUD_THICKNESS * thick)
-    sizing = np.clip(paper.sizing + CLOUD_SIZING * sized, 0.0, 1.0)
+    s = paper.sizing
+    sizing = s + 4.0 * s * (1.0 - s) * CLOUD_SIZING * sized
     return replace(
         even,
         capacity=capacity.astype(np.float32),
