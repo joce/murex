@@ -12,6 +12,7 @@
     ".uv-cache",
     ".venv",
     "cspell.json",
+    "docs/*/references/**",
     "Makefile",
     "node_modules",
     "package-lock.json",
