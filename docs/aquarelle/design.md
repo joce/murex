@@ -1,5 +1,7 @@
 # Wet media: design proposal
 
+<!-- cspell:ignore dryingshift -->
+
 Status: draft (issue `murex-cjx.1`, under the epic `murex-cjx`), for the
 owner to accept, change or refuse. Nothing of it is built. The questions the
 owner decides are gathered at the end.
@@ -51,10 +53,15 @@ without swatches" below.
    than the mixture of the two). Laid over it while it is wet, it mixes as
    paint does. A wet brush passed over a dry wash that does not stain
    disturbs it a little.
-8. **Wet is darker, and shines.** Water fills the air between the grains of
-   pigment, so a wet wash looks darker and more saturated than it will dry.
-   While water stands on the paper it shines under a lamp. A wash dries
-   lighter: measured as the lightness of the same wash, wet and dry.
+8. **A wash changes as it dries, and shines while wet.** Water fills the
+   air between the grains of pigment, which then scatter less white light,
+   so a wet wash is more saturated than it will dry. While water stands on
+   the paper it shines under a lamp. What changes on drying is mostly the
+   chroma: measured on 75 paints, it falls by about 11 C* on average while
+   the lightness moves by about 2 L*, either way. Fine dark pigments (the
+   phthalocyanines, the blacks) lighten by 7 to 16 L*, yellows and cadmiums
+   darken a little, coarse cerulean hardly changes (`references.md`,
+   handprint_dryingshift).
 9. **The paper drinks.** A hard-sized paper lets the water stand and move
    on its surface. An unsized one (xuan, blotting paper) drinks it at once:
    lines feather, and ink spreads in halos. The water runs further along the
@@ -214,7 +221,7 @@ There is one renderer for everything on the surface, from the paper up:
   stratum by Kubelka-Munk, as fusain's `_reflectance_rows` does now; then
   what is buried, baked into the reflectance at the bottom;
 - the wet layer on top, with the scattering of its pigment lowered while
-  water fills the air between its grains (wet is darker), and a gloss where
+  water fills the air between its grains (wet is more saturated), and a gloss where
   water stands, lit by the lamp and the relief as fusain and huile light
   theirs;
 - gouache's chalk scatters strongly, and dries matte.
@@ -375,9 +382,9 @@ Each step is accepted on its own measurements, as fusain's were.
 
 The owner has no wet media to paint with, so no swatch will be painted for
 murex. What the wet media are judged against is what can be had without
-them, in three kinds, the strongest first. Gathering them, and checking
-each source named here before it is relied on, is `murex-cjx.11`, and comes
-before step 2 is judged.
+them, in three kinds, the strongest first (measured spectra are a fourth).
+They were gathered on 2026-11-28 (`murex-cjx.11`), and are in
+`references.md`, which says what each behaviour has and what has nothing.
 
 **Laws, with numbers.** These make tests that need no picture:
 
@@ -392,10 +399,12 @@ before step 2 is judged.
 - Particles settle at a speed that goes as the square of their size and as
   how much denser than water they are (Stokes). The order in which pigments
   granulate follows from their sizes and densities, which are published.
-- Wet is darker for a reason that can be computed: water (refractive index
-  1.33) in place of air (1) between the grains lowers how much light they
-  scatter. How much lighter a wash dries then comes from the indices of the
-  pigment and of gum arabic, not from a number tuned to look right.
+- A wash changes as it dries for a reason that can be computed: water
+  (refractive index 1.33) in place of air (1) between the grains lowers how
+  much light they scatter. How its chroma and lightness move then comes from
+  the indices of the pigment and of gum arabic, not from a number tuned to
+  look right, and is checked against the one measurement of it (75 paints,
+  wet and dry).
 - The invariants of the other media hold: water and pigment conserved, a
   wash moved by whole pixels the same to the bit, and the same wash at 2 and
   4 px/mm the same when measured in millimetres.
