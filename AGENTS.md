@@ -72,12 +72,15 @@ What every medium shares is at the top of the package:
 
 - `spectral.py`, `_spectral_tables.py`, `pigment.py`: colour. Pigments and Kubelka-Munk mixing over 24 spectral bands.
 - `spline.py`, `noise.py`, `filters.py`, `reference.py`, `png.py`: stroke paths, textures, small image filters, reference images and output. `_rounding.py`: counts worked out from lengths (`whole_floor`, `whole_ceil`), which must not hang on a last bit.
+- `paper.py`: the `Paper`, in millimetres: its tooth (drawn at a scale in px/mm), colour and what it does with water (sizing, the water its fibres hold, their direction), and the per-pixel maps a surface reads of it (`Paper.maps`: even for a machine-made paper; a varying one draws from a generator of its own, never the tooth's).
+- `papers.py`: the presets, dry and wet (hot-pressed, cold-pressed, rough, xuan).
+- `surface.py`: the shared `Surface` (step 1 of `murex-cjx`): a paper's tooth and maps at a scale (`px_per_mm`, 4 by default), the water standing on it and in its fibres, a clock, soaking in, evaporation in the `Air` over it, and drying; totals kept for conservation.
 
 A medium has a subpackage, and a folder of its name under `tests/`, `tools/`, `examples/` (scripts, and the images they write to `output/`) and `docs/` (its README, its design, its changelog from before it moved here).
 
 `murex/fusain/`:
 
-- `paper.py`, `papers.py`: a paper's texture, tooth and colour, and the presets.
+- `papers.py`: fusain's name for the shared presets (`murex.papers`), and its list of them (`ALL`, without the wet media's papers).
 - `sheet.py`: the `Sheet`, with the tooth, how far the paper has been crushed (`crush`) and the wax on it polished (`polish`: `press` is what a tip meets of the two), how far it has been indented (`dent`) and its fibres raised (`rough`), the pigment it holds and the two layers that lie over it (dust, what a binder holds there: `bonded`, and a film on each: `films`), strokes, a stylus, rubbing and erasing, fixative, what shines, and rendering.
 - `medium.py`, `pencils.py`, `charcoal.py`, `pastels.py`, `conte.py`, `crayons.py`: what a stick is made of; graphite and coloured pencils, charcoals, soft, hard and oil pastels and pastel pencils, Conté crayons, wax crayons.
 - `stick.py`: a medium in the hand, with a tip that wears. `pens.py`: ballpoint pens, whose ink is a stain in the paper, and a pen in the hand (`HeldPen`), which keeps the ink its ball gathers.

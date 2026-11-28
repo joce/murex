@@ -1210,7 +1210,7 @@ def study(items: Sequence[Item]) -> np.ndarray:
 
 
 #: White drawing paper with a clear tooth, so that the grain sparkles.
-PAPER = papers.CARTRIDGE.with_(grain=3.5, depth=1.1, color=PAPER_HEX, name="drawing")
+PAPER = papers.CARTRIDGE.with_(grain=0.875, depth=1.1, color=PAPER_HEX, name="drawing")
 
 #: The crayon taken for each colour of the design.
 CRAYON = {

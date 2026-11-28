@@ -48,7 +48,7 @@ BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))
 RED, YELLOW, BLUE, DARK = "#c0392b", "#f2c40f", "#2456a6", "#141416"
 #: A smooth drawing paper with a shallow tooth, as examples/fusain/macaw.py uses.
-SMOOTH = Paper("wove", grain=2.0, depth=0.4, bite=0.5, give=0.4, color="#fbfaf6")
+SMOOTH = Paper("wove", grain=0.5, depth=0.4, bite=0.5, give=0.4, color="#fbfaf6")
 
 
 def _sheet(paper=papers.CARTRIDGE) -> Sheet:

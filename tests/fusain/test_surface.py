@@ -21,7 +21,7 @@ from murex.fusain import (
     tools,
 )
 from murex.fusain import _engine as eng
-from murex.fusain.sheet import TOOTH_HEIGHT
+from murex.fusain.sheet import PX_PER_MM, TOOTH_HEIGHT
 
 BOX = (20, 20, 180, 130)
 INSIDE = (slice(50, 100), slice(50, 150))
@@ -154,7 +154,7 @@ def test_a_flattened_tooth_is_level_and_touched_all_over():
     flat = _shaded(pencils.H4, 1.0, 6)
     kept = flat.copy()
     kept.crush[:] = 0.0
-    top = TOOTH_HEIGHT * flat.paper.grain * flat.paper.depth
+    top = TOOTH_HEIGHT * flat.paper.grain * PX_PER_MM * flat.paper.depth
     level = flat.surface_height()[INSIDE] / top
     untouched = kept.surface_height()[INSIDE] / top
     assert np.median(level) < 0.05 < 0.4 < np.median(untouched)
@@ -418,7 +418,7 @@ def test_a_groove_shows_as_a_line_of_shadow_under_a_raking_light():
 def test_the_floor_of_a_groove_is_as_far_down_as_it_was_pressed():
     paper = papers.CARTRIDGE
     sheet = _sheet()
-    top = TOOTH_HEIGHT * paper.grain * paper.depth
+    top = TOOTH_HEIGHT * paper.grain * PX_PER_MM * paper.depth
     assert float(sheet.surface_height().max()) == pytest.approx(top, rel=1e-3)
     sheet.indent(LINE, 0.25)  # (half a tooth deep: only the peaks are pushed down)
     depth = 0.25 * eng.INDENT
@@ -437,7 +437,7 @@ def test_the_floor_of_a_groove_is_as_far_down_as_it_was_pressed():
     level.indent(LINE, 0.5)
     height = level.surface_height()
     assert height.max() == 0.0 and not height[:70].any()
-    lowest = -0.5 * eng.INDENT * TOOTH_HEIGHT * level.paper.grain
+    lowest = -0.5 * eng.INDENT * TOOTH_HEIGHT * level.paper.grain * PX_PER_MM
     assert float(height.min()) == pytest.approx(lowest, rel=1e-5)
 
 
@@ -567,7 +567,7 @@ def test_the_fibres_come_up_in_the_papers_own_clumps():
     corr = np.corrcoef(sand.rough[CUT].ravel(), knife.rough[CUT].ravel())[0, 1]
     assert corr > 0.95
     # and however often: cut again, none comes up further than its own
-    clump = eng.CLUMP * papers.CARTRIDGE.grain
+    clump = eng.CLUMP * papers.CARTRIDGE.grain * PX_PER_MM
     salt = sand._fibres()
     own = np.array(
         [[eng.fibres_at(ix, iy, clump, salt) for ix in range(200)] for iy in range(150)]

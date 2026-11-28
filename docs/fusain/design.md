@@ -525,7 +525,9 @@ tooth of a drawing paper is finer than a pencil line, which is two or three
 grains wide. (The first version of the tooth had patches several grains
 across, and shading came out in blotches wider than the pencil.)
 
-The paper itself is described by a `Paper` (texture, tooth size in pixels,
+The paper itself is described by a `Paper` (texture, tooth size (in
+millimetres since the paper became `murex.Paper`, shared by every medium,
+drawn by fusain at 4 px/mm: a grain of 3 pixels is 0.75 mm),
 depth of the tooth, how abrasive it is, how much it gives under a tip, colour), with presets such as
 cartridge paper, hot-pressed, cold-pressed, laid (Ingres), pebbled (charcoal
 paper) and sanded pastel paper.
