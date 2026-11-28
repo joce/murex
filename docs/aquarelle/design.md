@@ -418,6 +418,28 @@ whose licence lets them be kept go into the repository (in Git LFS). Figures
 in papers, such as Curtis's photographs of real watercolour beside his
 renders, are read and measured, never copied in.
 
+**Where they are kept.** Everything gathered is kept in the repository, so
+that any session, and any agent, works from the same references and not
+from what one session read:
+
+- `docs/aquarelle/references.md` is the register. Each source has its full
+  citation, its address and an archived copy's address (the Wayback
+  Machine), the date it was read, its licence, the numbers taken from it
+  (with the page, table or figure they come from), what behaviour they
+  settle, and the test that uses them. Where sources disagree, both are
+  written down, and which one the test follows and why.
+- The numbers themselves go into the code, each constant with a comment
+  naming its entry in the register, and into the tests that check them.
+  CI does not fetch images, and no test may need one, so a test never reads
+  a photograph: it checks the numbers measured from it.
+- A photograph whose licence allows it is kept in Git LFS, in
+  `docs/aquarelle/references/`, with its licence and author beside it, and
+  the tool that measured it (`tools/aquarelle/`) with the numbers it gave.
+  A photograph or figure that may not be kept is cited, and only what was
+  measured from it is written down.
+- No paper or book is copied in. A short quotation where a number needs its
+  context is enough.
+
 What none of these settle is left alone: absolute tones, absolute times,
 how a given brand of paper behaves. A behaviour with no reference is built
 to be there and to go the right way, then left. The rule of the other media
