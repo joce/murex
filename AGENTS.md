@@ -4,7 +4,7 @@
 
 - `murex.fusain` draws with dry and semi-dry media (graphite and coloured pencils, charcoal, pastel, Conté and wax crayons, ballpoint pen) on a paper with tooth.
 - `murex.huile` paints in oils: brushes and knives lay, drag, mix and lift paint on a canvas, and a renderer lights the result. It was `oilpaint`.
-- `murex.aquarelle` will be the wet media (ink, watercolour, felt-tip markers).
+- `murex.aquarelle` will be the wet media (watercolour, gouache, inks, pens with liquid ink, felt-tip markers), on one surface that every medium will read and write: the epic `murex-cjx`; `docs/aquarelle/design.md`, a draft for the owner, says how. The owner has no wet media to paint swatches with: aquarelle is judged against the references in `docs/aquarelle/references.md` (its files in `docs/aquarelle/references/`, binaries in Git LFS), and a number taken from one names its entry there.
 
 The epic `murex-9r5` says why it is one package and in what order the rest arrives.
 
@@ -61,6 +61,7 @@ uv run python tools/huile/bench.py --save DIR      # keep each scene's painted s
 uv run python tools/huile/bench.py --compare DIR   # compare byte for byte with a kept state
 uv run python tools/huile/knife_probe.py ribs      # measure the ribs a dragging knife leaves (skim: what a knife barely touching lays; lumps: what a loaded pull along an earlier ridge drops; --finer K: in steps K times shorter)
 uv run python tools/huile/break_stats.py PICTURE --box x0,y0,x1,y1 --px-per-mm 2   # how a knife's white breaks over a dark
+uv run python tools/aquarelle/extract_deborah.py   # the core pigments' spectra, as CSV, out of the spectral library kept in LFS (needs it fetched)
 ```
 
 The first run of huile's tests compiles its kernels (about a minute).

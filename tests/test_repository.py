@@ -1,4 +1,6 @@
-"""The repository itself: its images are in Git LFS, as .gitattributes says.
+"""The repository itself: its images, and the binary files among the
+references of the media (papers, spectral libraries), are in Git LFS, as
+.gitattributes says.
 
 A machine without git-lfs commits an image as an ordinary file, and every
 version of it then stays in the history that each clone downloads. These
@@ -14,7 +16,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-IMAGES = ("*.png", "*.jpg")
+IMAGES = ("*.png", "*.jpg", "*.pdf", "*.sli", "*.xls")
 POINTER = re.compile(rb"\Aversion https://git-lfs\.github\.com/spec/v1\n")
 
 
