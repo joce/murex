@@ -1376,7 +1376,7 @@ STEPS: list[tuple[str, Callable[[Hand, Bird], None]]] = [
 
 def draw() -> Sheet:
     """The drawing, on its sheet."""
-    paper = Paper("wove", grain=2.0, depth=0.4, bite=0.5, give=0.4, color="#fbfaf6")
+    paper = Paper("wove", grain=0.5, depth=0.4, bite=0.5, give=0.4, color="#fbfaf6")
     sheet = Sheet(WIDTH, HEIGHT, paper=paper, seed=SEED)
     hand = Hand(sheet)
     bird = build(hand.seqs)

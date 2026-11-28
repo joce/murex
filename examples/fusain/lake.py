@@ -1810,7 +1810,7 @@ def write_study(st: Study, folder: Path) -> None:
 #: cartridge, so that rubbed tones go smooth, and deep enough to take a
 #: real black.
 SHEET_PAPER = papers.CARTRIDGE.with_(
-    color="#f6f4ee", depth=0.55, grain=2.4, bite=0.42, give=0.4, name="drawing paper"
+    color="#f6f4ee", depth=0.55, grain=0.6, bite=0.42, give=0.4, name="drawing paper"
 )
 #: The drawing is shown as it looks scanned or in soft light: heavy
 #: graphite keeps a little of its silver, and the darks stay deep.

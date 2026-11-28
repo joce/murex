@@ -10,12 +10,12 @@ import numpy as np
 
 from .. import spectral as sp
 from .. import spline, write_png
+from ..paper import Paper
 from ..spline import Profile
 from . import _engine as eng
 from . import hatching
 from ._engine import BOUND, FILM, HELD, IS, IV, IW, IX, KINDS, LOOSE, PASTE, SET, N
 from .medium import Medium
-from .paper import Paper
 from .pens import HeldPen, Pen
 from .smudger import Smudger
 from .stick import Stick
@@ -29,6 +29,13 @@ __all__ = ["DEFAULT_LIGHT", "HELD", "IS", "IV", "IX", "LOOSE", "N", "Sheet"]
 DEFAULT_LIGHT = (-0.6, -0.8, 2.4)
 #: Share of the light that comes from all around rather than from the lamp.
 AMBIENT = 0.3
+#: fusain's scale, in pixels per millimetre: a paper's sizes are in
+#: millimetres, and a sheet draws them at this many pixels to one. It is the
+#: scale fusain's sizes in pixels were restated at (a grain of 3 px is 0.75
+#: mm), so that its pictures stay the same to the bit; it stays fusain's own
+#: until fusain moves onto the shared surface (murex-cjx.9), whose scale it
+#: will then take.
+PX_PER_MM = 4.0
 #: Height of the deepest tooth of a paper of depth 1, as a share of its grain.
 TOOTH_HEIGHT = 0.12
 #: Three things shine under a lamp, each in its own way: graphite, polished
@@ -91,8 +98,8 @@ class Sheet:
     width, height:
         Size in pixels.
     paper:
-        A :class:`fusain.Paper`, e.g. ``papers.INGRES``. Default: cartridge
-        paper.
+        A :class:`murex.Paper`, e.g. ``papers.INGRES``. Default: cartridge
+        paper. Its sizes, in millimetres, are drawn at :data:`PX_PER_MM`.
     seed:
         Random seed for the paper's tooth and for the marks.
 
@@ -137,7 +144,7 @@ class Sheet:
         self._rng = np.random.default_rng(seed)
         H, W = self.height, self.width
         self.ground = self.paper.reflectance()
-        self.tooth = self.paper.tooth(H, W, self._rng)
+        self.tooth = self.paper.tooth(H, W, self._rng, px_per_mm=PX_PER_MM)
         self.crush = np.zeros((H, W), np.float32)
         self.polish = np.zeros((H, W), np.float32)
         self.rough = np.zeros((H, W), np.float32)
@@ -740,11 +747,12 @@ class Sheet:
         and a valley the tip never reached is not left a pit), and no
         higher than the floor of a groove where it has been indented. The
         peaks of an untouched tooth are at ``TOOTH_HEIGHT`` times the
-        paper's grain and depth (times ``relief``), and its valleys at 0.
+        paper's grain (in pixels) and depth (times ``relief``), and its
+        valleys at 0.
 
         (To a tip that comes after, what matters about a flattened tooth is
         that it is level: it touches all of it, as it would the peaks.)"""
-        grain, depth = self.paper.grain, self.paper.depth
+        grain, depth = self.paper.grain * PX_PER_MM, self.paper.depth
         if depth <= 0.0:  # (a level paper: nothing but its grooves)
             return -self.dent * np.float32(TOOTH_HEIGHT * grain * relief)
         # (the peaks come down towards the valleys)
@@ -1129,7 +1137,7 @@ class Sheet:
                     tool.scrape,
                     tool.holds,
                     tool.deep,
-                    max(eng.CLUMP * self.paper.grain, 1.0),
+                    max(eng.CLUMP * self.paper.grain * PX_PER_MM, 1.0),
                     self._fibres(),
                 ],
                 dtype=np.float64,

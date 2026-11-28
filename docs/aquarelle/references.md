@@ -287,6 +287,19 @@ Gathered 2026-11-28. Every number below was read in the source named, at the pla
 - Settles: drying time of a wash and its dependence on humidity (through x_s - x) and air speed (Theta).
 - Proposed test: the evaporation rate per area should be linear in (x_s - x) and rise by about 76% per m/s of air (19/25); halving the humidity deficit should double the drying time of a free film.
 
+#### alduchov1996
+- Citation: O. A. Alduchov, R. E. Eskridge, "Improved Magnus form approximation of saturation vapor pressure", Journal of Applied Meteorology 35(4), 601-609 (1996). DOI 10.1175/1520-0450(1996)035<0601:IMFAOS>2.0.CO;2. Read in the authors' technical report of the same title: National Climatic Data Center, NOAA, Asheville NC, report DOE/ER/61011-T6 (OSTI 548871, DOI 10.2172/548871, November 1997), 21 pages, a scan without a text layer.
+- Address: https://www.osti.gov/servlets/purl/548871 (record https://www.osti.gov/biblio/548871; the journal's page https://journals.ametsoc.org/view/journals/apme/35/4/1520-0450_1996_035_0601_imfaos_2_0_co_2.xml, not read) ; Archived: http://web.archive.org/web/20261002122345/https://www.osti.gov/servlets/purl/548871 ; record http://web.archive.org/web/20261002122340/https://www.osti.gov/biblio/548871 ; journal's page http://web.archive.org/web/20261116191909/https://journals.ametsoc.org/view/journals/apme/35/4/1520-0450_1996_035_0601_imfaos_2_0_co_2.xml
+- Read: 2026-11-28
+- Licence: a report of work sponsored by the US government (DOE contract AI05-90ER61011), "Distribution of this document is unlimited" (title page); no licence to republish is stated, and one author was not a federal employee; not kept
+- Kept file (in `references/papers/`): none
+- Numbers:
+  - Report Table II (p. 8, "Saturation vapor pressure approximations above a plane of water", "Approximation developed this research"): AEKR e(t) = 6.1094 x exp(17.625 t / (243.04 + t)), e in hPa, t in degrees C. (So 0.61094 kPa, 17.625, 243.04: the constants of murex/surface.py.)
+  - Eq. (11)-(13) (pp. 8-9): an approximation is "sufficiently accurate" if its error is within what a 0.05 C round-off in temperature makes in vapour pressure (d <= 1), which is 0.52% at -40 C and 0.25% at 50 C against the Goff-Gratch formulation; AEKR minimises the largest relative error against the three basic formulations (Goff-Gratch 1946, Wexler 1976, Sonntag 1990) over -40 to 50 C (p. 9).
+  - P. 10: AEKR and AEKD are the two Magnus-form approximations that satisfy d_k <= 1 against all three over -40 to 50 C (Table III).
+- Settles: the saturation vapour pressure, and with it the humidity ratio of saturated air, from which etoolbox_evap's formula takes its humidity deficit.
+- Check (my arithmetic, in tests/test_surface.py): with it, the humidity ratios of etoolbox_evap's worked example come out as 0.014662 (printed 0.014659) at 20 C and 0.009858 (printed 0.0098) at 25 C and 50%, within 0.6%, and its rate 0.1657 kg/(m2 h) against 0.168 (-1.4%).
+
 ### Pigments: size, density, refractive index
 
 #### handprint_attributes

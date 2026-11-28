@@ -10,6 +10,7 @@ import murex
 ROOT = Path(murex.__file__).parent
 COLOUR = {"spectral", "_spectral_tables", "pigment"}
 SHARED = COLOUR | {"_rounding", "spline", "noise", "filters", "reference", "png"}
+SHARED |= {"paper", "papers", "surface"}  # (the supports, and the surface)
 OWN = {"_about", "_version"}  # (the package's own: its version)
 MEDIA = {p.name for p in ROOT.iterdir() if (p / "__init__.py").is_file()}
 

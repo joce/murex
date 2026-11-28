@@ -520,12 +520,14 @@ are polished by 0.55 (0.77 when their passes added up past that), with
 0.18 of the gloss (0.37); a crayon's and an oil pastel's, which are
 thicker, by 0.83 and 0.85, with 0.72 and 0.75.
 
-Sizes are in pixels, and the paper's grain sets the scale of a drawing: the
-tooth of a drawing paper is finer than a pencil line, which is two or three
-grains wide. (The first version of the tooth had patches several grains
+Sizes are in pixels, but the paper's, which are in millimetres and drawn at
+4 px/mm; its grain sets the scale of a drawing: the tooth of a drawing paper
+is finer than a pencil line, which is two or three grains wide. (The first version of the tooth had patches several grains
 across, and shading came out in blotches wider than the pencil.)
 
-The paper itself is described by a `Paper` (texture, tooth size in pixels,
+The paper itself is described by a `Paper` (texture, tooth size (in
+millimetres since the paper became `murex.Paper`, shared by every medium,
+drawn by fusain at 4 px/mm: a grain of 3 pixels is 0.75 mm),
 depth of the tooth, how abrasive it is, how much it gives under a tip, colour), with presets such as
 cartridge paper, hot-pressed, cold-pressed, laid (Ingres), pebbled (charcoal
 paper) and sanded pastel paper.
@@ -535,7 +537,8 @@ on it varies at the same ones. A wove paper varies at a grain and below: a
 tone on it is fine flecks. A rough paper also varies over many grains, so at
 a small grain a tone on it is blotchy. A pebbled paper is pits a grain
 across, 1.3 grains apart, each with its own depth and outline, in a net of
-rims: it varies at the scale of a pit and little beside (at grain 4, a tenth
+rims: it varies at the scale of a pit and little beside (at a grain of 1 mm,
+4 pixels, a tenth
 of its variation is at wavelengths over four grains, against over half for a rough
 paper), and a light tone on it is a net of dark around pale pits.
 

@@ -266,6 +266,14 @@ The rest of what the media share is there to be used too:
 - `Bezier`, `CatmullRom`, `Polyline`: stroke paths resampled by arc length,
   and values that vary along a stroke.
 - `murex.noise`: textures (paper, weaves, wood grain).
+- `Paper` and `murex.papers`: papers, their tooth, colour and what they do
+  with water (sizing, the water their fibres hold, the way the fibres run),
+  sizes in millimetres; every property a per-pixel map. fusain draws on them.
+- `Surface`: what lies on a paper, with a clock. For now it holds water,
+  standing on the paper and in its fibres, which soaks in and evaporates in
+  the `Air` over it until the sheet is dry (`lay_water`, `wait`, `dry`): the
+  first step of the wet media to come, which will flow and carry pigment on
+  it.
 - `Reference`: a reference image, asked for its colour, value, direction and
   detail at the scale of the tool in hand, and for a stroke path that follows
   its forms.

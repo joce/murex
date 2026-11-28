@@ -107,10 +107,13 @@ dry drawing as it was:
 - `sizing`, 0..1: how far the gelatine or starch size keeps water on the
   surface. 1 for a hard-sized watercolour paper, 0 for xuan or blotting
   paper.
-- `holds`: how much water the fibres take before they are full. A heavy
-  sheet (640 g/m²) holds several times what a light one (190 g/m²) does.
-- `fibres`, an angle and how strongly they run that way: the direction the
-  water wicks fastest along.
+- `thickness` (mm) and `porosity`, whose product is `capacity`: how much
+  water the fibres take before they are full, in mm of water. A heavy sheet
+  (640 g/m²) holds several times what a light one (190 g/m²) does. (It is
+  `capacity`, not `holds`, because `Paper` already has `hold`, how much its
+  tooth holds of a dry medium.)
+- `fibre_angle` and `fibre_ratio`: the direction the water wicks fastest
+  along, and how much faster than across.
 - Presets for hot-pressed, cold-pressed and rough watercolour papers, and
   for xuan. The `"rough"` texture is there already.
 
@@ -149,7 +152,10 @@ engine needs to know of it: what kind of paper it is, the engine does not.
 ### The state of the surface (layer 4)
 
 One object holds everything that lies on a support, whichever medium laid
-it: `murex.Surface`, in `murex/surface.py`. Three kinds of thing are stored, per pixel, all `float32`.
+it: `murex.Surface`, in `murex/surface.py`. Three kinds of thing are stored, per pixel, all `float32`
+but the water (standing and in the fibres), which is `float64`: a short
+wait evaporates less than a float32 depth can tell, and the water would
+then stall while the books said it had gone.
 
 **The paper's own state.** This is what a tool does to the paper, not what
 lies on it. Every medium reads it: `tooth` (set from the paper), `crush`,

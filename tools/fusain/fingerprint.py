@@ -68,7 +68,7 @@ RENDERS: tuple[tuple[str, dict], ...] = (
 #: A lamp overhead, under which heavy ink bronzes.
 OVERHEAD = ("overhead", {"light": (0.05, -0.05, 1.0)})
 #: A paper with no tooth at all, which the kernels treat apart.
-LEVEL = Paper("wove", grain=2.0, depth=0.0, bite=0.4, name="level")
+LEVEL = Paper("wove", grain=0.5, depth=0.0, bite=0.4, name="level")
 RED, YELLOW, BLUE, GREEN = "#c0392b", "#f2c40f", "#2456a6", "#2e8b57"
 DARK, PALE = "#141416", "#f4e9d0"
 

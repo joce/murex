@@ -140,8 +140,10 @@ stay white under a 4B. Right: a 2H pressed hard over the left half, then one
 light layer of 4B over all of it, grainy on the tooth left alone and even on
 the flattened one.
 
-Sizes are in pixels, and the paper's `grain` sets the scale: a pencil line is
-two or three grains wide.
+Sizes are in pixels, but a paper's, which are in millimetres (the papers are
+shared with the other media: `murex.Paper`, `murex.papers`); fusain draws them
+at 4 px/mm, so a cartridge paper's `grain` of 0.75 mm is 3 pixels. The grain
+sets the scale: a pencil line is two or three grains wide.
 
 ```python
 sheet.indent([(100, 300), (400, 320)], pressure=0.7)   # a stylus: it lays nothing, and leaves a groove
